@@ -1,0 +1,15 @@
+{
+  "required": true,
+  "package": "mystcraft.flood.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [
+    "MinecraftServerMixin",
+    "SimpleRegistryAccessor",
+    "MinecraftServerAccessor",
+    "AgeLogicMixin"
+	
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

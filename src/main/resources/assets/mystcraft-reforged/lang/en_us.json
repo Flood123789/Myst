@@ -1,0 +1,22 @@
+﻿{
+  "itemgroup.mystcraft-reforged.mystcraft_group": "Mystcraft Reforged",
+  "item.mystcraft-reforged.agebook": "Descriptive Book",
+  "item.mystcraft-reforged.linkingbook": "Linking Book",
+  "item.mystcraft-reforged.linkpanel": "Link Panel",
+  "item.mystcraft-reforged.ink_vial": "Ink Vial",
+  "item.mystcraft-reforged.page": "Empty Page",
+  "item.mystcraft-reforged.symbol_page": "Symbol Page",
+  "item.mystcraft-reforged.booster": "Sealed Notebook",
+  "item.mystcraft-reforged.deskext": "Writing Desk Backboard",
+  "item.mystcraft-reforged.folder": "Collation Folder",
+  "item.mystcraft-reforged.folder_filled": "Filled Collation Folder",
+  "item.mystcraft-reforged.glasses": "XComp's Glasses",
+  "block.mystcraft-reforged.writingdesk": "Writing Desk",
+  "block.mystcraft-reforged.bookbinder": "Book Binder",
+  "block.mystcraft-reforged.inkmixer": "Ink Mixer",
+  "block.mystcraft-reforged.bookstand": "Bookstand",
+  "block.mystcraft-reforged.lectern": "Lectern",
+  "block.mystcraft-reforged.linkmodifier": "Link Modifier",
+  "block.mystcraft-reforged.receptacle": "Book Receptacle",
+  "block.mystcraft-reforged.crystal": "Crystal"
+}

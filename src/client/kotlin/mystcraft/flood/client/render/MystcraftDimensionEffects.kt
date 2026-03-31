@@ -1,0 +1,32 @@
+package mystcraft.flood.client.render
+
+import net.minecraft.client.render.DimensionEffects
+import net.minecraft.util.math.Vec3d
+
+class MystcraftDimensionEffects : DimensionEffects(
+    192.0f, // Cloud height
+    true,   // Has ground
+    SkyType.NORMAL,
+    false,  // Force bright
+    false   // Alternate sky color
+) {
+    /**
+     * Required implementation for 1.20.1. 
+     * Simply returns the input color without modification.
+     */
+    override fun adjustFogColor(color: Vec3d, sunHeight: Float): Vec3d {
+        return color
+    }
+
+    /**
+     * Required implementation for 1.20.1.
+     * Returning null tells Minecraft to use the standard fog color logic.
+     */
+    override fun getFogColorOverride(skyAngle: Float, tickDelta: Float): FloatArray? {
+        return null
+    }
+
+    override fun useThickFog(camX: Int, camY: Int): Boolean {
+        return false
+    }
+}

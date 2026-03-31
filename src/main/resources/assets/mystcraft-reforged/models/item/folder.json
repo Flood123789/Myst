@@ -1,0 +1,6 @@
+﻿{
+    "textures":  {
+                     "layer0":  "mystcraft-reforged:item/folder"
+                 },
+    "parent":  "item/generated"
+}
