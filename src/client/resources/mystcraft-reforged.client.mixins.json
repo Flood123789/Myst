@@ -4,7 +4,8 @@
   "compatibilityLevel": "JAVA_17",
   "client": [
     "ClientPlayNetworkHandlerAccessor",
-    "BiomeColorMixin"
+    "BiomeColorMixin",
+    "ClientWeatherMixin"
   ],
   "injectors": {
     "defaultRequire": 1

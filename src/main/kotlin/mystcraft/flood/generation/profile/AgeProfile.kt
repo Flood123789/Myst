@@ -22,6 +22,18 @@ data class AgeProfile(
 }
 
 enum class TerrainType { STANDARD, CAVES, FLOATING_ISLANDS, FLAT }
+
+// FIXED: Consolidated the enums and added WEIGHTED
+enum class BiomeMode { SINGLE, VANILLA_DISTRIBUTION, CHECKERBOARD, WEIGHTED }
+
+data class BiomeWeight(var biomeId: String, var weight: Int)
+
+// FIXED: Only one BiomeSet declaration now!
+data class BiomeSet(
+    var mode: BiomeMode,
+    var biomes: MutableList<BiomeWeight>
+)
+
 data class ColorSettings(val sky: Int, val fog: Int, val water: Int, val grass: Int, val foliage: Int)
 
 data class TimeSettings(
@@ -41,7 +53,7 @@ data class WeatherSettings(
     var isEndlessStorm: Boolean,
     var noWeather: Boolean
 )
-data class BiomeSet(val mode: BiomeMode, val specificBiomes: List<String>)
-enum class BiomeMode { SINGLE, VANILLA_DISTRIBUTION, CHECKERBOARD }
+
 data class StabilityProfile(val isStable: Boolean, val instabilityScore: Int)
+
 data class SpawnSettings(val noMobs: Boolean, val hostileMultiplier: Float, val passiveMultiplier: Float)

@@ -3,6 +3,9 @@ package mystcraft.flood.item
 import mystcraft.flood.MystcraftReforged
 import mystcraft.flood.access.DimensionInjector
 import net.fabricmc.fabric.api.dimension.v1.FabricDimensions
+import net.minecraft.client.item.TooltipContext
+import net.minecraft.entity.effect.StatusEffectInstance
+import net.minecraft.entity.effect.StatusEffects
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.item.Item
 import net.minecraft.item.ItemStack
@@ -10,6 +13,7 @@ import net.minecraft.registry.RegistryKey
 import net.minecraft.registry.RegistryKeys
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.text.Text
+import net.minecraft.util.Formatting
 import net.minecraft.util.Hand
 import net.minecraft.util.Identifier
 import net.minecraft.util.TypedActionResult
@@ -17,7 +21,6 @@ import net.minecraft.util.math.Vec3d
 import net.minecraft.world.Heightmap
 import net.minecraft.world.TeleportTarget
 import net.minecraft.world.World
-import net.minecraft.world.chunk.ChunkStatus
 
 class DescriptiveBookItem(settings: Settings) : Item(settings) {
     override fun use(world: World, user: PlayerEntity, hand: Hand): TypedActionResult<ItemStack> {
@@ -34,7 +37,7 @@ class DescriptiveBookItem(settings: Settings) : Item(settings) {
             (server as DimensionInjector).`mystcraft$injectDimension`(ageId)
             
             nbt.putString("Age_ID", ageId.toString())
-            user.sendMessage(Text.literal("Descriptive Book linked to $ageName."), true)
+            user.sendMessage(Text.literal("Descriptive Book linked to $ageName.").formatted(Formatting.GREEN), true)
             
             teleportToAge(user, ageId)
         } else {
@@ -50,18 +53,41 @@ class DescriptiveBookItem(settings: Settings) : Item(settings) {
         val targetWorld = server.getWorld(dimKey)
 
         if (targetWorld != null) {
-            targetWorld.getChunk(0, 0, ChunkStatus.FULL, true)
-            val surfaceY = targetWorld.getTopY(Heightmap.Type.WORLD_SURFACE, 0, 0).toDouble()
+            
+            // THE FIX: The Sky Drop. We don't ask the server to do ANY math. 
+            // We just drop you from the sky and let the worker threads build the world beneath you.
+            val dropHeight = 200.0
 
             val teleportTarget = TeleportTarget(
-                Vec3d(0.0, surfaceY + 1.0, 0.0),
+                Vec3d(0.0, dropHeight, 0.0), 
                 Vec3d.ZERO,
                 player.yaw,
                 player.pitch
             )
+            
+            // 15 seconds of Slow Falling to let you glide down while chunks render
+            player.addStatusEffect(StatusEffectInstance(StatusEffects.SLOW_FALLING, 300, 0, false, false))
+            // 20 seconds of Invincibility so you don't suffocate if a mountain spawns on you
+            player.addStatusEffect(StatusEffectInstance(StatusEffects.RESISTANCE, 400, 4, false, false))
+            
             FabricDimensions.teleport(player, targetWorld, teleportTarget)
         } else {
-            player.sendMessage(Text.literal("Age dimension is not loaded."), true)
+            player.sendMessage(Text.literal("Age dimension is not loaded.").formatted(Formatting.RED), true)
         }
+    }
+
+    override fun appendTooltip(stack: ItemStack, world: World?, tooltip: MutableList<Text>, context: TooltipContext) {
+        val nbt = stack.nbt
+        if (nbt != null && nbt.contains("Age_ID")) {
+            val dim = nbt.getString("Age_ID")
+            tooltip.add(Text.literal("Linked to: ").formatted(Formatting.GRAY).append(Text.literal(dim).formatted(Formatting.DARK_AQUA)))
+        } else {
+            tooltip.add(Text.literal("Unlinked").formatted(Formatting.DARK_RED))
+            tooltip.add(Text.literal("Right-click to create a new Age.").formatted(Formatting.GRAY))
+        }
+    }
+
+    override fun hasGlint(stack: ItemStack): Boolean {
+        return stack.hasNbt() && stack.nbt!!.contains("Age_ID")
     }
 }

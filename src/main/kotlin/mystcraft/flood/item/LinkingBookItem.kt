@@ -1,6 +1,7 @@
 package mystcraft.flood.item
 
 import net.fabricmc.fabric.api.dimension.v1.FabricDimensions
+import net.minecraft.client.item.TooltipContext
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.item.Item
 import net.minecraft.item.ItemStack
@@ -8,6 +9,7 @@ import net.minecraft.registry.RegistryKey
 import net.minecraft.registry.RegistryKeys
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.text.Text
+import net.minecraft.util.Formatting
 import net.minecraft.util.Hand
 import net.minecraft.util.Identifier
 import net.minecraft.util.TypedActionResult
@@ -45,5 +47,27 @@ class LinkingBookItem(settings: Settings) : Item(settings) {
             }
         }
         return TypedActionResult.success(stack)
+    }
+
+    // === NEW: Adds the hover text ===
+    override fun appendTooltip(stack: ItemStack, world: World?, tooltip: MutableList<Text>, context: TooltipContext) {
+        val nbt = stack.nbt
+        if (nbt != null && nbt.contains("Dimension")) {
+            val dim = nbt.getString("Dimension")
+            val x = nbt.getDouble("PosX").toInt()
+            val y = nbt.getDouble("PosY").toInt()
+            val z = nbt.getDouble("PosZ").toInt()
+            
+            tooltip.add(Text.literal("Linked to: ").formatted(Formatting.GRAY).append(Text.literal(dim).formatted(Formatting.GOLD)))
+            tooltip.add(Text.literal("Location: $x, $y, $z").formatted(Formatting.DARK_GRAY))
+        } else {
+            tooltip.add(Text.literal("Unlinked").formatted(Formatting.DARK_RED))
+            tooltip.add(Text.literal("Right-click to bind to current location.").formatted(Formatting.GRAY))
+        }
+    }
+
+    // === NEW: Makes the item glow if it is linked ===
+    override fun hasGlint(stack: ItemStack): Boolean {
+        return stack.hasNbt() && stack.nbt!!.contains("Dimension")
     }
 }

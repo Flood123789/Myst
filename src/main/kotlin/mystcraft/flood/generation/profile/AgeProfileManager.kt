@@ -23,7 +23,11 @@ object AgeProfileManager {
         val profile = if (Files.exists(file)) {
             AgeProfile.fromJson(Files.readString(file))
         } else {
-            generateNewProfile(ageId)
+            generateNewProfile(ageId).also { newProfile ->
+                // BUGFIX: Immediately save newly generated profiles to disk!
+                Files.writeString(file, newProfile.toJson())
+                MystcraftReforged.LOGGER.info("Saved new AgeProfile to disk: ${file.fileName}")
+            }
         }
 
         // Initialize live session time from the saved JSON value
@@ -44,7 +48,16 @@ object AgeProfileManager {
             colors = ColorSettings(randColor(), randColor(), randColor(), randColor(), randColor()),
             time = TimeSettings(rand.nextInt(1, 4), rand.nextFloat() * 5f + 0.5f, rand.nextFloat() * 3f + 0.2f, rand.nextBoolean(), null),
             weather = WeatherSettings(false, false, true),
-            biomes = BiomeSet(BiomeMode.VANILLA_DISTRIBUTION, emptyList()),
+            
+            // THE NEW SLICER TEST: 80% Desert, 20% Jungle
+            biomes = BiomeSet(
+                mode = BiomeMode.WEIGHTED,
+                biomes = mutableListOf(
+                    BiomeWeight("minecraft:desert", 80),
+                    BiomeWeight("minecraft:jungle", 20)
+                )
+            ),
+            
             spawning = SpawnSettings(false, 1.0f, 1.0f),
             stability = StabilityProfile(true, 0)
         )
@@ -58,5 +71,6 @@ object AgeProfileManager {
         val dir = server.getSavePath(WorldSavePath.ROOT).resolve("mystcraft_profiles")
         val file = dir.resolve("${ageId.path}.json")
         Files.writeString(file, profile.toJson())
+        MystcraftReforged.LOGGER.info("Saved and unloaded AgeProfile: ${file.fileName}")
     }
 }
