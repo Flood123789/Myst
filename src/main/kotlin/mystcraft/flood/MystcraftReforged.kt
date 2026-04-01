@@ -1,6 +1,5 @@
 package mystcraft.flood
 
-import mystcraft.flood.access.DimensionInjector
 import mystcraft.flood.generation.profile.AgeProfileManager
 import mystcraft.flood.item.ModItemGroups
 import mystcraft.flood.item.ModItems
@@ -8,12 +7,10 @@ import mystcraft.flood.network.ModMessages
 import mystcraft.flood.registry.ModSymbols
 import mystcraft.flood.server.command.AgeCommand
 import net.fabricmc.api.ModInitializer
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
-import net.minecraft.util.Identifier
-import net.minecraft.util.WorldSavePath
 import org.slf4j.LoggerFactory
-import java.nio.file.Files
 
 object MystcraftReforged : ModInitializer {
     const val MOD_ID = "mystcraft-reforged"
@@ -27,25 +24,29 @@ object MystcraftReforged : ModInitializer {
         ModItemGroups.registerItemGroups()
         AgeCommand.register()
 
-        // 1. Re-mount all saved Ages when the server boots up
-        ServerLifecycleEvents.SERVER_STARTING.register { server ->
-            val dir = server.getSavePath(WorldSavePath.ROOT).resolve("mystcraft_profiles")
-            if (Files.exists(dir)) {
-                Files.list(dir).forEach { path ->
-                    val fileName = path.fileName.toString()
-                    if (fileName.endsWith(".json")) {
-                        val ageName = fileName.removeSuffix(".json")
-                        val ageId = Identifier(MOD_ID, ageName)
-                        
-                        // Call our Mixin injector to rebuild the DimensionType and World Properties!
-                        (server as DimensionInjector).`mystcraft$injectDimension`(ageId)
-                        LOGGER.info("Re-mounted Age on startup: $ageId")
+        // 1. Manually move the Age's local clock
+        ServerTickEvents.END_WORLD_TICK.register { world ->
+            val id = world.registryKey.value
+            if (id.namespace == MOD_ID) {
+                val profile = AgeProfileManager.getOrGenerateProfile(world.server, id)
+                
+                // If the time isn't locked to a specific hour, move the sun forward
+                if (profile.time.fixedTime == null) {
+                    
+                    // Add the timescale to our fractional bucket
+                    profile.time.timeAccumulator += profile.time.timeScale
+                    
+                    // When the bucket overflows past 1.0, we add those whole numbers to the clock
+                    if (profile.time.timeAccumulator >= 1.0f) {
+                        val ticksToAdd = profile.time.timeAccumulator.toLong()
+                        profile.time.liveTimeOfDay += ticksToAdd
+                        profile.time.timeAccumulator -= ticksToAdd // Keep any leftover decimals
                     }
                 }
             }
         }
 
-        // 2. Sync disk JSONs to the client when they join the world
+        // 2. Sync profile to client on Join
         ServerPlayConnectionEvents.JOIN.register { handler, _, server ->
             server.worlds.forEach { world ->
                 val id = world.registryKey.value
@@ -53,6 +54,15 @@ object MystcraftReforged : ModInitializer {
                     val profile = AgeProfileManager.getOrGenerateProfile(server, id)
                     ModMessages.sendDimensionSync(handler.player, id, profile)
                 }
+            }
+        }
+
+        // 3. Save Age state on Unload
+        ServerWorldEvents.UNLOAD.register { server, world ->
+            val id = world.registryKey.value
+            if (id.namespace == MOD_ID) {
+                AgeProfileManager.saveAndUnload(server, id)
+                LOGGER.info("Persisted Age: $id")
             }
         }
     }

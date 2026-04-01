@@ -6,8 +6,8 @@
     "MinecraftServerMixin",
     "SimpleRegistryAccessor",
     "MinecraftServerAccessor",
-    "AgeLogicMixin"
-	
+    "AgeLogicMixin",
+    "AgeTimePacketMixin"
   ],
   "injectors": {
     "defaultRequire": 1

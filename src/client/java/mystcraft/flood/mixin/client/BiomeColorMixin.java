@@ -1,7 +1,7 @@
 package mystcraft.flood.mixin.client;
 
-import mystcraft.flood.cache.ClientAgeCache;
-import mystcraft.flood.generation.profile.AgeProfile; // NEW IMPORT
+import mystcraft.flood.client.cache.ClientAgeCache;
+import mystcraft.flood.generation.profile.AgeProfile;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.world.biome.Biome;
 import org.spongepowered.asm.mixin.Mixin;

@@ -1,7 +1,7 @@
 package mystcraft.flood.client
 
 import mystcraft.flood.MystcraftReforged
-import mystcraft.flood.cache.ClientAgeCache
+import mystcraft.flood.client.cache.ClientAgeCache
 import mystcraft.flood.client.network.ClientMessages
 import mystcraft.flood.client.render.MystcraftDimensionEffects
 import net.fabricmc.api.ClientModInitializer

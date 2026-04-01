@@ -1,36 +1,34 @@
 package mystcraft.flood.mixin;
 
-import mystcraft.flood.generation.AgeWorldProperties;
+import mystcraft.flood.generation.profile.AgeProfile;
+import mystcraft.flood.generation.profile.AgeProfileManager;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.world.GameRules;
-import net.minecraft.world.level.ServerWorldProperties;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(ServerWorld.class)
 public class AgeLogicMixin {
 
+    // 1. Stops the Overworld from dictating our time
     @Inject(method = "tickTime", at = @At("HEAD"), cancellable = true)
-    private void mystcraft$decoupledTick(CallbackInfo ci) {
+    private void mystcraft$cancelVanillaTickTime(CallbackInfo ci) {
         ServerWorld world = (ServerWorld) (Object) this;
-        
-        // Safely check if this world is using our independent heart
-        if (world.getLevelProperties() instanceof AgeWorldProperties ageProps) {
-            ageProps.tickAgeTime();
-            ci.cancel(); // Stop vanilla daylight logic entirely
+        if (world.getRegistryKey().getValue().getNamespace().equals("mystcraft-reforged")) {
+            ci.cancel(); 
         }
     }
 
-    @Redirect(method = "tickTime", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/GameRules;getBoolean(Lnet/minecraft/world/GameRules$Key;)Z"))
-    private boolean mystcraft$forceDaylightCycleOff(GameRules gameRules, GameRules.Key<GameRules.BooleanRule> rule) {
+    // 2. THE NEW FIX: Forces the world to ALWAYS use the JSON seed
+    @Inject(method = "getSeed", at = @At("HEAD"), cancellable = true)
+    private void mystcraft$enforceAgeSeed(CallbackInfoReturnable<Long> cir) {
         ServerWorld world = (ServerWorld) (Object) this;
-        // Lie to the client renderer to stop the sun from stuttering
-        if (world.getLevelProperties() instanceof AgeWorldProperties) {
-            return false; 
+        if (world.getRegistryKey().getValue().getNamespace().equals("mystcraft-reforged")) {
+            // Grab the profile from the manager and return its specific seed
+            AgeProfile profile = AgeProfileManager.INSTANCE.getOrGenerateProfile(world.getServer(), world.getRegistryKey().getValue());
+            cir.setReturnValue(profile.getSeed());
         }
-        return gameRules.getBoolean(rule);
     }
 }

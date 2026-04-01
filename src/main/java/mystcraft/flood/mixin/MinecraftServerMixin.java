@@ -6,7 +6,6 @@ import mystcraft.flood.generation.AgeBuilder;
 import mystcraft.flood.generation.profile.AgeProfile;
 import mystcraft.flood.network.ModMessages;
 import net.minecraft.registry.DynamicRegistryManager;
-import mystcraft.flood.generation.AgeWorldProperties;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
@@ -47,19 +46,14 @@ public abstract class MinecraftServerMixin implements DimensionInjector {
     @Override
     public void mystcraft$injectDimension(Identifier ageId) {
         MinecraftServer server = (MinecraftServer) (Object) this;
-        
-        // SAFETY FIRST: If vanilla already loaded the world from level.dat, skip injection!
         RegistryKey<World> worldKey = RegistryKey.of(RegistryKeys.WORLD, ageId);
-        if (this.worlds.containsKey(worldKey)) {
-            System.out.println("[MYSTCRAFT] Age " + ageId + " is already loaded natively. Skipping injection.");
-            return;
-        }
+
+        if (this.worlds.containsKey(worldKey)) return;
 
         try {
             Registry<DimensionOptions> optionsRegistry = this.getRegistryManager().get(RegistryKeys.DIMENSION);
             Registry<DimensionType> typeRegistry = this.getRegistryManager().get(RegistryKeys.DIMENSION_TYPE);
             
-            // CLEAN: Grab the permanent static JSON physics instead of hacking RAM
             RegistryKey<DimensionType> baseAgeKey = RegistryKey.of(RegistryKeys.DIMENSION_TYPE, new Identifier("mystcraft-reforged", "base_age"));
             RegistryEntry<DimensionType> typeEntry = typeRegistry.getEntry(baseAgeKey).orElseThrow();
 
@@ -71,17 +65,17 @@ public abstract class MinecraftServerMixin implements DimensionInjector {
             SimpleRegistryAccessor optionsAccessor = (SimpleRegistryAccessor) simpleOptionsRegistry;
             
             RegistryKey<DimensionOptions> dimOptionsKey = RegistryKey.of(RegistryKeys.DIMENSION, ageId);
-            DimensionOptions newOptions = new DimensionOptions(typeEntry, customGen);
-            
-            optionsAccessor.setFrozen(false);
-            Registry.register(simpleOptionsRegistry, dimOptionsKey.getValue(), newOptions);
-            optionsAccessor.setFrozen(true);
 
-            // CLEAN: Use our isolated runtime properties so time and weather are independent!
-            ServerWorld overworld = this.getOverworld();
-            ServerWorldProperties worldProperties = new AgeWorldProperties(
-                    server.getSaveProperties().getMainWorldProperties(),
-                    profile
+            if (!optionsRegistry.contains(dimOptionsKey)) {
+                optionsAccessor.setFrozen(false);
+                DimensionOptions newOptions = new DimensionOptions(typeEntry, customGen);
+                Registry.register(simpleOptionsRegistry, dimOptionsKey.getValue(), newOptions);
+                optionsAccessor.setFrozen(true);
+            }
+
+            ServerWorldProperties worldProperties = new UnmodifiableLevelProperties(
+                    server.getSaveProperties(),
+                    server.getSaveProperties().getMainWorldProperties()
             );
 
             WorldGenerationProgressListener listener = new WorldGenerationProgressListener() {
@@ -97,16 +91,22 @@ public abstract class MinecraftServerMixin implements DimensionInjector {
                     this.session,
                     worldProperties,
                     worldKey,
-                    newOptions,
+                    optionsRegistry.get(dimOptionsKey),
                     listener,
                     false,
                     profile.getSeed(), 
                     Collections.emptyList(),
                     false,
-                    overworld.getRandomSequences()
-            );
+                    server.getOverworld().getRandomSequences()
+            ) {
+                // THE FIX: We force the new world to answer the NoiseConfig with the Age's seed.
+                @Override
+                public long getSeed() {
+                    return profile.getSeed();
+                }
+            };
 
-            overworld.getWorldBorder().addListener(new WorldBorderListener.WorldBorderSyncer(newWorld.getWorldBorder()));
+            server.getOverworld().getWorldBorder().addListener(new WorldBorderListener.WorldBorderSyncer(newWorld.getWorldBorder()));
             this.worlds.put(worldKey, newWorld);
 
             if (server.getPlayerManager() != null) {
