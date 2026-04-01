@@ -1,20 +1,23 @@
 package mystcraft.flood.item
 
 import mystcraft.flood.MystcraftReforged
+import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents
 import net.minecraft.item.Item
+import net.minecraft.item.ItemGroups
 import net.minecraft.registry.Registries
 import net.minecraft.registry.Registry
 import net.minecraft.util.Identifier
 
 object ModItems {
-    // I am updating these string IDs to match your .png filenames exactly
-    val LINK_PANEL = register("linkpanel", Item(Item.Settings())) // Assuming you have linkpanel.png
-    val INK_VIAL = register("ink_vial", Item(Item.Settings())) // I saw this in your screenshot
-    val PAGE = register("page", Item(Item.Settings())) // I assume this is the one that loaded
+    // === Core Crafting Ingredients ===
+    val LINK_PANEL = register("linkpanel", Item(Item.Settings()))
+    val INK_VIAL = register("ink_vial", Item(Item.Settings()))
+    val PAGE = register("page", Item(Item.Settings())) 
     
+    // === The Dynamic Symbol Base ===
     val SYMBOL_PAGE = register("symbol_page", SymbolPageItem(Item.Settings()))
 
-    // Legacy Mystcraft called these agebook and linkingbook
+    // === The Books ===
     val DESCRIPTIVE_BOOK = register("agebook", DescriptiveBookItem(Item.Settings().maxCount(1)))
     val LINKING_BOOK = register("linkingbook", LinkingBookItem(Item.Settings().maxCount(1)))
 
@@ -24,5 +27,21 @@ object ModItems {
 
     fun registerModItems() {
         MystcraftReforged.LOGGER.info("Registering items for ${MystcraftReforged.MOD_ID}")
+
+        // Inject ingredients into the Creative Menu
+        ItemGroupEvents.modifyEntriesEvent(ItemGroups.INGREDIENTS).register { entries ->
+            entries.add(LINK_PANEL)
+            entries.add(INK_VIAL)
+            entries.add(PAGE)
+            
+            // Note: We don't add SYMBOL_PAGE here directly. 
+            // Your ModSymbols.kt scanner will add all the dynamic NBT variants of it!
+        }
+
+        // Inject books into the Tools Creative Menu
+        ItemGroupEvents.modifyEntriesEvent(ItemGroups.TOOLS).register { entries ->
+            entries.add(DESCRIPTIVE_BOOK)
+            entries.add(LINKING_BOOK)
+        }
     }
 }

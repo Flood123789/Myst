@@ -1,23 +1,69 @@
 package mystcraft.flood.registry
 
-import mystcraft.flood.MystcraftReforged
-import mystcraft.flood.symbol.AgeSymbol
-import net.minecraft.registry.Registry
+import mystcraft.flood.item.ModItemGroups
+import mystcraft.flood.item.SymbolPageItem
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
+import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents
+import net.minecraft.registry.Registries
 import net.minecraft.registry.RegistryKey
-import net.minecraft.registry.SimpleRegistry
+import net.minecraft.registry.RegistryKeys
 import net.minecraft.util.Identifier
+import net.minecraft.world.biome.BiomeKeys
 
 object ModSymbols {
-    val KEY: RegistryKey<Registry<AgeSymbol>> = RegistryKey.ofRegistry(Identifier(MystcraftReforged.MOD_ID, "symbols"))
-    val REGISTRY: SimpleRegistry<AgeSymbol> = SimpleRegistry(KEY, com.mojang.serialization.Lifecycle.stable())
+    // Using a MutableSet instead of a List prevents duplicates when you reload worlds!
+    val availableSymbols = mutableSetOf<Identifier>()
 
     fun register() {
-        add("flat_terrain", 0, AgeSymbol.Category.TERRAIN)
-        add("void_terrain", 0, AgeSymbol.Category.TERRAIN)
-    }
+        // 1. Scan Status Effects / Potions (Dynamic)
+        Registries.STATUS_EFFECT.ids.forEach { availableSymbols.add(it) }
 
-    private fun add(name: String, instability: Int, cat: AgeSymbol.Category) {
-        val id = Identifier(MystcraftReforged.MOD_ID, name)
-        Registry.register(REGISTRY, id, AgeSymbol(id, instability, cat))
+        // 2. "Baked" Terrain Types
+        availableSymbols.add(Identifier("mystcraft-reforged", "terrain_standard"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "terrain_caves"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "terrain_floating_islands"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "terrain_flat"))
+
+        // 3. "Baked" Time Settings
+        availableSymbols.add(Identifier("mystcraft-reforged", "time_day"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "time_night"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "time_noon"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "time_midnight"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "time_fast"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "time_slow"))
+
+        // 4. "Baked" Weather Settings
+        availableSymbols.add(Identifier("mystcraft-reforged", "weather_clear"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "weather_rain"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "weather_thunder"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "weather_endless_storm"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "weather_no_weather"))
+
+        // 5. Scrape ALL Vanilla Biomes via Reflection
+        // This guarantees Birch Forest, Badlands, Deep Dark, etc., show up immediately.
+        BiomeKeys::class.java.fields.forEach { field ->
+            if (field.type == RegistryKey::class.java) {
+                val key = field.get(null) as? RegistryKey<*>
+                if (key != null && key.isOf(RegistryKeys.BIOME)) {
+                    availableSymbols.add(key.value)
+                }
+            }
+        }
+
+        // 6. Hook into Server Start to grab Modded Biomes from the Dynamic Registry
+        ServerLifecycleEvents.SERVER_STARTING.register { server ->
+            val biomeRegistry = server.registryManager.get(RegistryKeys.BIOME)
+            biomeRegistry.keys.forEach { key ->
+                availableSymbols.add(key.value)
+            }
+        }
+
+        // 7. Inject them into your CUSTOM Creative Tab!
+        ItemGroupEvents.modifyEntriesEvent(ModItemGroups.MYSTCRAFT_PAGES_KEY).register { entries ->
+            // Sorting them alphabetically by their path so the menu isn't a chaotic mess
+            availableSymbols.sortedBy { it.path }.forEach { symbolId ->
+                entries.add(SymbolPageItem.createStack(symbolId))
+            }
+        }
     }
 }
