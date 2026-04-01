@@ -8,7 +8,8 @@
     "MinecraftServerAccessor",
     "AgeLogicMixin",
     "AgeTimePacketMixin",
-    "WorldWeatherMixin"
+    "WorldWeatherMixin",
+    "SlotAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

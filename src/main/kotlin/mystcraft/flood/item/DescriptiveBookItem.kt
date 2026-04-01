@@ -18,7 +18,6 @@ import net.minecraft.util.Hand
 import net.minecraft.util.Identifier
 import net.minecraft.util.TypedActionResult
 import net.minecraft.util.math.Vec3d
-import net.minecraft.world.Heightmap
 import net.minecraft.world.TeleportTarget
 import net.minecraft.world.World
 
@@ -34,6 +33,8 @@ class DescriptiveBookItem(settings: Settings) : Item(settings) {
             val ageName = "age_" + System.currentTimeMillis()
             val ageId = Identifier(MystcraftReforged.MOD_ID, ageName)
             
+            // TODO (Next Step): Read the "Pages" array from the NBT here and pass it into the Injector 
+            // so we don't just generate a random age!
             (server as DimensionInjector).`mystcraft$injectDimension`(ageId)
             
             nbt.putString("Age_ID", ageId.toString())
@@ -54,8 +55,7 @@ class DescriptiveBookItem(settings: Settings) : Item(settings) {
 
         if (targetWorld != null) {
             
-            // THE FIX: The Sky Drop. We don't ask the server to do ANY math. 
-            // We just drop you from the sky and let the worker threads build the world beneath you.
+            // The Sky Drop: Let worker threads build the world beneath you
             val dropHeight = 200.0
 
             val teleportTarget = TeleportTarget(
@@ -78,16 +78,39 @@ class DescriptiveBookItem(settings: Settings) : Item(settings) {
 
     override fun appendTooltip(stack: ItemStack, world: World?, tooltip: MutableList<Text>, context: TooltipContext) {
         val nbt = stack.nbt
-        if (nbt != null && nbt.contains("Age_ID")) {
-            val dim = nbt.getString("Age_ID")
-            tooltip.add(Text.literal("Linked to: ").formatted(Formatting.GRAY).append(Text.literal(dim).formatted(Formatting.DARK_AQUA)))
-        } else {
-            tooltip.add(Text.literal("Unlinked").formatted(Formatting.DARK_RED))
-            tooltip.add(Text.literal("Right-click to create a new Age.").formatted(Formatting.GRAY))
+        
+        if (nbt != null) {
+            // 1. Is it already a fully linked, functional dimension book?
+            if (nbt.contains("Age_ID")) {
+                val ageName = Identifier(nbt.getString("Age_ID")).path
+                tooltip.add(Text.literal("Linked Dimension").formatted(Formatting.GOLD))
+                tooltip.add(Text.literal(ageName).formatted(Formatting.DARK_GRAY))
+                
+                // Show the symbol count if the book was made in the binder
+                if (nbt.contains("Pages")) {
+                    val pages = nbt.getList("Pages", 8)
+                    tooltip.add(Text.literal("Symbols Written: ${pages.size}").formatted(Formatting.GRAY))
+                }
+                return
+            }
+            
+            // 2. Is it a drafted book from the Binder waiting to be opened?
+            if (nbt.contains("Pages")) {
+                val pages = nbt.getList("Pages", 8) 
+                if (pages.size > 0) {
+                    tooltip.add(Text.literal("Unlinked (Draft)").formatted(Formatting.YELLOW))
+                    tooltip.add(Text.literal("Symbols Written: ${pages.size}").formatted(Formatting.GRAY))
+                    return
+                }
+            }
         }
+        
+        // 3. Fallback for completely empty books
+        tooltip.add(Text.literal("Unlinked (Empty)").formatted(Formatting.DARK_RED))
     }
 
     override fun hasGlint(stack: ItemStack): Boolean {
-        return stack.hasNbt() && stack.nbt!!.contains("Age_ID")
+        // Returns true (glows) if the book is successfully linked to an Age
+        return stack.nbt?.contains("Age_ID") == true
     }
 }

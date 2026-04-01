@@ -11,6 +11,9 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
 import org.slf4j.LoggerFactory
+import mystcraft.flood.block.ModBlocks
+import mystcraft.flood.block.entity.ModBlockEntities
+import mystcraft.flood.gui.ModScreens
 
 object MystcraftReforged : ModInitializer {
     const val MOD_ID = "mystcraft-reforged"
@@ -23,6 +26,9 @@ object MystcraftReforged : ModInitializer {
         ModItems.registerModItems()
         ModItemGroups.registerItemGroups()
         AgeCommand.register()
+        ModBlocks.registerModBlocks()
+        ModBlockEntities.registerBlockEntities()
+        ModScreens.register() // From the previous GUI step!
 
         // 1. Manually move the Age's local clock
         ServerTickEvents.END_WORLD_TICK.register { world ->
