@@ -43,6 +43,24 @@ object AgeProfileManager {
         // 1. RUN THE COMPILER
         val compiled = AgeCompiler.compile(symbols)
         
+        // ==========================================
+        // 1.5 SCAN FOR CUSTOM MODIFIERS (Dense Ores, etc.)
+        // ==========================================
+        val activeModifiers = mutableListOf<String>()
+        var modifierInstability = 0
+
+        for (symbol in symbols) {
+            // Check for the dense ores page!
+            if (symbol == "mystcraft-reforged:dense_ores" || symbol == "dense_ores") {
+                if (!activeModifiers.contains("dense_ores")) {
+                    activeModifiers.add("dense_ores")
+                    modifierInstability += 75 // Massive Greed Tax!
+                }
+            }
+            // You can easily add more pages here in the future!
+            // if (symbol == "mystcraft:meteors") { activeModifiers.add("meteors"); modifierInstability += 50 }
+        }
+
         val rand = Random(ageId.toString().hashCode().toLong())
         fun randColor() = java.awt.Color.HSBtoRGB(rand.nextFloat(), 0.5f + rand.nextFloat() * 0.5f, 0.7f + rand.nextFloat() * 0.3f) and 0xFFFFFF
 
@@ -68,9 +86,10 @@ object AgeProfileManager {
         val timeMode = compiled.timeMode ?: listOf("fast", "slow", "fixed", "normal", "normal", "normal").random(rand)
         val weatherMode = compiled.weatherMode ?: listOf("endless_rain", "endless_storm", "no_weather", "normal", "normal").random(rand)
 
-        // === THE FIX: CALCULATE THE FINAL BILL ===
-        // This catches BOTH written pages and randomly rolled chaos!
-        var finalInstability = 0
+        // ==========================================
+        // 5. CALCULATE THE FINAL BILL
+        // ==========================================
+        var finalInstability = 0 + modifierInstability // Add the modifier penalty here!
         if (terrain == TerrainType.FLOATING_ISLANDS) finalInstability += 15
         if (terrain == TerrainType.CAVES) finalInstability += 5
         if (timeMode == "fast" || timeMode == "slow") finalInstability += 10
@@ -116,7 +135,10 @@ object AgeProfileManager {
             stability = StabilityProfile(
                 isStable = finalInstability <= 0,
                 instabilityScore = finalInstability
-            )
+            ),
+            
+            // Pass the active modifiers to the profile so the Chunk Generator can see them!
+            modifiers = activeModifiers 
         )
     }
 

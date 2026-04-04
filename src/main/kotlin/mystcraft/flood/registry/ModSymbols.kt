@@ -32,13 +32,15 @@ object ModSymbols {
         availableSymbols.add(Identifier("mystcraft-reforged", "time_fast"))
         availableSymbols.add(Identifier("mystcraft-reforged", "time_slow"))
 
-        // 4. "Baked" Weather Settings
+       // 4. "Baked" Weather Settings
         availableSymbols.add(Identifier("mystcraft-reforged", "weather_clear"))
         availableSymbols.add(Identifier("mystcraft-reforged", "weather_rain"))
         availableSymbols.add(Identifier("mystcraft-reforged", "weather_thunder"))
         availableSymbols.add(Identifier("mystcraft-reforged", "weather_endless_storm"))
         availableSymbols.add(Identifier("mystcraft-reforged", "weather_no_weather"))
 
+        // === NEW STUFF: Modifiers ===
+        availableSymbols.add(Identifier("mystcraft-reforged", "dense_ores")) // <--- ADD THIS LINE
         // === NEW STUFF: Colors & Targets ===
         
         // Target Pages

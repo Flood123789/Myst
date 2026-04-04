@@ -1,6 +1,6 @@
 package mystcraft.flood.block
 
-import mystcraft.flood.generation.profile.AgeProfileManager // THE NEW IMPORT
+import mystcraft.flood.generation.profile.AgeProfileManager 
 import net.minecraft.block.Block
 import net.minecraft.block.BlockState
 import net.minecraft.block.Blocks
@@ -58,7 +58,8 @@ class DecayBlock(settings: Settings) : Block(settings) {
                 val sidePos = pos.offset(dir)
                 val sideState = world.getBlockState(sidePos)
                 
-                if (!sideState.isAir && !sideState.isOf(this)) {
+                // FISSURE IMMUNITY: Don't eat the Star Fissure!
+                if (!sideState.isAir && !sideState.isOf(this) && !sideState.isOf(ModBlocks.STAR_FISSURE)) {
                     world.setBlockState(sidePos, this.defaultState, 3)
                     break 
                 }
@@ -78,7 +79,8 @@ class DecayBlock(settings: Settings) : Block(settings) {
         if (random.nextFloat() < 0.60f) {
             val downPos = pos.down()
             val downState = world.getBlockState(downPos)
-            if (!downState.isAir && !downState.isOf(this)) {
+            // FISSURE IMMUNITY
+            if (!downState.isAir && !downState.isOf(this) && !downState.isOf(ModBlocks.STAR_FISSURE)) {
                 world.setBlockState(downPos, this.defaultState, 3)
             }
         }
@@ -89,7 +91,8 @@ class DecayBlock(settings: Settings) : Block(settings) {
             for (dir in horizontalDirs) {
                 val sidePos = pos.offset(dir)
                 val sideState = world.getBlockState(sidePos)
-                if (!sideState.isAir && !sideState.isOf(this)) {
+                // FISSURE IMMUNITY
+                if (!sideState.isAir && !sideState.isOf(this) && !sideState.isOf(ModBlocks.STAR_FISSURE)) {
                     world.setBlockState(sidePos, this.defaultState, 3)
                     break 
                 }
@@ -132,7 +135,8 @@ class DecayBlock(settings: Settings) : Block(settings) {
         while (currentPos.y < world.topY) {
             val state = world.getBlockState(currentPos)
             
-            if (state.isOf(this)) {
+            // FISSURE IMMUNITY: Stop pulling blocks if we hit Decay or a Star Fissure
+            if (state.isOf(this) || state.isOf(ModBlocks.STAR_FISSURE)) {
                 break
             }
 

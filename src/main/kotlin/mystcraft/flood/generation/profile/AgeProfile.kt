@@ -12,7 +12,9 @@ data class AgeProfile(
     val weather: WeatherSettings,
     val biomes: BiomeSet,
     val spawning: SpawnSettings,
-    val stability: StabilityProfile
+    val stability: StabilityProfile,
+    // THE FIX 1: A list to hold any special mechanic pages (like "dense_ores", "meteors", "charged_creepers")
+    val modifiers: MutableList<String> = mutableListOf() 
 ) {
     companion object {
         val GSON: Gson = GsonBuilder().setPrettyPrinting().serializeNulls().create()
@@ -23,12 +25,10 @@ data class AgeProfile(
 
 enum class TerrainType { STANDARD, CAVES, FLOATING_ISLANDS, FLAT }
 
-// FIXED: Consolidated the enums and added WEIGHTED
 enum class BiomeMode { SINGLE, VANILLA_DISTRIBUTION, CHECKERBOARD, WEIGHTED }
 
 data class BiomeWeight(var biomeId: String, var weight: Int)
 
-// FIXED: Only one BiomeSet declaration now!
 data class BiomeSet(
     var mode: BiomeMode,
     var biomes: MutableList<BiomeWeight>
@@ -54,6 +54,7 @@ data class WeatherSettings(
     var noWeather: Boolean
 )
 
-data class StabilityProfile(val isStable: Boolean, val instabilityScore: Int)
+// THE FIX 2: Changed from 'val' to 'var' so the Book Binder can calculate and add penalties!
+data class StabilityProfile(var isStable: Boolean, var instabilityScore: Int)
 
 data class SpawnSettings(val noMobs: Boolean, val hostileMultiplier: Float, val passiveMultiplier: Float)

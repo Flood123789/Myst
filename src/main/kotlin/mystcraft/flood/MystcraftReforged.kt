@@ -1,5 +1,12 @@
 package mystcraft.flood
 
+import mystcraft.flood.registry.ModFeatures
+import net.fabricmc.fabric.api.biome.v1.BiomeModifications
+import net.fabricmc.fabric.api.biome.v1.BiomeSelectors
+import net.minecraft.registry.RegistryKey
+import net.minecraft.registry.RegistryKeys
+import net.minecraft.util.Identifier
+import net.minecraft.world.gen.GenerationStep
 import mystcraft.flood.generation.profile.AgeProfileManager
 import mystcraft.flood.item.ModItemGroups
 import mystcraft.flood.item.ModItems
@@ -75,5 +82,22 @@ object MystcraftReforged : ModInitializer {
                 LOGGER.info("Persisted Age: $id")
             }
         }
-    }
+
+        // Register the raw features first
+        ModFeatures.register()
+
+        // Inject Dense Ores into the UNDERGROUND generation step
+        BiomeModifications.addFeature(
+            BiomeSelectors.all(),
+            GenerationStep.Feature.UNDERGROUND_ORES,
+            RegistryKey.of(RegistryKeys.PLACED_FEATURE, Identifier(MOD_ID, "dense_ores"))
+        )
+
+        // Inject the Star Fissure into the SURFACE generation step
+        BiomeModifications.addFeature(
+            BiomeSelectors.all(),
+            GenerationStep.Feature.SURFACE_STRUCTURES,
+            RegistryKey.of(RegistryKeys.PLACED_FEATURE, Identifier(MOD_ID, "star_fissure"))
+        )
+            }
 }

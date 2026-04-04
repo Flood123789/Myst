@@ -29,6 +29,15 @@ object ModBlocks {
             .nonOpaque()
     ))
 
+    val STAR_FISSURE = registerBlock("star_fissure", StarFissureBlock(
+        AbstractBlock.Settings.create()
+            .strength(-1.0f, 3600000.0f) // Indestructible like Bedrock
+            .dropsNothing()
+            .noCollision() // Lets them fall into the teleport hitbox
+            .nonOpaque()
+            .luminance { 15 } // Make it glow at the bottom of the pit!
+    ))
+
     private fun registerBlock(name: String, block: Block): Block {
         registerBlockItem(name, block)
         return Registry.register(Registries.BLOCK, Identifier(MystcraftReforged.MOD_ID, name), block)
