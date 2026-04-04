@@ -1,6 +1,7 @@
 package mystcraft.flood.item
 
 import mystcraft.flood.MystcraftReforged
+import mystcraft.flood.block.ModBlocks // THE FIX: Imported ModBlocks!
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup
 import net.minecraft.item.ItemGroup
 import net.minecraft.item.ItemStack
@@ -25,6 +26,7 @@ object ModItemGroups {
                 entries.add(ModItems.PAGE)
                 entries.add(ModItems.DESCRIPTIVE_BOOK)
                 entries.add(ModItems.LINKING_BOOK)
+                entries.add(ModBlocks.BLACK_DECAY)
                 // Removed SYMBOL_PAGE from here to keep the main tab clean!
             }
             .build()

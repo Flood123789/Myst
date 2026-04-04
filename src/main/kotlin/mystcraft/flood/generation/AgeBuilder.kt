@@ -1,3 +1,4 @@
+// src/main/kotlin/mystcraft/flood/generation/AgeBuilder.kt
 package mystcraft.flood.generation
 
 import com.mojang.datafixers.util.Pair as DFPair
@@ -18,8 +19,9 @@ import net.minecraft.world.gen.chunk.ChunkGeneratorSettings
 import net.minecraft.world.gen.chunk.NoiseChunkGenerator
 
 object AgeBuilder {
-    fun buildGenerator(server: MinecraftServer, ageId: Identifier): Pair<ChunkGenerator, AgeProfile> {
-        val profile = AgeProfileManager.getOrGenerateProfile(server, ageId)
+    // Added 'symbols' here so it can pass it to the profile manager
+    fun buildGenerator(server: MinecraftServer, ageId: Identifier, symbols: List<String> = emptyList()): Pair<ChunkGenerator, AgeProfile> {
+        val profile = AgeProfileManager.getOrGenerateProfile(server, ageId, symbols)
         val registries = server.registryManager
 
         // 1. Terrain Settings
@@ -35,18 +37,16 @@ object AgeBuilder {
         val biomeRegistry = registries.get(RegistryKeys.BIOME)
 
         val biomeSource = if (profile.biomes.mode == BiomeMode.SINGLE || profile.biomes.biomes.size == 1) {
-            // SINGLE MODE
             val targetId = Identifier(profile.biomes.biomes.first().biomeId)
             val biomeEntry = biomeRegistry.getEntry(RegistryKey.of(RegistryKeys.BIOME, targetId)).orElseGet {
                 biomeRegistry.getRandom(net.minecraft.util.math.random.Random.create(profile.seed)).get()
             }
             FixedBiomeSource(biomeEntry)
         } else {
-            // WEIGHTED MODE (The Slicer Trick)
             val totalWeight = profile.biomes.biomes.sumOf { it.weight }.toFloat()
             val entries = mutableListOf<DFPair<MultiNoiseUtil.NoiseHypercube, net.minecraft.registry.entry.RegistryEntry<Biome>>>()
 
-            var currentTemp = -1.0f // Noise axis starts at -1.0
+            var currentTemp = -1.0f 
 
             for (b in profile.biomes.biomes) {
                 val targetId = Identifier(b.biomeId)
@@ -54,26 +54,23 @@ object AgeBuilder {
 
                 if (biomeEntry != null) {
                     val fraction = b.weight / totalWeight
-                    val rangeSize = fraction * 2.0f // 2.0 is the full distance from -1.0 to 1.0
+                    val rangeSize = fraction * 2.0f 
                     val nextTemp = currentTemp + rangeSize
 
-                    // Create a slice on the Temperature axis. Leave all other axes at max width [-1.0 to 1.0]
                     val hypercube = MultiNoiseUtil.NoiseHypercube(
-                        MultiNoiseUtil.ParameterRange.of(currentTemp, nextTemp), // The slice!
-                        MultiNoiseUtil.ParameterRange.of(-1.0f, 1.0f), // Humidity
-                        MultiNoiseUtil.ParameterRange.of(-1.0f, 1.0f), // Continentalness
-                        MultiNoiseUtil.ParameterRange.of(-1.0f, 1.0f), // Erosion
-                        MultiNoiseUtil.ParameterRange.of(-1.0f, 1.0f), // Depth
-                        MultiNoiseUtil.ParameterRange.of(-1.0f, 1.0f), // Weirdness
-                        0L // Offset
+                        MultiNoiseUtil.ParameterRange.of(currentTemp, nextTemp), 
+                        MultiNoiseUtil.ParameterRange.of(-1.0f, 1.0f), 
+                        MultiNoiseUtil.ParameterRange.of(-1.0f, 1.0f), 
+                        MultiNoiseUtil.ParameterRange.of(-1.0f, 1.0f), 
+                        MultiNoiseUtil.ParameterRange.of(-1.0f, 1.0f), 
+                        MultiNoiseUtil.ParameterRange.of(-1.0f, 1.0f), 
+                        0L 
                     )
 
                     entries.add(DFPair.of(hypercube, biomeEntry))
                     currentTemp = nextTemp
                 }
             }
-            
-            // FIXED: Using Fabric's 'Entries' mapping instead of Mojang's 'ParameterList'
             MultiNoiseBiomeSource.create(MultiNoiseUtil.Entries(entries))
         }
 

@@ -1,3 +1,4 @@
+// src/main/kotlin/mystcraft/flood/item/DescriptiveBookItem.kt
 package mystcraft.flood.item
 
 import mystcraft.flood.MystcraftReforged
@@ -33,9 +34,17 @@ class DescriptiveBookItem(settings: Settings) : Item(settings) {
             val ageName = "age_" + System.currentTimeMillis()
             val ageId = Identifier(MystcraftReforged.MOD_ID, ageName)
             
-            // TODO (Next Step): Read the "Pages" array from the NBT here and pass it into the Injector 
-            // so we don't just generate a random age!
-            (server as DimensionInjector).`mystcraft$injectDimension`(ageId)
+            // Extract the symbols from the book's NBT
+            val symbols = mutableListOf<String>()
+            if (nbt.contains("Pages")) {
+                val pages = nbt.getList("Pages", 8) 
+                for (i in 0 until pages.size) {
+                    symbols.add(pages.getString(i))
+                }
+            }
+            
+            // Pass the symbols into the Injector!
+            (server as DimensionInjector).`mystcraft$injectDimension`(ageId, symbols)
             
             nbt.putString("Age_ID", ageId.toString())
             user.sendMessage(Text.literal("Descriptive Book linked to $ageName.").formatted(Formatting.GREEN), true)
@@ -54,8 +63,6 @@ class DescriptiveBookItem(settings: Settings) : Item(settings) {
         val targetWorld = server.getWorld(dimKey)
 
         if (targetWorld != null) {
-            
-            // The Sky Drop: Let worker threads build the world beneath you
             val dropHeight = 200.0
 
             val teleportTarget = TeleportTarget(
@@ -65,9 +72,7 @@ class DescriptiveBookItem(settings: Settings) : Item(settings) {
                 player.pitch
             )
             
-            // 15 seconds of Slow Falling to let you glide down while chunks render
             player.addStatusEffect(StatusEffectInstance(StatusEffects.SLOW_FALLING, 300, 0, false, false))
-            // 20 seconds of Invincibility so you don't suffocate if a mountain spawns on you
             player.addStatusEffect(StatusEffectInstance(StatusEffects.RESISTANCE, 400, 4, false, false))
             
             FabricDimensions.teleport(player, targetWorld, teleportTarget)
@@ -80,13 +85,11 @@ class DescriptiveBookItem(settings: Settings) : Item(settings) {
         val nbt = stack.nbt
         
         if (nbt != null) {
-            // 1. Is it already a fully linked, functional dimension book?
             if (nbt.contains("Age_ID")) {
                 val ageName = Identifier(nbt.getString("Age_ID")).path
                 tooltip.add(Text.literal("Linked Dimension").formatted(Formatting.GOLD))
                 tooltip.add(Text.literal(ageName).formatted(Formatting.DARK_GRAY))
                 
-                // Show the symbol count if the book was made in the binder
                 if (nbt.contains("Pages")) {
                     val pages = nbt.getList("Pages", 8)
                     tooltip.add(Text.literal("Symbols Written: ${pages.size}").formatted(Formatting.GRAY))
@@ -94,7 +97,6 @@ class DescriptiveBookItem(settings: Settings) : Item(settings) {
                 return
             }
             
-            // 2. Is it a drafted book from the Binder waiting to be opened?
             if (nbt.contains("Pages")) {
                 val pages = nbt.getList("Pages", 8) 
                 if (pages.size > 0) {
@@ -105,12 +107,10 @@ class DescriptiveBookItem(settings: Settings) : Item(settings) {
             }
         }
         
-        // 3. Fallback for completely empty books
         tooltip.add(Text.literal("Unlinked (Empty)").formatted(Formatting.DARK_RED))
     }
 
     override fun hasGlint(stack: ItemStack): Boolean {
-        // Returns true (glows) if the book is successfully linked to an Age
         return stack.nbt?.contains("Age_ID") == true
     }
 }

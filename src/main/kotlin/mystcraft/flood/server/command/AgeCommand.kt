@@ -28,7 +28,8 @@ object AgeCommand {
                     .then(CommandManager.literal("create_age")
                         .executes { context ->
                             val ageId = Identifier("mystcraft-reforged", "age_${System.currentTimeMillis()}")
-                            (context.source.server as DimensionInjector).`mystcraft$injectDimension`(ageId)
+                            // THE FIX: Passed emptyList() to satisfy the new symbols requirement
+                            (context.source.server as DimensionInjector).`mystcraft$injectDimension`(ageId, emptyList())
                             context.source.sendFeedback({ Text.literal("§aAge Created: $ageId") }, true)
                             1
                         }
@@ -91,6 +92,8 @@ object AgeCommand {
             return 0
         }
 
+        // Pass emptyList() here too if getOrGenerateProfile requires it as a fallback, 
+        // though our AgeProfileManager implementation made it default to emptyList() so it shouldn't strictly need it.
         val profile = AgeProfileManager.getOrGenerateProfile(world.server, id)
         
         // If the age is frozen, update the frozen time. Otherwise, update the live clock.

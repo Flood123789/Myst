@@ -14,6 +14,8 @@ import org.slf4j.LoggerFactory
 import mystcraft.flood.block.ModBlocks
 import mystcraft.flood.block.entity.ModBlockEntities
 import mystcraft.flood.gui.ModScreens
+import mystcraft.flood.generation.instability.InstabilityManager
+import mystcraft.flood.block.DecayManager
 
 object MystcraftReforged : ModInitializer {
     const val MOD_ID = "mystcraft-reforged"
@@ -29,6 +31,8 @@ object MystcraftReforged : ModInitializer {
         ModBlocks.registerModBlocks()
         ModBlockEntities.registerBlockEntities()
         ModScreens.register() // From the previous GUI step!
+        InstabilityManager.register() // From the upcoming Instability step!
+        DecayManager.register() // From the upcoming Decay step!
 
         // 1. Manually move the Age's local clock
         ServerTickEvents.END_WORLD_TICK.register { world ->

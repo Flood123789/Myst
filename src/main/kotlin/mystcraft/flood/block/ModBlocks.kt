@@ -3,8 +3,10 @@ package mystcraft.flood.block
 import mystcraft.flood.MystcraftReforged
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents
 import net.fabricmc.fabric.api.`object`.builder.v1.block.FabricBlockSettings
+import net.minecraft.block.AbstractBlock
 import net.minecraft.block.Block
 import net.minecraft.block.Blocks
+import net.minecraft.block.MapColor
 import net.minecraft.item.BlockItem
 import net.minecraft.item.Item
 import net.minecraft.item.ItemGroups
@@ -13,8 +15,19 @@ import net.minecraft.registry.Registry
 import net.minecraft.util.Identifier
 
 object ModBlocks {
+    
     // Creates the block, copying the strength/sounds of a standard Wood block
     val BOOK_BINDER = registerBlock("book_binder", BookBinderBlock(FabricBlockSettings.copyOf(Blocks.OAK_PLANKS)))
+    
+    // THE FIX: We use your registerBlock helper so it automatically makes the BlockItem!
+    val BLACK_DECAY = registerBlock("black_decay", DecayBlock(
+        AbstractBlock.Settings.create()
+            .mapColor(MapColor.BLACK)
+            .ticksRandomly() // CRITICAL: This allows it to spread!
+            .strength(-1.0f, 3600000.0f) // Indestructible by players (like Bedrock)
+            .dropsNothing()
+            .nonOpaque()
+    ))
 
     private fun registerBlock(name: String, block: Block): Block {
         registerBlockItem(name, block)

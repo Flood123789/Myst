@@ -129,8 +129,9 @@ class BookBinderScreenHandler(
                 if (!pageStack.isEmpty && pageStack.item is SymbolPageItem) {
                     
                     var symbolId = "unknown"
-                    if (pageStack.hasNbt() && pageStack.nbt!!.contains("symbol")) {
-                        symbolId = pageStack.nbt!!.getString("symbol")
+                    // THE FIX: Capital "S" for Symbol to match your Item class!
+                    if (pageStack.hasNbt() && pageStack.nbt!!.contains("Symbol")) {
+                        symbolId = pageStack.nbt!!.getString("Symbol")
                     } else {
                         symbolId = Registries.ITEM.getId(pageStack.item).toString()
                     }

@@ -39,8 +39,27 @@ object ModSymbols {
         availableSymbols.add(Identifier("mystcraft-reforged", "weather_endless_storm"))
         availableSymbols.add(Identifier("mystcraft-reforged", "weather_no_weather"))
 
+        // === NEW STUFF: Colors & Targets ===
+        
+        // Target Pages
+        availableSymbols.add(Identifier("mystcraft-reforged", "color_sky"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "color_fog"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "color_water"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "color_grass"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "color_foliage"))
+
+        // Color Modifier Pages
+        availableSymbols.add(Identifier("mystcraft-reforged", "color_red"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "color_blue"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "color_green"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "color_black"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "color_white"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "color_yellow"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "color_purple"))
+        
+        // ===================================
+
         // 5. Scrape ALL Vanilla Biomes via Reflection
-        // This guarantees Birch Forest, Badlands, Deep Dark, etc., show up immediately.
         BiomeKeys::class.java.fields.forEach { field ->
             if (field.type == RegistryKey::class.java) {
                 val key = field.get(null) as? RegistryKey<*>

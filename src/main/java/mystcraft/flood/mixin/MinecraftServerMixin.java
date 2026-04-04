@@ -31,6 +31,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
@@ -44,7 +45,7 @@ public abstract class MinecraftServerMixin implements DimensionInjector {
     @Shadow @Final private Map<RegistryKey<World>, ServerWorld> worlds;
 
     @Override
-    public void mystcraft$injectDimension(Identifier ageId) {
+    public void mystcraft$injectDimension(Identifier ageId, List<String> symbols) {
         MinecraftServer server = (MinecraftServer) (Object) this;
         RegistryKey<World> worldKey = RegistryKey.of(RegistryKeys.WORLD, ageId);
 
@@ -57,7 +58,8 @@ public abstract class MinecraftServerMixin implements DimensionInjector {
             RegistryKey<DimensionType> baseAgeKey = RegistryKey.of(RegistryKeys.DIMENSION_TYPE, new Identifier("mystcraft-reforged", "base_age"));
             RegistryEntry<DimensionType> typeEntry = typeRegistry.getEntry(baseAgeKey).orElseThrow();
 
-            Pair<ChunkGenerator, AgeProfile> result = AgeBuilder.INSTANCE.buildGenerator(server, ageId);
+            // THE FIX: Pass the symbols straight into the AgeBuilder so the Compiler can read them!
+            Pair<ChunkGenerator, AgeProfile> result = AgeBuilder.INSTANCE.buildGenerator(server, ageId, symbols);
             ChunkGenerator customGen = result.getFirst();
             AgeProfile profile = result.getSecond();
 
@@ -99,7 +101,7 @@ public abstract class MinecraftServerMixin implements DimensionInjector {
                     false,
                     server.getOverworld().getRandomSequences()
             ) {
-                // THE FIX: We force the new world to answer the NoiseConfig with the Age's seed.
+                // We force the new world to answer the NoiseConfig with the Age's seed.
                 @Override
                 public long getSeed() {
                     return profile.getSeed();
