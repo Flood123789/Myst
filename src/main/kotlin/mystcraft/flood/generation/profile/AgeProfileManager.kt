@@ -61,6 +61,30 @@ object AgeProfileManager {
             // if (symbol == "mystcraft:meteors") { activeModifiers.add("meteors"); modifierInstability += 50 }
         }
 
+        for (symbol in symbols) {
+            // Check for the dense ores page!
+            if (symbol == "mystcraft-reforged:dense_ores" || symbol == "dense_ores") {
+                if (!activeModifiers.contains("dense_ores")) {
+                    activeModifiers.add("dense_ores")
+                    modifierInstability += 75 // Massive Greed Tax!
+                }
+            }
+            // Check for the giant trees page!
+            if (symbol == "mystcraft-reforged:giant_trees" || symbol == "giant_trees") {
+                if (!activeModifiers.contains("giant_trees")) {
+                    activeModifiers.add("giant_trees")
+                    modifierInstability += 15 // Roots tearing up the crust causes minor instability
+                }
+            }
+            // Check for the crystal formations page!
+            if (symbol == "mystcraft-reforged:crystal_formations" || symbol == "crystal_formations") {
+                if (!activeModifiers.contains("crystal_formations")) {
+                    activeModifiers.add("crystal_formations")
+                    modifierInstability += 10 // Sharp crystals poking out of the ground adds a bit of chaos
+                }
+            }
+        }
+
         val rand = Random(ageId.toString().hashCode().toLong())
         fun randColor() = java.awt.Color.HSBtoRGB(rand.nextFloat(), 0.5f + rand.nextFloat() * 0.5f, 0.7f + rand.nextFloat() * 0.3f) and 0xFFFFFF
 

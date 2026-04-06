@@ -54,4 +54,13 @@ class BookBinderBlockEntity(pos: BlockPos, state: BlockState) :
         markDirty()
     }
     override fun canPlayerUse(player: PlayerEntity): Boolean = true
+
+    // === NEW: SYNC TO CLIENT SO IT RENDERS ===
+    override fun toUpdatePacket(): net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket? {
+        return net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket.create(this)
+    }
+
+    override fun toInitialChunkDataNbt(): net.minecraft.nbt.NbtCompound {
+        return createNbt()
+    }
 }

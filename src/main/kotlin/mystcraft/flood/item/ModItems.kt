@@ -16,6 +16,7 @@ object ModItems {
     
     // === The Dynamic Symbol Base ===
     val SYMBOL_PAGE = register("symbol_page", SymbolPageItem(Item.Settings()))
+    val LOST_PAGE = Registry.register(Registries.ITEM, Identifier(MystcraftReforged.MOD_ID, "lost_page"), LostPageItem(Item.Settings()))
 
     // === The Books ===
     val DESCRIPTIVE_BOOK = register("agebook", DescriptiveBookItem(Item.Settings().maxCount(1)))

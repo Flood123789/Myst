@@ -18,9 +18,9 @@
   "block.mystcraft-reforged.bookstand": "Bookstand",
   "block.mystcraft-reforged.lectern": "Lectern",
   "block.mystcraft-reforged.linkmodifier": "Link Modifier",
-  "block.mystcraft-reforged.receptacle": "Book Receptacle",
+  "block.mystcraft-reforged.book_receptacle": "Book Receptacle",
   "block.mystcraft-reforged.black_decay": "Black Decay",
   "block.mystcraft-reforged.book_binder": "Book Binder",
   "block.mystcraft-reforged.star_fissure": "Star Fissure",
-  "block.mystcraft-reforged.crystal": "Crystal"
+  "block.mystcraft-reforged.crystal_block": "Crystal"
 }

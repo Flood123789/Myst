@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "facing=north": { "model": "mystcraft-reforged:block/book_receptacle" },
+    "facing=east":  { "model": "mystcraft-reforged:block/book_receptacle", "y": 90 },
+    "facing=south": { "model": "mystcraft-reforged:block/book_receptacle", "y": 180 },
+    "facing=west":  { "model": "mystcraft-reforged:block/book_receptacle", "y": 270 },
+    "facing=up":    { "model": "mystcraft-reforged:block/book_receptacle", "x": 270 },
+    "facing=down":  { "model": "mystcraft-reforged:block/book_receptacle", "x": 90 }
+  }
+}

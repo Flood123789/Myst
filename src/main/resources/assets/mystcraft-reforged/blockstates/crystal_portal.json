@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "axis=x": { "model": "mystcraft-reforged:block/crystal_portal_ew" },
+    "axis=y": { "model": "mystcraft-reforged:block/crystal_portal_ud" },
+    "axis=z": { "model": "mystcraft-reforged:block/crystal_portal_ns" }
+  }
+}

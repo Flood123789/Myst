@@ -1,0 +1,21 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "crystal": "mystcraft-reforged:block/crystal_block",
+    "panel": "mystcraft-reforged:block/book_receptacle"
+  },
+  "elements": [
+    {
+      "from": [ 0.0, 0.0, 10.0 ], 
+      "to": [ 16.0, 16.0, 16.0 ], 
+      "faces": {
+        "north": { "texture": "#panel", "uv": [ 0.0, 0.0, 16.0, 16.0 ] },
+        "east": { "texture": "#crystal", "uv": [ 10.0, 0.0, 16.0, 16.0 ] },
+        "south": { "texture": "#crystal", "uv": [ 0.0, 0.0, 16.0, 16.0 ] },
+        "west": { "texture": "#crystal", "uv": [ 0.0, 0.0, 6.0, 16.0 ] },
+        "up": { "texture": "#crystal", "uv": [ 0.0, 10.0, 16.0, 16.0 ] },
+        "down": { "texture": "#crystal", "uv": [ 0.0, 0.0, 16.0, 6.0 ] }
+      }
+    }
+  ]
+}

@@ -40,7 +40,9 @@ object ModSymbols {
         availableSymbols.add(Identifier("mystcraft-reforged", "weather_no_weather"))
 
         // === NEW STUFF: Modifiers ===
-        availableSymbols.add(Identifier("mystcraft-reforged", "dense_ores")) // <--- ADD THIS LINE
+        availableSymbols.add(Identifier("mystcraft-reforged", "dense_ores")) 
+        availableSymbols.add(Identifier("mystcraft-reforged", "giant_trees"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "crystal_formations"))
         // === NEW STUFF: Colors & Targets ===
         
         // Target Pages
