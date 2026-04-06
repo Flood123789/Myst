@@ -22,38 +22,55 @@ class BookReceptacleBlockEntityRenderer(ctx: BlockEntityRendererFactory.Context)
         overlay: Int
     ) {
         val stack = entity.inventory.getStack(0)
-        // If there's no book, don't draw anything!
         if (stack.isEmpty) return
 
         val facing = entity.cachedState.get(Properties.FACING)
 
         matrices.push()
         
-        // 1. Move to the exact center of the block
+        // 1. Start at the exact dead-center of the block space
         matrices.translate(0.5, 0.5, 0.5)
 
-        // 2. Rotate the rendering matrix so "forward" matches the block's facing direction
+        // 2. Move outward from the center towards the wall the slab is attached to,
+        // and rotate the camera so +Z is facing directly outward from the wall.
+        // A slab is 6/16 thick (0.375). The exact center of the slit is 0.3125 away from the block center!
         when (facing) {
-            Direction.NORTH -> {} // Default
-            Direction.SOUTH -> matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180f))
-            Direction.EAST -> matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(270f))
-            Direction.WEST -> matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(90f))
-            Direction.UP -> matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-90f))
-            Direction.DOWN -> matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(90f))
+            Direction.SOUTH -> { // Attached to the NORTH wall, facing SOUTH
+                matrices.translate(0.0, 0.0, -0.3125) 
+                // No rotation needed, +Z is already South
+            }
+            Direction.NORTH -> { // Attached to the SOUTH wall, facing NORTH
+                matrices.translate(0.0, 0.0, 0.3125)
+                matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180f))
+            }
+            Direction.EAST -> { // Attached to the WEST wall, facing EAST
+                matrices.translate(-0.3125, 0.0, 0.0)
+                matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-90f))
+            }
+            Direction.WEST -> { // Attached to the EAST wall, facing WEST
+                matrices.translate(0.3125, 0.0, 0.0)
+                matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(90f))
+            }
+            Direction.UP -> { // Attached to the BOTTOM floor, facing UP
+                matrices.translate(0.0, -0.3125, 0.0)
+                matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-90f))
+            }
+            Direction.DOWN -> { // Attached to the TOP ceiling, facing DOWN
+                matrices.translate(0.0, 0.3125, 0.0)
+                matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(90f))
+            }
         }
 
-        // 3. Move the book out to the front face (Z is forward/backward after our rotation).
-        // A block is 1.0 wide, so the front face is at -0.5. We use -0.42 to embed it halfway in the slit.
-        matrices.translate(0.0, 0.0, -0.42)
+        // 3. The matrix is now perfectly centered inside the 6-pixel deep slit, pointing outward!
+        // Rotate Y by 90 degrees so the spine of the book faces the player.
+        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(90f))
+        
+        // 4. Scale it down to fit
+        matrices.scale(0.55f, 0.55f, 0.55f)
 
-        // 4. Scale the book down so it fits nicely inside the texture's slit
-        matrices.scale(0.5f, 0.5f, 0.5f)
-
-        // 5. Draw the item!
-        val itemRenderer = MinecraftClient.getInstance().itemRenderer
-        itemRenderer.renderItem(
+        MinecraftClient.getInstance().itemRenderer.renderItem(
             stack,
-            ModelTransformationMode.FIXED, // "FIXED" renders it flat like it's in an item frame
+            ModelTransformationMode.FIXED,
             light,
             overlay,
             matrices,

@@ -8,13 +8,15 @@ import net.minecraft.util.math.BlockPos
 class CrystalPortalBlockEntity(pos: BlockPos, state: BlockState) : BlockEntity(ModBlockEntities.CRYSTAL_PORTAL, pos, state) {
     
     var destinationAge: String = ""
-    var receptaclePos: BlockPos? = null // Tells the portal block who its boss is!
+    var receptaclePos: BlockPos? = null 
     
     var targetX: Double? = null
     var targetY: Double? = null
     var targetZ: Double? = null
+    
+    // === THE MISSING VARIABLE: Stores the random color! ===
+    var portalColor: Int = -1 
 
-    // === THE FIX: SYNC NBT DATA TO THE CLIENT FOR THE COLOR RENDERER ===
     override fun toUpdatePacket(): net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket? {
         return net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket.create(this)
     }
@@ -22,7 +24,6 @@ class CrystalPortalBlockEntity(pos: BlockPos, state: BlockState) : BlockEntity(M
     override fun toInitialChunkDataNbt(): net.minecraft.nbt.NbtCompound {
         return createNbt()
     }
-    // ====================================================================
 
     override fun writeNbt(nbt: NbtCompound) {
         super.writeNbt(nbt)
@@ -35,6 +36,9 @@ class CrystalPortalBlockEntity(pos: BlockPos, state: BlockState) : BlockEntity(M
         targetX?.let { nbt.putDouble("TargetX", it) }
         targetY?.let { nbt.putDouble("TargetY", it) }
         targetZ?.let { nbt.putDouble("TargetZ", it) }
+        
+        // Save the color
+        nbt.putInt("PortalColor", portalColor)
     }
 
     override fun readNbt(nbt: NbtCompound) {
@@ -46,5 +50,10 @@ class CrystalPortalBlockEntity(pos: BlockPos, state: BlockState) : BlockEntity(M
         if (nbt.contains("TargetX")) targetX = nbt.getDouble("TargetX")
         if (nbt.contains("TargetY")) targetY = nbt.getDouble("TargetY")
         if (nbt.contains("TargetZ")) targetZ = nbt.getDouble("TargetZ")
+        
+        // Load the color
+        if (nbt.contains("PortalColor")) {
+            portalColor = nbt.getInt("PortalColor")
+        }
     }
 }

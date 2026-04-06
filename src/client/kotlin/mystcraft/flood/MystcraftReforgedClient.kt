@@ -2,26 +2,24 @@ package mystcraft.flood.client
 
 import mystcraft.flood.MystcraftReforged
 import mystcraft.flood.block.ModBlocks
-import mystcraft.flood.block.entity.ModBlockEntities 
 import mystcraft.flood.block.entity.CrystalPortalBlockEntity
+import mystcraft.flood.block.entity.ModBlockEntities 
 import mystcraft.flood.client.cache.ClientAgeCache
 import mystcraft.flood.client.gui.BookBinderScreen
 import mystcraft.flood.client.network.ClientMessages
-import mystcraft.flood.client.render.MystcraftDimensionEffects
 import mystcraft.flood.client.render.BookReceptacleBlockEntityRenderer
+import mystcraft.flood.client.render.MystcraftDimensionEffects
 import mystcraft.flood.gui.ModScreens
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.blockrenderlayer.v1.BlockRenderLayerMap
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
-import net.fabricmc.fabric.api.client.rendering.v1.DimensionRenderingRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.ColorProviderRegistry
+import net.fabricmc.fabric.api.client.rendering.v1.DimensionRenderingRegistry
 import net.minecraft.client.gui.screen.ingame.HandledScreens
 import net.minecraft.client.render.RenderLayer
 import net.minecraft.client.render.block.entity.BlockEntityRendererFactories
 import net.minecraft.client.render.block.entity.EndPortalBlockEntityRenderer
 import net.minecraft.util.Identifier
-import java.awt.Color
-import kotlin.math.abs
 
 class MystcraftReforgedClient : ClientModInitializer {
     
@@ -44,31 +42,29 @@ class MystcraftReforgedClient : ClientModInitializer {
             EndPortalBlockEntityRenderer(context)
         }
 
-        // === NEW: Register the 3D Book Renderer! ===
         BlockEntityRendererFactories.register(ModBlockEntities.BOOK_RECEPTACLE) { context ->
             BookReceptacleBlockEntityRenderer(context)
         }
 
-        // Tell the client that Crystal Blocks are see-through
         BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.CRYSTAL_BLOCK, RenderLayer.getTranslucent())
         BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.CRYSTAL_PORTAL, RenderLayer.getTranslucent())
 
-        // === UPDATED: Signature Portal Colors! ===
-        ColorProviderRegistry.BLOCK.register({ state, world, pos, tintIndex ->
-            if (world != null && pos != null && tintIndex == 0) {
+        // === RANDOMIZED PORTAL COLOR PROVIDER ===
+        ColorProviderRegistry.BLOCK.register(net.minecraft.client.color.block.BlockColorProvider { state, world, pos, tintIndex ->
+            if (tintIndex == 0 && pos != null && world != null) {
                 
-                // Grab the portal block and read its destination
                 val be = world.getBlockEntity(pos) as? CrystalPortalBlockEntity
-                val ageName = be?.destinationAge ?: "unlinked"
                 
-                // Turn the age name into a unique, stable color! 
-                // Every time you go to Age 5, the portal will be the exact same color.
-                val hash = ageName.hashCode().toFloat()
-                val hue = (abs(hash) % 360.0f) / 360.0f
-                
-                return@register Color.HSBtoRGB(hue, 0.8f, 0.9f)
+                // If the block has a color assigned by the server, use it!
+                if (be != null && be.portalColor != -1) {
+                    // Mask it with 0xFFFFFF so Minecraft never sees a negative number!
+                    return@BlockColorProvider be.portalColor and 0xFFFFFF
+                }
             }
-            0x8800FF 
+            
+            // Return -1 (Minecraft's default "Do Not Tint" code) if no color is found
+            return@BlockColorProvider -1 
+            
         }, ModBlocks.CRYSTAL_PORTAL)
         
         MystcraftReforged.LOGGER.info("Client initialized cleanly.")
