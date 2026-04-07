@@ -9,6 +9,8 @@
     "AgeLogicMixin",
     "AgeTimePacketMixin",
     "WorldWeatherMixin",
+    "ServerPlayerEntityMixin",
+    "WorldDayNightMixin",
     "SlotAccessor"
   ],
   "injectors": {

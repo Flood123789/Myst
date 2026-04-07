@@ -58,7 +58,6 @@ public abstract class MinecraftServerMixin implements DimensionInjector {
             RegistryKey<DimensionType> baseAgeKey = RegistryKey.of(RegistryKeys.DIMENSION_TYPE, new Identifier("mystcraft-reforged", "base_age"));
             RegistryEntry<DimensionType> typeEntry = typeRegistry.getEntry(baseAgeKey).orElseThrow();
 
-            // THE FIX: Pass the symbols straight into the AgeBuilder so the Compiler can read them!
             Pair<ChunkGenerator, AgeProfile> result = AgeBuilder.INSTANCE.buildGenerator(server, ageId, symbols);
             ChunkGenerator customGen = result.getFirst();
             AgeProfile profile = result.getSecond();
@@ -101,7 +100,6 @@ public abstract class MinecraftServerMixin implements DimensionInjector {
                     false,
                     server.getOverworld().getRandomSequences()
             ) {
-                // We force the new world to answer the NoiseConfig with the Age's seed.
                 @Override
                 public long getSeed() {
                     return profile.getSeed();
