@@ -5,7 +5,8 @@
   "client": [
     "ClientPlayNetworkHandlerAccessor",
     "BiomeColorMixin",
-    "ClientWeatherMixin"
+    "ClientWeatherMixin",
+    "WorldRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1
