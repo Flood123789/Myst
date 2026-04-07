@@ -1,118 +1,139 @@
 package mystcraft.flood.generation
 
-object AgeCompiler {
+// This class MUST match what AgeProfileManager expects!
+data class CompiledAgeData(
+    var terrainType: String? = null,
+    val biomes: MutableList<String> = mutableListOf(),
+    var timeMode: String? = null,
+    var timeScaleMultiplier: Float = 1.0f,
+    var weatherMode: String? = null,
     
-    data class CompiledAge(
-        var terrainType: String? = null,
-        var skyColor: Int? = null,
-        var waterColor: Int? = null,
-        var fogColor: Int? = null,
-        var grassColor: Int? = null,     
-        var foliageColor: Int? = null,   
-        var timeMode: String? = null,
-        var weatherMode: String? = null,
-        val biomes: MutableList<String> = mutableListOf(),
-        var instabilityScore: Int = 0 // <--- THE CHAOS TRACKER
-    )
+    var skyColor: Int? = null,
+    var fogColor: Int? = null,
+    var waterColor: Int? = null,
+    var grassColor: Int? = null,
+    var foliageColor: Int? = null,
+    
+    var conflictInstability: Int = 0 // Tracks "bad grammar" penalties
+)
 
-    fun compile(symbols: List<String>): CompiledAge {
-        val age = CompiledAge()
+object AgeCompiler {
+    fun compile(symbols: List<String>): CompiledAgeData {
+        val data = CompiledAgeData()
         
-        var pendingTarget: String? = null
-        var pendingColor: Int? = null
-
+        // Memory banks for sequential grammar
+        val pendingColors = mutableListOf<Int>()
+        
+        // Conflict trackers to handle winners/losers at the end
+        val terrains = mutableListOf<String>()
+        val times = mutableListOf<String>()
+        val weathers = mutableListOf<String>()
+        
         for (symbol in symbols) {
-            val id = symbol.lowercase()
-
-            val target = when {
-                id.contains("sky") -> "sky"
-                id.contains("water") -> "water"
-                id.contains("fog") -> "fog"
-                id.contains("grass") -> "grass"
-                id.contains("foliage") -> "foliage"
-                else -> null
-            }
-
-            val hex = parseColor(id)
-
-            if (target != null) pendingTarget = target
-            if (hex != null) pendingColor = hex
-
-            if (pendingTarget != null && pendingColor != null) {
-                when (pendingTarget) {
-                    "sky" -> age.skyColor = pendingColor
-                    "water" -> age.waterColor = pendingColor
-                    "fog" -> age.fogColor = pendingColor
-                    "grass" -> age.grassColor = pendingColor
-                    "foliage" -> age.foliageColor = pendingColor
+            val clean = symbol.lowercase().replace("mystcraft-reforged:", "")
+            
+            // 1. Parse Custom Hex Color from Anvil ("color_custom:#FF00AA")
+            if (clean.startsWith("color_custom:#")) {
+                val hex = clean.substringAfter("#")
+                try {
+                    // Convert Hex string to Int
+                    pendingColors.add(hex.toInt(16))
+                } catch (e: Exception) {
+                    data.conflictInstability += 10 // Heavy penalty for broken hex code!
                 }
-                pendingTarget = null
-                pendingColor = null
+                continue
             }
-
-            // === TERRAIN (Add Instability for exotic terrain!) ===
-            if (id.contains("floating_island")) {
-                age.terrainType = "FLOATING_ISLANDS"
-                age.instabilityScore += 15 // Floating islands are inherently unstable
-            }
-            else if (id.contains("cave")) {
-                age.terrainType = "CAVE"
-                age.instabilityScore += 5
-            }
-            else if (id.contains("standard") || id.contains("normal")) age.terrainType = "STANDARD"
-            else if (id.contains("flat")) age.terrainType = "FLAT"
-
-            // === TIME ===
-            else if (id.contains("time_fast")) { age.timeMode = "fast"; age.instabilityScore += 10 }
-            else if (id.contains("time_slow")) { age.timeMode = "slow"; age.instabilityScore += 10 }
-            else if (id.contains("time_fixed") || id.contains("time_day") || id.contains("time_night")) { 
-                age.timeMode = "fixed"
-                age.instabilityScore += 20 // Stopping time is dangerous!
-            }
-
-            // === WEATHER ===
-            else if (id.contains("weather_rain")) age.weatherMode = "endless_rain"
-            else if (id.contains("weather_storm") || id.contains("thunder")) {
-                age.weatherMode = "endless_storm"
-                age.instabilityScore += 15
-            }
-            else if (id.contains("weather_clear") || id.contains("no_weather")) age.weatherMode = "no_weather"
-
-            // === BIOMES ===
-            else if (id.startsWith("minecraft:") && !id.contains("color")) {
-                age.biomes.add(id)
-            } else {
-                val possibleBiome = id.substringAfter(":").replace("_page", "").replace("page_", "")
-                val commonBiomes = listOf("plains", "desert", "forest", "jungle", "savanna", "taiga", "swamp", "badlands", "ocean", "river", "mushroom_fields", "sunflower_plains", "snowy_plains")
+            
+            when {
+                // === COLORS (Modifiers) ===
+                clean.contains("red") -> pendingColors.add(0xFF0000)
+                clean.contains("blue") -> pendingColors.add(0x0000FF)
+                clean.contains("green") -> pendingColors.add(0x00FF00)
+                clean.contains("black") -> pendingColors.add(0x000000)
+                clean.contains("white") -> pendingColors.add(0xFFFFFF)
+                clean.contains("yellow") -> pendingColors.add(0xFFFF00)
+                clean.contains("purple") -> pendingColors.add(0x800080)
                 
-                if (possibleBiome in commonBiomes) {
-                    age.biomes.add("minecraft:$possibleBiome")
-                } else if (id.contains("plains")) {
-                    age.biomes.add("minecraft:plains")
+                // === TARGETS (They "consume" the colors in memory) ===
+                clean.contains("color_sky") -> { 
+                    data.skyColor = pendingColors.lastOrNull()
+                    if (pendingColors.size > 1) data.conflictInstability += (pendingColors.size - 1) * 10
+                    pendingColors.clear() 
                 }
+                clean.contains("color_fog") -> { 
+                    data.fogColor = pendingColors.lastOrNull()
+                    if (pendingColors.size > 1) data.conflictInstability += (pendingColors.size - 1) * 10
+                    pendingColors.clear() 
+                }
+                clean.contains("color_water") -> { data.waterColor = pendingColors.lastOrNull(); pendingColors.clear() }
+                clean.contains("color_grass") -> { data.grassColor = pendingColors.lastOrNull(); pendingColors.clear() }
+                clean.contains("color_foliage") -> { data.foliageColor = pendingColors.lastOrNull(); pendingColors.clear() }
+                
+                // === TERRAIN TYPES ===
+                clean.contains("floating_islands") -> terrains.add("FLOATING_ISLANDS")
+                clean.contains("cave") -> terrains.add("CAVE")
+                clean.contains("standard") || clean.contains("normal") -> terrains.add("STANDARD")
+                clean.contains("flat") -> terrains.add("FLAT")
+                
+                // === TIME MODES ===
+                clean.contains("time_fast") -> times.add("fast")
+                clean.contains("time_slow") -> times.add("slow")
+                clean.contains("time_fixed") || clean.contains("time_day") || clean.contains("time_night") -> times.add("fixed")
+                
+                // === WEATHER MODES ===
+                clean.contains("weather_rain") -> weathers.add("endless_rain")
+                clean.contains("weather_storm") || clean.contains("thunder") -> weathers.add("endless_storm")
+                clean.contains("weather_clear") || clean.contains("no_weather") -> weathers.add("no_weather")
+                
+                // === BIOMES ===
+                clean.contains(":") -> data.biomes.add(clean)
             }
         }
-
-        // BIOME CHAOS: If you jam too many biomes together, the dimension fractures!
-        if (age.biomes.size > 3) {
-            age.instabilityScore += (age.biomes.size - 3) * 10 
-        }
-
-        return age
-    }
-
-    private fun parseColor(id: String): Int? {
-        if (id.contains("sky") || id.contains("water") || id.contains("fog") || id.contains("grass") || id.contains("foliage")) return null
         
-        return when {
-            id.contains("red") -> 0xFF0000
-            id.contains("blue") -> 0x0000FF
-            id.contains("green") -> 0x00FF00
-            id.contains("black") -> 0x000000
-            id.contains("white") -> 0xFFFFFF
-            id.contains("yellow") -> 0xFFFF00
-            id.contains("purple") -> 0x800080
-            else -> null
+        // ----------------------------------------------------
+        // CONFLICT RESOLUTION ENGINE
+        // ----------------------------------------------------
+        
+        // Unused modifiers cause instability (Grammar Leaks!)
+        if (pendingColors.isNotEmpty()) {
+            data.conflictInstability += pendingColors.size * 25
         }
+        
+        // Terrain Conflict: Floating Islands AND Caves? Pick 1, add instability
+        if (terrains.isNotEmpty()) {
+            if (terrains.distinct().size > 1) {
+                data.conflictInstability += (terrains.size - 1) * 30 
+            }
+            data.terrainType = terrains.random() 
+        }
+        
+        // Weather Conflict
+        if (weathers.isNotEmpty()) {
+            if (weathers.distinct().size > 1) {
+                data.conflictInstability += (weathers.size - 1) * 15
+            }
+            data.weatherMode = weathers.random()
+        }
+        
+        // Time Conflict: Fast + Slow fighting? Chaos.
+        val fastCount = times.count { it == "fast" }
+        val slowCount = times.count { it == "slow" }
+        
+        if (fastCount > 0 && slowCount > 0) {
+            data.conflictInstability += 50 // Massive shear!
+            data.timeMode = times.random()
+        } else if (fastCount > 0) {
+            data.timeMode = "fast"
+            data.timeScaleMultiplier = fastCount.toFloat() // Stack the speed!
+            if (fastCount > 1) data.conflictInstability += fastCount * 15
+        } else if (slowCount > 0) {
+            data.timeMode = "slow"
+            data.timeScaleMultiplier = 1.0f / slowCount.toFloat() // Stack the slowness!
+            if (slowCount > 1) data.conflictInstability += slowCount * 15
+        } else if (times.isNotEmpty()) {
+            data.timeMode = times.random()
+        }
+        
+        return data
     }
 }

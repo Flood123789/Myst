@@ -24,10 +24,7 @@ public class WorldDayNightMixin {
                 boolean isFixed = profile.getTime().getFixedTime() != null;
                 long time = isFixed ? profile.getTime().getFixedTime() : profile.getTime().getLiveTimeOfDay();
                 
-                // Convert to a 24000 tick cycle.
                 long timeOfDay = time % 24000L;
-                
-                // Minecraft defines daytime as roughly between 0 and 13000 ticks.
                 boolean isDaytime = timeOfDay < 13000L || timeOfDay >= 23000L;
                 cir.setReturnValue(isDaytime);
             }
@@ -44,6 +41,27 @@ public class WorldDayNightMixin {
                 AgeProfile profile = AgeProfileManager.INSTANCE.getOrGenerateProfile(serverWorld.getServer(), serverWorld.getRegistryKey().getValue());
                 boolean isFixed = profile.getTime().getFixedTime() != null;
                 cir.setReturnValue(isFixed ? profile.getTime().getFixedTime() : profile.getTime().getLiveTimeOfDay());
+            }
+        }
+    }
+
+    // 3. THE SUNSCREEN REMOVER: Tells the Server's Light Engine to blast the surface with UV rays!
+    @Inject(method = "getAmbientDarkness", at = @At("HEAD"), cancellable = true)
+    private void mystcraft$enforceAgeDarkness(CallbackInfoReturnable<Integer> cir) {
+        World world = (World) (Object) this;
+        
+        if (!world.isClient() && world instanceof ServerWorld serverWorld) {
+            if (serverWorld.getRegistryKey().getValue().getNamespace().equals("mystcraft-reforged")) {
+                AgeProfile profile = AgeProfileManager.INSTANCE.getOrGenerateProfile(serverWorld.getServer(), serverWorld.getRegistryKey().getValue());
+                
+                boolean isFixed = profile.getTime().getFixedTime() != null;
+                long time = isFixed ? profile.getTime().getFixedTime() : profile.getTime().getLiveTimeOfDay();
+                
+                long timeOfDay = time % 24000L;
+                boolean isDaytime = timeOfDay < 13000L || timeOfDay >= 23000L;
+                
+                // 0 = Bright Day (Zombies Burn), 11 = Pitch Black Night (Zombies Safe)
+                cir.setReturnValue(isDaytime ? 0 : 11);
             }
         }
     }

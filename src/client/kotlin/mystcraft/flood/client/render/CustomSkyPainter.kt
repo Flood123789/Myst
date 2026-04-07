@@ -16,18 +16,14 @@ import kotlin.random.Random
 object CustomSkyPainter {
     private val SUN_TEXTURE = Identifier("textures/environment/sun.png")
     private val MOON_PHASES = Identifier("textures/environment/moon_phases.png")
-    
-    // Memory bank for our custom dense starfields!
     private var starBuffer: VertexBuffer? = null
 
-    // This perfectly mirrors Minecraft's vanilla star math so they blend in flawlessly
     private fun initStars() {
         if (starBuffer != null) return
         starBuffer = VertexBuffer(VertexBuffer.Usage.STATIC)
         val tessellator = Tessellator.getInstance()
         val bufferBuilder = tessellator.buffer
         bufferBuilder.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION)
-        
         val random = MCRandom.create(10842L)
         for (i in 0 until 1500) {
             var d = random.nextFloat() * 2.0f - 1.0f
@@ -68,34 +64,37 @@ object CustomSkyPainter {
     fun paintExtraSky(matrices: MatrixStack, projectionMatrix: Matrix4f, tickDelta: Float) {
         val client = MinecraftClient.getInstance()
         val world = client.world ?: return
-        
         val ageId = world.registryKey.value
         if (ageId.namespace != "mystcraft-reforged") return
-        
         val profile = ClientAgeCache.getProperties(ageId) ?: return
         val rand = Random(profile.seed)
-        
+
         RenderSystem.enableBlend()
+        RenderSystem.depthMask(false)
         
-        // === 1. DRAW DENSE STARS ===
-        val starAlpha = world.getStarBrightness(tickDelta)
+        // KILL THE BOXES: Use Additive Blending for everything!
+        // This makes black pixels in sun/moon textures transparent.
+        RenderSystem.blendFuncSeparate(
+            GlStateManager.SrcFactor.SRC_ALPHA, GlStateManager.DstFactor.ONE, 
+            GlStateManager.SrcFactor.ONE, GlStateManager.DstFactor.ZERO
+        )
+
+        // 1. STARS
+        val skyAngle = world.getSkyAngle(tickDelta)
+        var brightness = 1.0f - (kotlin.math.cos(skyAngle * (kotlin.math.PI.toFloat() * 2.0f)) * 2.0f + 0.25f)
+        brightness = brightness.coerceIn(0.0f, 1.0f)
+        val starAlpha = brightness * brightness * 0.5f
+
         if (starAlpha > 0.0f && profile.time.starDensity > 1) {
             initStars()
-            RenderSystem.setShaderColor(starAlpha, starAlpha, starAlpha, starAlpha)
-            BackgroundRenderer.clearFog()
             RenderSystem.setShader(GameRenderer::getPositionProgram)
-            
-            // Loop and draw the extra star layers!
+            RenderSystem.setShaderColor(starAlpha, starAlpha, starAlpha, starAlpha)
             for (i in 1 until profile.time.starDensity) {
                 matrices.push()
-                // Randomly offset this layer so it creates thousands of unique constellations
                 matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(rand.nextFloat() * 360f))
                 matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(rand.nextFloat() * 360f))
                 matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(rand.nextFloat() * 360f))
-                
-                // Spin it so it follows the sky angle
-                matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(world.getSkyAngle(tickDelta) * 360.0f))
-
+                matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(world.getSkyAngle(tickDelta) * 360.0f))
                 starBuffer?.bind()
                 starBuffer?.draw(matrices.peek().positionMatrix, projectionMatrix, GameRenderer.getPositionProgram())
                 VertexBuffer.unbind()
@@ -103,50 +102,38 @@ object CustomSkyPainter {
             }
         }
 
-        // === 2. DRAW EXTRA SUNS & MOONS ===
-        RenderSystem.blendFuncSeparate(
-            GlStateManager.SrcFactor.SRC_ALPHA, GlStateManager.DstFactor.ONE,
-            GlStateManager.SrcFactor.ONE, GlStateManager.DstFactor.ZERO
-        )
-        RenderSystem.depthMask(false)
+        // 2. CELESTIAL BODIES (Suns then Moons)
         RenderSystem.setShader(GameRenderer::getPositionTexColorProgram)
-        RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f) // Reset color so suns aren't transparent!
+        RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f)
 
         val tessellator = Tessellator.getInstance()
         val buffer = tessellator.buffer
 
+        matrices.push()
+        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-90.0f))
+
+        // Draw Red Suns
         for (i in 0 until profile.time.sunRedCount) {
-            drawCelestialBody(
-                matrices, buffer, tessellator, SUN_TEXTURE,
-                size = profile.time.sunSize * (rand.nextFloat() * 1.5f + 0.8f),
-                timeAngle = world.getSkyAngle(tickDelta),
-                orbitOffsetPitch = rand.nextFloat() * 360f, orbitOffsetYaw = rand.nextFloat() * 360f,
-                r = 1.0f, g = 0.2f, b = 0.2f, a = 0.9f 
-            )
+            drawCelestialBody(matrices, buffer, tessellator, SUN_TEXTURE,
+                profile.time.sunSize * (rand.nextFloat() * 1.5f + 0.8f), world.getSkyAngle(tickDelta),
+                rand.nextFloat() * 360f, rand.nextFloat() * 360f, 1.0f, 0.2f, 0.2f, 0.9f)
         }
-
+        // Draw Blue Suns
         for (i in 0 until profile.time.sunBlueCount) {
-            drawCelestialBody(
-                matrices, buffer, tessellator, SUN_TEXTURE,
-                size = profile.time.sunSize * (rand.nextFloat() * 0.8f + 0.4f), 
-                timeAngle = world.getSkyAngle(tickDelta),
-                orbitOffsetPitch = rand.nextFloat() * 360f, orbitOffsetYaw = rand.nextFloat() * 360f,
-                r = 0.2f, g = 0.5f, b = 1.0f, a = 0.9f 
-            )
+            drawCelestialBody(matrices, buffer, tessellator, SUN_TEXTURE,
+                profile.time.sunSize * (rand.nextFloat() * 0.8f + 0.4f), world.getSkyAngle(tickDelta),
+                rand.nextFloat() * 360f, rand.nextFloat() * 360f, 0.2f, 0.5f, 1.0f, 0.9f)
         }
-
+        // Draw Extra Moons (Drawn last = appears on top!)
         for (i in 1 until profile.time.moonCount) {
-            drawCelestialBody(
-                matrices, buffer, tessellator, MOON_PHASES,
-                size = profile.time.moonSize * (rand.nextFloat() * 1.5f + 0.5f),
-                timeAngle = world.getSkyAngle(tickDelta) + 0.5f, 
-                orbitOffsetPitch = rand.nextFloat() * 360f, orbitOffsetYaw = rand.nextFloat() * 360f,
-                r = 1.0f, g = 1.0f, b = 1.0f, a = 0.8f, isMoon = true
-            )
+            drawCelestialBody(matrices, buffer, tessellator, MOON_PHASES,
+                profile.time.moonSize * (rand.nextFloat() * 1.5f + 0.5f), world.getSkyAngle(tickDelta) + 0.5f,
+                rand.nextFloat() * 360f, rand.nextFloat() * 360f, 1.0f, 1.0f, 1.0f, 0.8f, true)
         }
 
+        matrices.pop()
         RenderSystem.depthMask(true)
-        RenderSystem.defaultBlendFunc() 
+        RenderSystem.defaultBlendFunc()
         RenderSystem.disableBlend()
     }
 
@@ -156,7 +143,6 @@ object CustomSkyPainter {
         r: Float, g: Float, b: Float, a: Float, isMoon: Boolean = false
     ) {
         matrices.push()
-        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-90.0f))
         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(orbitOffsetYaw))
         matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(orbitOffsetPitch))
         matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(timeAngle * 360.0f))
@@ -174,12 +160,12 @@ object CustomSkyPainter {
         }
 
         buffer.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE_COLOR)
+        // Back to fixed distance (100) to match vanilla sky
         buffer.vertex(matrix, -scale, 100.0f, -scale).texture(u0, v0).color(r, g, b, a).next()
         buffer.vertex(matrix, scale, 100.0f, -scale).texture(u1, v0).color(r, g, b, a).next()
         buffer.vertex(matrix, scale, 100.0f, scale).texture(u1, v1).color(r, g, b, a).next()
         buffer.vertex(matrix, -scale, 100.0f, scale).texture(u0, v1).color(r, g, b, a).next()
         tessellator.draw()
-
         matrices.pop()
     }
 }

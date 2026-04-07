@@ -17,7 +17,7 @@ public class WorldRendererMixin {
             at = @At("TAIL"))
     private void mystcraft$renderExtraCelestialBodies(MatrixStack matrices, Matrix4f projectionMatrix, float tickDelta, Camera camera, boolean thickFog, Runnable fogCallback, CallbackInfo ci) {
         
-        // Removed the 'camera' argument here as well!
+        // We still receive 'camera' from Minecraft, but we no longer need to pass it to our Painter
         CustomSkyPainter.INSTANCE.paintExtraSky(matrices, projectionMatrix, tickDelta);
         
     }
