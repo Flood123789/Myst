@@ -60,6 +60,25 @@ object ModSymbols {
         availableSymbols.add(Identifier("mystcraft-reforged", "color_white"))
         availableSymbols.add(Identifier("mystcraft-reforged", "color_yellow"))
         availableSymbols.add(Identifier("mystcraft-reforged", "color_purple"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "color_custom"))
+
+        // === NEW STUFF: Celestial Bodies ===
+        availableSymbols.add(Identifier("mystcraft-reforged", "sun_normal"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "sun_red"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "sun_blue"))
+        
+        availableSymbols.add(Identifier("mystcraft-reforged", "moon_normal"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "moon_extra")) // Stacks to increase count
+        
+        availableSymbols.add(Identifier("mystcraft-reforged", "stars_normal"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "stars_dense")) // Stacks to layer the texture
+        availableSymbols.add(Identifier("mystcraft-reforged", "no_stars"))
+
+        // === NEW STUFF: Spawning ===
+        availableSymbols.add(Identifier("mystcraft-reforged", "spawning_normal"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "spawning_no_mobs"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "spawning_extra_hostile"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "spawning_extra_passive"))
         
         // ===================================
 

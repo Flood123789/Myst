@@ -13,7 +13,6 @@ data class AgeProfile(
     val biomes: BiomeSet,
     val spawning: SpawnSettings,
     val stability: StabilityProfile,
-    // THE FIX 1: A list to hold any special mechanic pages (like "dense_ores", "meteors", "charged_creepers")
     val modifiers: MutableList<String> = mutableListOf() 
 ) {
     companion object {
@@ -37,11 +36,18 @@ data class BiomeSet(
 data class ColorSettings(val sky: Int, val fog: Int, val water: Int, val grass: Int, val foliage: Int)
 
 data class TimeSettings(
-    var sunCount: Int,
-    var sunSize: Float,
-    var moonSize: Float,
-    var hasStars: Boolean,
-    var fixedTime: Long?,
+    // === NEW: Expanded Celestial Data ===
+    var sunNormalCount: Int = 1,
+    var sunRedCount: Int = 0,
+    var sunBlueCount: Int = 0,
+    var sunSize: Float = 1.0f,
+    
+    var moonCount: Int = 1,
+    var moonSize: Float = 1.0f,
+    
+    var starDensity: Int = 1, // 0 = none, 1 = normal, 2+ = dense/layered
+    
+    var fixedTime: Long? = null,
     var timeScale: Float = 1.0f,
     var savedTime: Long? = null,
     @Transient var liveTimeOfDay: Long = 6000L,
@@ -54,7 +60,11 @@ data class WeatherSettings(
     var noWeather: Boolean
 )
 
-// THE FIX 2: Changed from 'val' to 'var' so the Book Binder can calculate and add penalties!
 data class StabilityProfile(var isStable: Boolean, var instabilityScore: Int)
 
-data class SpawnSettings(val noMobs: Boolean, val hostileMultiplier: Float, val passiveMultiplier: Float)
+data class SpawnSettings(
+    // === NEW: Modifiable multipliers ===
+    var noMobs: Boolean = false, 
+    var hostileMultiplier: Float = 1.0f, 
+    var passiveMultiplier: Float = 1.0f
+)

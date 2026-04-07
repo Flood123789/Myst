@@ -129,11 +129,20 @@ class BookBinderScreenHandler(
                 if (!pageStack.isEmpty && pageStack.item is SymbolPageItem) {
                     
                     var symbolId = "unknown"
-                    // THE FIX: Capital "S" for Symbol to match your Item class!
                     if (pageStack.hasNbt() && pageStack.nbt!!.contains("Symbol")) {
                         symbolId = pageStack.nbt!!.getString("Symbol")
                     } else {
                         symbolId = Registries.ITEM.getId(pageStack.item).toString()
+                    }
+                    
+                    // === THE ANVIL HEX HACK ===
+                    if (symbolId == "mystcraft-reforged:color_custom" || symbolId == "color_custom") {
+                        val customName = pageStack.name.string
+                        if (customName.startsWith("#")) {
+                            symbolId = "color_custom:$customName"
+                        } else {
+                            symbolId = "color_custom"
+                        }
                     }
                     
                     pageList.add(NbtString.of(symbolId))
