@@ -10,11 +10,13 @@ import mystcraft.flood.client.gui.BookBinderScreen
 import mystcraft.flood.client.network.ClientMessages
 import mystcraft.flood.client.render.BookReceptacleBlockEntityRenderer
 import mystcraft.flood.client.render.MystcraftDimensionEffects
+import mystcraft.flood.client.render.PageIconItemRenderer
 import mystcraft.flood.gui.ModScreens
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.blockrenderlayer.v1.BlockRenderLayerMap
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
+import net.fabricmc.fabric.api.client.rendering.v1.BuiltinItemRendererRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.ColorProviderRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.DimensionRenderingRegistry
 import net.minecraft.client.gui.screen.ingame.HandledScreens
@@ -22,6 +24,7 @@ import net.minecraft.client.render.RenderLayer
 import net.minecraft.client.render.block.entity.BlockEntityRendererFactories
 import net.minecraft.client.render.block.entity.EndPortalBlockEntityRenderer
 import net.minecraft.util.Identifier
+import mystcraft.flood.item.ModItems
 
 class MystcraftReforgedClient : ClientModInitializer {
     
@@ -54,6 +57,9 @@ class MystcraftReforgedClient : ClientModInitializer {
 
         BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.CRYSTAL_BLOCK, RenderLayer.getTranslucent())
         BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.CRYSTAL_PORTAL, RenderLayer.getTranslucent())
+
+        BuiltinItemRendererRegistry.INSTANCE.register(ModItems.SYMBOL_PAGE, PageIconItemRenderer)
+        BuiltinItemRendererRegistry.INSTANCE.register(ModItems.LOST_PAGE, PageIconItemRenderer)
 
         // === RANDOMIZED PORTAL COLOR PROVIDER ===
         ColorProviderRegistry.BLOCK.register(net.minecraft.client.color.block.BlockColorProvider { state, world, pos, tintIndex ->

@@ -14,6 +14,21 @@ import kotlin.random.Random
 object AgeProfileManager {
     private val profileCache = ConcurrentHashMap<Identifier, AgeProfile>()
 
+    private fun normalizeSymbol(symbol: String): String =
+        symbol.lowercase().replace("mystcraft-reforged:", "")
+
+    private fun weightedRandomTerrain(rand: Random): TerrainType {
+        val pool = buildList {
+            repeat(40) { add(TerrainType.STANDARD) }
+            repeat(18) { add(TerrainType.FLOATING_ISLANDS) }
+            repeat(16) { add(TerrainType.CAVES) }
+            repeat(14) { add(TerrainType.FLAT) }
+            repeat(3) { add(TerrainType.BIOSPHERES) }
+            repeat(2) { add(TerrainType.CITIES) }
+        }
+        return pool.random(rand)
+    }
+
     @JvmOverloads
     fun getOrGenerateProfile(server: MinecraftServer, ageId: Identifier, symbols: List<String> = emptyList()): AgeProfile {
         profileCache[ageId]?.let { return it }
@@ -40,7 +55,12 @@ object AgeProfileManager {
     private fun generateNewProfile(server: MinecraftServer, ageId: Identifier, symbols: List<String>): AgeProfile {
         val compiled = AgeCompiler.compile(symbols)
         val rand = Random(ageId.toString().hashCode().toLong())
-        val usedRandomPage = symbols.any { it.lowercase().replace("mystcraft-reforged:", "") == "random" }
+        val normalizedSymbols = symbols.map(::normalizeSymbol)
+        val usedRandomPage = normalizedSymbols.any { it == "random" }
+        val hasExplicitTerrainPage = normalizedSymbols.any { it.startsWith("terrain_") || it == "city" || it == "cities" || it == "biospheres" }
+        val hasExplicitBiomePages = compiled.biomes.isNotEmpty() || compiled.biomeController != null
+        val hasExplicitTimePage = compiled.timeMode != null
+        val hasExplicitWeatherPage = compiled.weatherMode != null
         
         var modifierInstability = 0
         val activeModifiers = mutableListOf<String>()
@@ -61,8 +81,8 @@ object AgeProfileManager {
         var passiveMult = 1.0f
 
         // 1. SCAN EXPLICIT PAGES
-        for (symbol in symbols) {
-            var cleanSymbol = symbol.lowercase().replace("mystcraft-reforged:", "")
+        for (symbol in normalizedSymbols) {
+            var cleanSymbol = symbol
             
             if (cleanSymbol == "random") {
                 val wildcards = listOf(
@@ -70,7 +90,7 @@ object AgeProfileManager {
                     "spawning_no_mobs", "spawning_extra_hostile", "sun_red", "moon_extra"
                 )
                 cleanSymbol = wildcards.random(rand)
-                modifierInstability += 5 
+                modifierInstability += 5
             }
 
             when (cleanSymbol) {
@@ -116,17 +136,14 @@ object AgeProfileManager {
                 sunBlue = rand.nextInt(0, 2)
             }
             if (sunNormal == 0 && sunRed == 0 && sunBlue == 0) sunNormal = 1
-            modifierInstability += 5 
         }
 
         if (!hasMoonPages) {
             moonCount = if (rand.nextFloat() < 0.5f) 1 else rand.nextInt(2, 6)
-            modifierInstability += 5
         }
 
         if (!hasStarPages) {
             starDensity = if (rand.nextFloat() < 0.1f) 0 else rand.nextInt(1, 4)
-            modifierInstability += 2 
         }
 
         if (!hasSpawnPages) {
@@ -135,7 +152,6 @@ object AgeProfileManager {
                 if (rand.nextFloat() < 0.1f) hostileMult = rand.nextFloat() * 3f + 1f
                 if (rand.nextFloat() < 0.1f) passiveMult = rand.nextFloat() * 3f + 1f
             }
-            modifierInstability += 10 
         }
 
         // ==========================================
@@ -148,7 +164,7 @@ object AgeProfileManager {
             "CITIES" -> TerrainType.CITIES
             "STANDARD" -> TerrainType.STANDARD
             "FLAT" -> TerrainType.FLAT
-            else -> TerrainType.entries.random(rand) 
+            else -> weightedRandomTerrain(rand)
         }
 
         val finalBiomeMode = when (compiled.biomeController) {
@@ -185,19 +201,66 @@ object AgeProfileManager {
         // ==========================================
         // 4. CALCULATE THE FINAL INSTABILITY
         // ==========================================
-        var finalInstability = 0 + modifierInstability + compiled.conflictInstability 
+        val basicDefinedCount = listOf(
+            hasExplicitTerrainPage,
+            hasExplicitBiomePages,
+            hasExplicitTimePage,
+            hasSunPages,
+            hasMoonPages,
+            hasStarPages,
+            hasExplicitWeatherPage
+        ).count { it }
+
+        val missingBasicCount = 7 - basicDefinedCount
+        val sparseAge = symbols.isEmpty() || basicDefinedCount <= 2
+        val partiallyDefinedAge = basicDefinedCount in 3..4
+        val isSingleBiomeAge = finalBiomeMode == BiomeMode.SINGLE && biomesList.size == 1
+        val isOverworldLike =
+            terrain == TerrainType.STANDARD &&
+                !compiled.biomeController.equals("CHECKERBOARD", ignoreCase = true) &&
+                timeMode !in setOf("fast", "slow", "fixed") &&
+                weatherMode == "normal"
+
+        var finalInstability = modifierInstability + compiled.conflictInstability
+
+        finalInstability += when {
+            sparseAge -> 34
+            partiallyDefinedAge -> 16
+            else -> 0
+        }
+        finalInstability += missingBasicCount * 6
+        finalInstability -= basicDefinedCount * 4
+
         if (terrain == TerrainType.FLOATING_ISLANDS) finalInstability += 15
+        if (terrain == TerrainType.CITIES) finalInstability += 38
+        if (terrain == TerrainType.BIOSPHERES) finalInstability += 32
+        if (terrain == TerrainType.FLAT) finalInstability += 6
+        if (terrain == TerrainType.CAVES) finalInstability += 10
+
         if (timeMode == "fixed") finalInstability += 20
+        if (timeMode == "fast" || timeMode == "slow") finalInstability += 8
         if (weatherMode == "endless_storm") finalInstability += 15
+        if (weatherMode == "endless_rain") finalInstability += 6
         if (biomesList.size > 3) finalInstability += (biomesList.size - 3) * 10
+
+        if (isSingleBiomeAge) finalInstability -= 14
+        if (finalBiomeMode == BiomeMode.VANILLA_DISTRIBUTION) finalInstability -= 10
+        if (isOverworldLike) finalInstability -= 16
+        if (hasExplicitTerrainPage && terrain == TerrainType.STANDARD) finalInstability -= 8
+        if (hasExplicitWeatherPage && weatherMode == "normal") finalInstability -= 4
+        if (hasExplicitTimePage && timeMode == "normal") finalInstability -= 4
+
+        finalInstability = finalInstability.coerceAtLeast(0)
 
         if (ExoticAgeThemes.fromModifiers(activeModifiers) == null && terrain != TerrainType.CITIES && terrain != TerrainType.BIOSPHERES) {
             val exoticChance = when {
-                usedRandomPage -> 0.85f
-                finalInstability >= 60 -> 1.0f
-                finalInstability >= 40 -> 0.8f
-                finalInstability >= 20 -> 0.55f
-                finalInstability > 0 -> 0.30f
+                usedRandomPage -> 0.98f
+                sparseAge -> 0.93f
+                partiallyDefinedAge -> 0.62f
+                finalInstability >= 70 -> 1.0f
+                finalInstability >= 45 -> 0.72f
+                finalInstability >= 20 -> 0.35f
+                finalInstability > 0 -> 0.10f
                 else -> 0.0f
             }
 

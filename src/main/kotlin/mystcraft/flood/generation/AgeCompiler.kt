@@ -124,9 +124,9 @@ object AgeCompiler {
         // Terrain Conflict: Floating Islands AND Caves? Pick 1, add instability
         if (terrains.isNotEmpty()) {
             if (terrains.distinct().size > 1) {
-                data.conflictInstability += (terrains.size - 1) * 30 
+                data.conflictInstability += (terrains.distinct().size - 1) * 30
             }
-            data.terrainType = terrains.random() 
+            data.terrainType = terrains.last()
         }
 
         // Biome Controller Conflict
@@ -134,34 +134,41 @@ object AgeCompiler {
             if (biomeControllers.distinct().size > 1) {
                 data.conflictInstability += 20 // Grammar conflict: can't be vanilla distribution AND checkerboard
             }
-            data.biomeController = biomeControllers.random()
+            data.biomeController = biomeControllers.last()
         }
         
         // Weather Conflict
         if (weathers.isNotEmpty()) {
             if (weathers.distinct().size > 1) {
-                data.conflictInstability += (weathers.size - 1) * 15
+                data.conflictInstability += (weathers.distinct().size - 1) * 15
             }
-            data.weatherMode = weathers.random()
+            data.weatherMode = weathers.last()
         }
         
         // Time Conflict: Fast + Slow fighting? Chaos.
         val fastCount = times.count { it == "fast" }
         val slowCount = times.count { it == "slow" }
         
-        if (fastCount > 0 && slowCount > 0) {
-            data.conflictInstability += 50 // Massive shear!
-            data.timeMode = times.random()
-        } else if (fastCount > 0) {
-            data.timeMode = "fast"
-            data.timeScaleMultiplier = fastCount.toFloat() // Stack the speed!
-            if (fastCount > 1) data.conflictInstability += fastCount * 15
-        } else if (slowCount > 0) {
-            data.timeMode = "slow"
-            data.timeScaleMultiplier = 1.0f / slowCount.toFloat() // Stack the slowness!
-            if (slowCount > 1) data.conflictInstability += slowCount * 15
-        } else if (times.isNotEmpty()) {
-            data.timeMode = times.random()
+        if (times.isNotEmpty()) {
+            val distinctTimes = times.distinct()
+            if (distinctTimes.size > 1) {
+                data.conflictInstability += (distinctTimes.size - 1) * 20
+            }
+            if (fastCount > 0 && slowCount > 0) {
+                data.conflictInstability += 50 // Massive shear!
+            }
+
+            data.timeMode = times.last()
+            when (data.timeMode) {
+                "fast" -> {
+                    data.timeScaleMultiplier = fastCount.toFloat()
+                    if (fastCount > 1) data.conflictInstability += fastCount * 15
+                }
+                "slow" -> {
+                    data.timeScaleMultiplier = 1.0f / slowCount.toFloat()
+                    if (slowCount > 1) data.conflictInstability += slowCount * 15
+                }
+            }
         }
         
         return data

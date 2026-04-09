@@ -5,7 +5,10 @@
   "client": [
     "ClientPlayNetworkHandlerAccessor",
     "BiomeColorMixin",
+    "BackgroundRendererMixin",
+    "BlockLeakParticleMixin",
     "ClientWeatherMixin",
+    "InGameOverlayRendererMixin",
     "WorldRendererMixin",
     "MinecraftClientMixin",
     "SoundManagerMixin"
