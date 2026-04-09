@@ -29,6 +29,7 @@ object ModItemGroups {
                 entries.add(ModBlocks.BLACK_DECAY)
                 entries.add(ModBlocks.STAR_FISSURE) // ADDED: Show the Star Fissure block in the main tab for easy access
                 entries.add(ModBlocks.CRYSTAL_BLOCK) // ADDED: Show the Crystal Block in the main tab for easy access
+                entries.add(ModBlocks.BOOK_RECEPTACLE) // ADDED: Show the Book Receptacle block in the main tab for easy access
                 entries.add(ModBlocks.BOOK_BINDER) // ADDED: Show the Book Binder block in the main tab for easy access
                 // Removed SYMBOL_PAGE from here to keep the main tab clean!
             }

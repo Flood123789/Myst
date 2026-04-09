@@ -6,7 +6,9 @@
     "ClientPlayNetworkHandlerAccessor",
     "BiomeColorMixin",
     "ClientWeatherMixin",
-    "WorldRendererMixin"
+    "WorldRendererMixin",
+    "MinecraftClientMixin",
+    "SoundManagerMixin"
   ],
   "injectors": {
     "defaultRequire": 1

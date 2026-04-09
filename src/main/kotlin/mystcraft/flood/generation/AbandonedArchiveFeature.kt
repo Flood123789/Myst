@@ -2,6 +2,8 @@ package mystcraft.flood.generation
 
 import com.mojang.serialization.Codec
 import mystcraft.flood.MystcraftReforged
+import mystcraft.flood.generation.profile.AgeProfileManager
+import mystcraft.flood.generation.profile.TerrainType
 import mystcraft.flood.item.ModItems
 import net.minecraft.block.Blocks
 import net.minecraft.block.entity.ChestBlockEntity
@@ -22,6 +24,8 @@ class AbandonedArchiveFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defa
 
         // 1. Only spawn in Mystcraft Ages
         if (serverWorld.registryKey.value.namespace != MystcraftReforged.MOD_ID) return false
+        val profile = AgeProfileManager.getOrGenerateProfile(serverWorld.server, serverWorld.registryKey.value)
+        if (profile.terrainType == TerrainType.BIOSPHERES) return false
 
         // Now a 1 in 300 chance!
         if (random.nextInt(300) != 0) return false

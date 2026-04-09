@@ -4,6 +4,7 @@ package mystcraft.flood.generation
 data class CompiledAgeData(
     var terrainType: String? = null,
     val biomes: MutableList<String> = mutableListOf(),
+    var biomeController: String? = null, // <--- Added Biome Controller
     var timeMode: String? = null,
     var timeScaleMultiplier: Float = 1.0f,
     var weatherMode: String? = null,
@@ -28,9 +29,24 @@ object AgeCompiler {
         val terrains = mutableListOf<String>()
         val times = mutableListOf<String>()
         val weathers = mutableListOf<String>()
+        val biomeControllers = mutableListOf<String>() // <--- Tracker for controllers
         
         for (symbol in symbols) {
-            val clean = symbol.lowercase().replace("mystcraft-reforged:", "")
+            var clean = symbol.lowercase().replace("mystcraft-reforged:", "")
+            
+            // --- THE WILDCARD INTERCEPTOR ---
+            if (clean == "random") {
+                // Pick a random chaotic feature for the compiler to inject!
+                val wildcards = listOf(
+                    "floating_islands", "cave", "flat", "biospheres", "cities",
+                    "time_fast", "time_fixed", 
+                    "weather_storm", "weather_rain",
+                    "red", "purple", "black", "green",
+                    "biome_checkerboard", "biome_vanilla" // <--- Added wildcards
+                )
+                clean = wildcards.random()
+                data.conflictInstability += 5 // A small "Chaos Tax" for using wildcard pages
+            }
             
             // 1. Parse Custom Hex Color from Anvil ("color_custom:#FF00AA")
             if (clean.startsWith("color_custom:#")) {
@@ -72,6 +88,8 @@ object AgeCompiler {
                 // === TERRAIN TYPES ===
                 clean.contains("floating_islands") -> terrains.add("FLOATING_ISLANDS")
                 clean.contains("cave") -> terrains.add("CAVE")
+                clean.contains("biosphere") -> terrains.add("BIOSPHERES")
+                clean.contains("terrain_cities") || clean == "cities" || clean == "city" || clean.contains("city") -> terrains.add("CITIES")
                 clean.contains("standard") || clean.contains("normal") -> terrains.add("STANDARD")
                 clean.contains("flat") -> terrains.add("FLAT")
                 
@@ -84,6 +102,10 @@ object AgeCompiler {
                 clean.contains("weather_rain") -> weathers.add("endless_rain")
                 clean.contains("weather_storm") || clean.contains("thunder") -> weathers.add("endless_storm")
                 clean.contains("weather_clear") || clean.contains("no_weather") -> weathers.add("no_weather")
+
+                // === BIOME CONTROLLERS ===
+                clean.contains("checkerboard") -> biomeControllers.add("CHECKERBOARD")
+                clean.contains("vanilla") || clean.contains("native") -> biomeControllers.add("VANILLA")
                 
                 // === BIOMES ===
                 clean.contains(":") -> data.biomes.add(clean)
@@ -105,6 +127,14 @@ object AgeCompiler {
                 data.conflictInstability += (terrains.size - 1) * 30 
             }
             data.terrainType = terrains.random() 
+        }
+
+        // Biome Controller Conflict
+        if (biomeControllers.isNotEmpty()) {
+            if (biomeControllers.distinct().size > 1) {
+                data.conflictInstability += 20 // Grammar conflict: can't be vanilla distribution AND checkerboard
+            }
+            data.biomeController = biomeControllers.random()
         }
         
         // Weather Conflict

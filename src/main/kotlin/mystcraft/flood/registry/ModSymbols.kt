@@ -23,6 +23,9 @@ object ModSymbols {
         availableSymbols.add(Identifier("mystcraft-reforged", "terrain_caves"))
         availableSymbols.add(Identifier("mystcraft-reforged", "terrain_floating_islands"))
         availableSymbols.add(Identifier("mystcraft-reforged", "terrain_flat"))
+        // === NEW TERRAIN PAGES ADDED HERE ===
+        availableSymbols.add(Identifier("mystcraft-reforged", "terrain_biospheres"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "terrain_cities"))
 
         // 3. "Baked" Time Settings
         availableSymbols.add(Identifier("mystcraft-reforged", "time_day"))
@@ -43,8 +46,20 @@ object ModSymbols {
         availableSymbols.add(Identifier("mystcraft-reforged", "dense_ores")) 
         availableSymbols.add(Identifier("mystcraft-reforged", "giant_trees"))
         availableSymbols.add(Identifier("mystcraft-reforged", "crystal_formations"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "tendrils"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "obelisks"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "exotic_hex"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "exotic_wire_cells"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "exotic_separators"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "exotic_cables"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "exotic_fractal_cubes"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "exotic_light_fissures"))
+
+        // === NEW STUFF: Biome Controllers ===
+        availableSymbols.add(Identifier("mystcraft-reforged", "biome_checkerboard"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "biome_vanilla"))
+
         // === NEW STUFF: Colors & Targets ===
-        
         // Target Pages
         availableSymbols.add(Identifier("mystcraft-reforged", "color_sky"))
         availableSymbols.add(Identifier("mystcraft-reforged", "color_fog"))
@@ -79,6 +94,9 @@ object ModSymbols {
         availableSymbols.add(Identifier("mystcraft-reforged", "spawning_no_mobs"))
         availableSymbols.add(Identifier("mystcraft-reforged", "spawning_extra_hostile"))
         availableSymbols.add(Identifier("mystcraft-reforged", "spawning_extra_passive"))
+
+        // The Wildcard Page
+        availableSymbols.add(Identifier("mystcraft-reforged", "random"))
         
         // ===================================
 

@@ -7,6 +7,7 @@
   "item.mystcraft-reforged.ink_vial": "Ink Vial",
   "item.mystcraft-reforged.page": "Empty Page",
   "item.mystcraft-reforged.symbol_page": "Symbol Page",
+  "item.mystcraft-reforged.lost_page": "Lost Page",
   "item.mystcraft-reforged.booster": "Sealed Notebook",
   "item.mystcraft-reforged.deskext": "Writing Desk Backboard",
   "item.mystcraft-reforged.folder": "Collation Folder",
@@ -22,5 +23,7 @@
   "block.mystcraft-reforged.black_decay": "Black Decay",
   "block.mystcraft-reforged.book_binder": "Book Binder",
   "block.mystcraft-reforged.star_fissure": "Star Fissure",
-  "block.mystcraft-reforged.crystal_block": "Crystal"
+  "block.mystcraft-reforged.crystal_block": "Crystal",
+  "subtitles.mystcraft-reforged.age_enter": "Age opens",
+  "subtitles.mystcraft-reforged.age_leave": "Age closes"
 }

@@ -13,13 +13,14 @@ import net.minecraft.world.biome.Biome
 import net.minecraft.world.biome.source.CheckerboardBiomeSource
 import net.minecraft.world.biome.source.FixedBiomeSource
 import net.minecraft.world.biome.source.MultiNoiseBiomeSource
+import net.minecraft.world.biome.source.MultiNoiseBiomeSourceParameterLists
 import net.minecraft.world.biome.source.util.MultiNoiseUtil
 import net.minecraft.world.gen.chunk.ChunkGenerator
 import net.minecraft.world.gen.chunk.ChunkGeneratorSettings
 import net.minecraft.world.gen.chunk.NoiseChunkGenerator
 
 object AgeBuilder {
-    // Added 'symbols' here so it can pass it to the profile manager
+    
     fun buildGenerator(server: MinecraftServer, ageId: Identifier, symbols: List<String> = emptyList()): Pair<ChunkGenerator, AgeProfile> {
         val profile = AgeProfileManager.getOrGenerateProfile(server, ageId, symbols)
         val registries = server.registryManager
@@ -30,8 +31,8 @@ object AgeBuilder {
         val settingsRegistry = registries.get(RegistryKeys.CHUNK_GENERATOR_SETTINGS)
         val settingsKey = when (profile.terrainType) {
             TerrainType.CAVES -> ChunkGeneratorSettings.CAVES
-            TerrainType.FLOATING_ISLANDS -> ChunkGeneratorSettings.FLOATING_ISLANDS
-            else -> ChunkGeneratorSettings.OVERWORLD // STANDARD and FLAT fallback
+            TerrainType.FLOATING_ISLANDS -> ChunkGeneratorSettings.FLOATING_ISLANDS 
+            else -> ChunkGeneratorSettings.OVERWORLD // STANDARD, FLAT, and CITIES fallback
         }
         val settingsEntry = settingsRegistry.getEntry(settingsKey).get()
 
@@ -40,79 +41,69 @@ object AgeBuilder {
         // ==========================================
         val biomeRegistry = registries.get(RegistryKeys.BIOME)
 
-        val biomeSource = when {
-            // MODE: SINGLE (Or if only 1 biome was provided by mistake)
-            profile.biomes.mode == BiomeMode.SINGLE || profile.biomes.biomes.size <= 1 -> {
-                val targetId = if (profile.biomes.biomes.isNotEmpty()) {
-                    Identifier(profile.biomes.biomes.first().biomeId)
-                } else {
-                    Identifier("minecraft:plains") // Extreme fallback if list is totally empty
+        val biomeSource = when (profile.biomes.mode) {
+            BiomeMode.VANILLA_DISTRIBUTION -> {
+                val parameterRegistry = registries.get(RegistryKeys.MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST)
+                val overworldPreset = parameterRegistry.getEntry(MultiNoiseBiomeSourceParameterLists.OVERWORLD).get()
+                MultiNoiseBiomeSource.create(overworldPreset)
+            }
+            BiomeMode.CHECKERBOARD -> {
+                val validBiomes = profile.biomes.biomes.mapNotNull { b ->
+                    val targetId = Identifier(b.biomeId)
+                    biomeRegistry.getEntry(RegistryKey.of(RegistryKeys.BIOME, targetId)).orElse(null)
                 }
-                
+                if (validBiomes.isNotEmpty()) {
+                    CheckerboardBiomeSource(net.minecraft.registry.entry.RegistryEntryList.of(validBiomes), 3)
+                } else {
+                    FixedBiomeSource(biomeRegistry.getRandom(net.minecraft.util.math.random.Random.create(profile.seed)).get())
+                }
+            }
+            BiomeMode.SINGLE -> {
+                val targetId = if (profile.biomes.biomes.isNotEmpty()) Identifier(profile.biomes.biomes.first().biomeId) else Identifier("minecraft:plains")
                 val biomeEntry = biomeRegistry.getEntry(RegistryKey.of(RegistryKeys.BIOME, targetId)).orElseGet {
                     biomeRegistry.getRandom(net.minecraft.util.math.random.Random.create(profile.seed)).get()
                 }
                 FixedBiomeSource(biomeEntry)
             }
-            
-            // MODE: VANILLA DISTRIBUTION (Uses official Minecraft heat/humidity mapping)
-            profile.biomes.mode == BiomeMode.VANILLA_DISTRIBUTION -> {
-                val parameterRegistry = registries.get(RegistryKeys.MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST)
-                MultiNoiseBiomeSource.create(
-                    parameterRegistry.getEntry(net.minecraft.world.biome.source.MultiNoiseBiomeSourceParameterLists.OVERWORLD).get()
-                )
-            }
-            
-            // MODE: CHECKERBOARD (Perfect rigid squares of alternating biomes)
-            profile.biomes.mode == BiomeMode.CHECKERBOARD -> {
-                // Fetch the actual Biome objects from the registry based on your string IDs
-                val validBiomes = profile.biomes.biomes.mapNotNull { b ->
-                    val targetId = Identifier(b.biomeId)
-                    biomeRegistry.getEntry(RegistryKey.of(RegistryKeys.BIOME, targetId)).orElse(null)
-                }
-                
-                if (validBiomes.isNotEmpty()) {
-                    // Create the Vanilla Checkerboard! 
-                    // The '3' is the scale. (3 creates decently sized squares. Increase for bigger biome squares).
-                    CheckerboardBiomeSource(net.minecraft.registry.entry.RegistryEntryList.of(validBiomes), 3)
-                } else {
-                    // Failsafe: if the biome IDs were bad, fall back to a single random biome
+            BiomeMode.WEIGHTED -> {
+                if (profile.biomes.biomes.isEmpty()) {
                     FixedBiomeSource(biomeRegistry.getRandom(net.minecraft.util.math.random.Random.create(profile.seed)).get())
-                }
-            }
-            
-            // MODE: WEIGHTED (Custom Multi-Noise map handling the percentages)
-            else -> {
-                val totalWeight = profile.biomes.biomes.sumOf { it.weight }.toFloat()
-                val entries = mutableListOf<DFPair<MultiNoiseUtil.NoiseHypercube, net.minecraft.registry.entry.RegistryEntry<Biome>>>()
+                } else {
+                    val totalWeight = profile.biomes.biomes.sumOf { it.weight }.toFloat()
+                    val entries = mutableListOf<DFPair<MultiNoiseUtil.NoiseHypercube, net.minecraft.registry.entry.RegistryEntry<Biome>>>()
+                    var currentTemp = -1.0f 
 
-                var currentTemp = -1.0f 
-
-                for (b in profile.biomes.biomes) {
-                    val targetId = Identifier(b.biomeId)
-                    val biomeEntry = biomeRegistry.getEntry(RegistryKey.of(RegistryKeys.BIOME, targetId)).orElse(null)
-
-                    if (biomeEntry != null) {
-                        val fraction = b.weight / totalWeight
-                        val rangeSize = fraction * 2.0f 
-                        val nextTemp = currentTemp + rangeSize
-
-                        val hypercube = MultiNoiseUtil.NoiseHypercube(
-                            MultiNoiseUtil.ParameterRange.of(currentTemp, nextTemp), 
-                            MultiNoiseUtil.ParameterRange.of(-1.0f, 1.0f), 
-                            MultiNoiseUtil.ParameterRange.of(-1.0f, 1.0f), 
-                            MultiNoiseUtil.ParameterRange.of(-1.0f, 1.0f), 
-                            MultiNoiseUtil.ParameterRange.of(-1.0f, 1.0f), 
-                            MultiNoiseUtil.ParameterRange.of(-1.0f, 1.0f), 
-                            0L 
-                        )
-
-                        entries.add(DFPair.of(hypercube, biomeEntry))
-                        currentTemp = nextTemp
+                    for (b in profile.biomes.biomes) {
+                        val targetId = Identifier(b.biomeId)
+                        val biomeEntry = biomeRegistry.getEntry(RegistryKey.of(RegistryKeys.BIOME, targetId)).orElse(null)
+                        if (biomeEntry != null) {
+                            val fraction = b.weight / totalWeight
+                            val rangeSize = fraction * 2.0f 
+                            val nextTemp = currentTemp + rangeSize
+                            val hypercube = MultiNoiseUtil.NoiseHypercube(
+                                MultiNoiseUtil.ParameterRange.of(currentTemp, nextTemp), 
+                                MultiNoiseUtil.ParameterRange.of(-1.0f, 1.0f), 
+                                MultiNoiseUtil.ParameterRange.of(-1.0f, 1.0f), 
+                                MultiNoiseUtil.ParameterRange.of(-1.0f, 1.0f), 
+                                MultiNoiseUtil.ParameterRange.of(-1.0f, 1.0f), 
+                                MultiNoiseUtil.ParameterRange.of(-1.0f, 1.0f), 
+                                0L 
+                            )
+                            entries.add(DFPair.of(hypercube, biomeEntry))
+                            currentTemp = nextTemp
+                        }
                     }
+                    MultiNoiseBiomeSource.create(MultiNoiseUtil.Entries(entries))
                 }
-                MultiNoiseBiomeSource.create(MultiNoiseUtil.Entries(entries))
             }
+        }
+
+        // ==========================================
+        // 3. FINAL GENERATOR ASSEMBLY
+        // ==========================================
+
+        if (profile.terrainType == TerrainType.BIOSPHERES) {
+            return Pair(BiosphereChunkGenerator(BiosphereBiomeSource.fromRegistry(profile.seed, biomeRegistry)), profile)
         }
 
         return Pair(NoiseChunkGenerator(biomeSource, settingsEntry), profile)

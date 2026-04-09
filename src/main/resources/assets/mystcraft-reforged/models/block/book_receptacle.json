@@ -1,6 +1,7 @@
 {
   "parent": "minecraft:block/block",
   "textures": {
+    "particle": "mystcraft-reforged:block/crystal_block",
     "crystal": "mystcraft-reforged:block/crystal_block",
     "panel": "mystcraft-reforged:block/book_receptacle"
   },

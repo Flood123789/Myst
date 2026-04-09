@@ -22,7 +22,7 @@ data class AgeProfile(
     fun toJson(): String = GSON.toJson(this)
 }
 
-enum class TerrainType { STANDARD, CAVES, FLOATING_ISLANDS, FLAT }
+enum class TerrainType { STANDARD, CAVES, FLOATING_ISLANDS, FLAT, BIOSPHERES, CITIES }
 
 enum class BiomeMode { SINGLE, VANILLA_DISTRIBUTION, CHECKERBOARD, WEIGHTED }
 

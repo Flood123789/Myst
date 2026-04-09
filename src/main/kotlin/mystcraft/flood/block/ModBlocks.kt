@@ -26,6 +26,7 @@ object ModBlocks {
         AbstractBlock.Settings.create()
             .mapColor(MapColor.DIAMOND_BLUE) // A nice mystical cyan/blue
             .strength(1.5f)
+            .requiresTool()
             .luminance { 7 } // Soft magical glow
             .nonOpaque()     // Essential for glass-type rendering
             .sounds(BlockSoundGroup.AMETHYST_BLOCK) // That nice crystal "chime" sound
@@ -51,7 +52,7 @@ object ModBlocks {
             .luminance { 15 }
     ))
     val BOOK_RECEPTACLE = registerBlock("book_receptacle", BookReceptacleBlock(
-        AbstractBlock.Settings.create().strength(2.0f).nonOpaque()
+        FabricBlockSettings.copyOf(CRYSTAL_BLOCK)
     ))
     
     val CRYSTAL_PORTAL = registerBlock("crystal_portal", CrystalPortalBlock(
@@ -78,7 +79,8 @@ object ModBlocks {
         
         ItemGroupEvents.modifyEntriesEvent(ItemGroups.FUNCTIONAL).register { entries ->
             entries.add(BOOK_BINDER)
-            entries.add(CRYSTAL_BLOCK) // Added to the creative tab
+            entries.add(CRYSTAL_BLOCK)
+            entries.add(BOOK_RECEPTACLE)
         }
     }
 }

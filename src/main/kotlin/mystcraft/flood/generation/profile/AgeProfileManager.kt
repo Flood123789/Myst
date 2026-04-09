@@ -2,6 +2,8 @@ package mystcraft.flood.generation.profile
 
 import mystcraft.flood.MystcraftReforged
 import mystcraft.flood.generation.AgeCompiler
+import mystcraft.flood.generation.ExoticAgeThemes
+import net.minecraft.registry.RegistryKeys
 import net.minecraft.server.MinecraftServer
 import net.minecraft.util.Identifier
 import net.minecraft.util.WorldSavePath
@@ -23,7 +25,8 @@ object AgeProfileManager {
         val profile = if (Files.exists(file)) {
             AgeProfile.fromJson(Files.readString(file))
         } else {
-            generateNewProfile(ageId, symbols).also { newProfile ->
+            // Pass the server down so we can read the live Biome Registry!
+            generateNewProfile(server, ageId, symbols).also { newProfile ->
                 Files.writeString(file, newProfile.toJson())
                 MystcraftReforged.LOGGER.info("Saved new AgeProfile to disk: ${file.fileName}")
             }
@@ -34,39 +37,57 @@ object AgeProfileManager {
         return profile
     }
 
-    private fun generateNewProfile(ageId: Identifier, symbols: List<String>): AgeProfile {
+    private fun generateNewProfile(server: MinecraftServer, ageId: Identifier, symbols: List<String>): AgeProfile {
         val compiled = AgeCompiler.compile(symbols)
         val rand = Random(ageId.toString().hashCode().toLong())
+        val usedRandomPage = symbols.any { it.lowercase().replace("mystcraft-reforged:", "") == "random" }
         
         var modifierInstability = 0
         val activeModifiers = mutableListOf<String>()
 
-        // Tracker flags to see if the player explicitly defined these categories
         var hasSunPages = false
         var hasMoonPages = false
         var hasStarPages = false
         var hasSpawnPages = false
 
-        // Celestial Counters
         var sunNormal = 0
         var sunRed = 0
         var sunBlue = 0
         var moonCount = 0
         var starDensity = 1 
         
-        // Spawning Vars
         var noMobs = false
         var hostileMult = 1.0f
         var passiveMult = 1.0f
 
         // 1. SCAN EXPLICIT PAGES
         for (symbol in symbols) {
-            val cleanSymbol = symbol.replace("mystcraft-reforged:", "")
+            var cleanSymbol = symbol.lowercase().replace("mystcraft-reforged:", "")
+            
+            if (cleanSymbol == "random") {
+                val wildcards = listOf(
+                    "tendrils", "obelisks", "giant_trees", "crystal_formations", "dense_ores",
+                    "spawning_no_mobs", "spawning_extra_hostile", "sun_red", "moon_extra"
+                )
+                cleanSymbol = wildcards.random(rand)
+                modifierInstability += 5 
+            }
+
             when (cleanSymbol) {
+                // === MODIFIERS ===
                 "dense_ores" -> if (!activeModifiers.contains("dense_ores")) { activeModifiers.add("dense_ores"); modifierInstability += 75 }
                 "giant_trees" -> if (!activeModifiers.contains("giant_trees")) { activeModifiers.add("giant_trees"); modifierInstability += 15 }
                 "crystal_formations" -> if (!activeModifiers.contains("crystal_formations")) { activeModifiers.add("crystal_formations"); modifierInstability += 10 }
+                "tendrils" -> if (!activeModifiers.contains("tendrils")) { activeModifiers.add("tendrils"); modifierInstability += 20 }
+                "obelisks" -> if (!activeModifiers.contains("giant_obelisks")) { activeModifiers.add("giant_obelisks"); modifierInstability += 15 }
+                ExoticAgeThemes.HEX -> if (!activeModifiers.contains(ExoticAgeThemes.HEX)) { activeModifiers.add(ExoticAgeThemes.HEX); modifierInstability += 20 }
+                ExoticAgeThemes.WIRE_CELLS -> if (!activeModifiers.contains(ExoticAgeThemes.WIRE_CELLS)) { activeModifiers.add(ExoticAgeThemes.WIRE_CELLS); modifierInstability += 20 }
+                ExoticAgeThemes.SEPARATORS -> if (!activeModifiers.contains(ExoticAgeThemes.SEPARATORS)) { activeModifiers.add(ExoticAgeThemes.SEPARATORS); modifierInstability += 20 }
+                ExoticAgeThemes.CABLES -> if (!activeModifiers.contains(ExoticAgeThemes.CABLES)) { activeModifiers.add(ExoticAgeThemes.CABLES); modifierInstability += 20 }
+                ExoticAgeThemes.FRACTAL_CUBES -> if (!activeModifiers.contains(ExoticAgeThemes.FRACTAL_CUBES)) { activeModifiers.add(ExoticAgeThemes.FRACTAL_CUBES); modifierInstability += 20 }
+                ExoticAgeThemes.LIGHT_FISSURES -> if (!activeModifiers.contains(ExoticAgeThemes.LIGHT_FISSURES)) { activeModifiers.add(ExoticAgeThemes.LIGHT_FISSURES); modifierInstability += 20 }
                 
+                // === CELESTIAL ===
                 "sun_normal" -> { sunNormal++; hasSunPages = true }
                 "sun_red" -> { sunRed++; hasSunPages = true; modifierInstability += 10 }
                 "sun_blue" -> { sunBlue++; hasSunPages = true; modifierInstability += 10 }
@@ -77,18 +98,15 @@ object AgeProfileManager {
                 "stars_dense" -> { starDensity++; hasStarPages = true }
                 "no_stars" -> { starDensity = 0; hasStarPages = true }
                 
+                // === SPAWNING ===
                 "spawning_no_mobs" -> { noMobs = true; hasSpawnPages = true; modifierInstability += 50 }
                 "spawning_extra_hostile" -> { hostileMult += 1.0f; hasSpawnPages = true; modifierInstability -= 15 }
                 "spawning_extra_passive" -> { passiveMult += 1.0f; hasSpawnPages = true; modifierInstability += 25 }
             }
         }
 
-        // 2. RANDOMIZE MISSING CATEGORIES (The "Chaos Engine")
-        // If the player didn't specify, we roll the dice but add a small instability penalty.
-
-        // --- RANDOMIZE SUNS ---
+        // 2. RANDOMIZE MISSING CATEGORIES
         if (!hasSunPages) {
-            // 40% chance for 1 sun, 60% chance for multiple/weird suns
             val roll = rand.nextFloat()
             if (roll < 0.4f) {
                 sunNormal = 1
@@ -97,31 +115,27 @@ object AgeProfileManager {
                 sunRed = rand.nextInt(0, 2)
                 sunBlue = rand.nextInt(0, 2)
             }
-            // Ensure there is at least one light source
             if (sunNormal == 0 && sunRed == 0 && sunBlue == 0) sunNormal = 1
             modifierInstability += 5 
         }
 
-        // --- RANDOMIZE MOONS ---
         if (!hasMoonPages) {
-            // 50% chance for 1 moon, 50% chance for 2-5 moons
             moonCount = if (rand.nextFloat() < 0.5f) 1 else rand.nextInt(2, 6)
             modifierInstability += 5
         }
 
         if (!hasStarPages) {
             starDensity = if (rand.nextFloat() < 0.1f) 0 else rand.nextInt(1, 4)
-            modifierInstability += 2 // Vagueness Tax
+            modifierInstability += 2 
         }
 
         if (!hasSpawnPages) {
-            noMobs = rand.nextFloat() < 0.03f // Rare peaceful world
+            noMobs = rand.nextFloat() < 0.03f 
             if (!noMobs) {
-                // Rare chance for a "Horde World" if not specified
                 if (rand.nextFloat() < 0.1f) hostileMult = rand.nextFloat() * 3f + 1f
                 if (rand.nextFloat() < 0.1f) passiveMult = rand.nextFloat() * 3f + 1f
             }
-            modifierInstability += 10 // Spawning randomness is dangerous!
+            modifierInstability += 10 
         }
 
         // ==========================================
@@ -130,13 +144,36 @@ object AgeProfileManager {
         val terrain = when(compiled.terrainType) {
             "CAVE" -> TerrainType.CAVES
             "FLOATING_ISLANDS" -> TerrainType.FLOATING_ISLANDS
+            "BIOSPHERES" -> TerrainType.BIOSPHERES
+            "CITIES" -> TerrainType.CITIES
             "STANDARD" -> TerrainType.STANDARD
+            "FLAT" -> TerrainType.FLAT
             else -> TerrainType.entries.random(rand) 
         }
 
+        val finalBiomeMode = when (compiled.biomeController) {
+            "CHECKERBOARD" -> BiomeMode.CHECKERBOARD
+            "VANILLA" -> BiomeMode.VANILLA_DISTRIBUTION
+            else -> if (compiled.biomes.size <= 1) BiomeMode.SINGLE else BiomeMode.WEIGHTED
+        }
+
         val biomesList = if (compiled.biomes.isEmpty()) {
-            val randomBiomes = listOf("minecraft:plains", "minecraft:desert", "minecraft:forest", "minecraft:jungle", "minecraft:savanna", "minecraft:taiga", "minecraft:swamp", "minecraft:snowy_plains", "minecraft:badlands")
-            mutableListOf(BiomeWeight(randomBiomes.random(rand), 100))
+            // Dynamically fetch EVERY biome registered in the game right now (including Mods!)
+            val allBiomes = server.registryManager.get(RegistryKeys.BIOME).keys.map { it.value.toString() }
+            
+            if (finalBiomeMode == BiomeMode.VANILLA_DISTRIBUTION) {
+                // Leave it completely empty! This is the signal for the JSON Builder
+                // to use the native "minecraft:overworld" multi-noise preset.
+                mutableListOf<BiomeWeight>()
+            } else if (finalBiomeMode == BiomeMode.CHECKERBOARD) {
+                // Checkerboard needs specific biomes to tile, so we pick 3-5 random ones from the whole game
+                val shuffled = allBiomes.shuffled(rand).take(rand.nextInt(3, 6))
+                val weight = 100 / shuffled.size
+                shuffled.map { BiomeWeight(it, weight) }.toMutableList()
+            } else {
+                // Default Single Biome behavior (but now it can pick modded biomes!)
+                mutableListOf(BiomeWeight(allBiomes.random(rand), 100))
+            }
         } else {
             val weight = 100 / compiled.biomes.size
             compiled.biomes.map { BiomeWeight(it, weight) }.toMutableList()
@@ -154,16 +191,36 @@ object AgeProfileManager {
         if (weatherMode == "endless_storm") finalInstability += 15
         if (biomesList.size > 3) finalInstability += (biomesList.size - 3) * 10
 
+        if (ExoticAgeThemes.fromModifiers(activeModifiers) == null && terrain != TerrainType.CITIES && terrain != TerrainType.BIOSPHERES) {
+            val exoticChance = when {
+                usedRandomPage -> 0.85f
+                finalInstability >= 60 -> 1.0f
+                finalInstability >= 40 -> 0.8f
+                finalInstability >= 20 -> 0.55f
+                finalInstability > 0 -> 0.30f
+                else -> 0.0f
+            }
+
+            if (rand.nextFloat() < exoticChance) {
+                activeModifiers.add(ExoticAgeThemes.random(rand))
+            }
+        }
+
+        fun randomRGB(): Int {
+            val argb = java.awt.Color.HSBtoRGB(rand.nextFloat(), 0.5f + rand.nextFloat() * 0.5f, 0.7f + rand.nextFloat() * 0.3f)
+            return argb and 0x00FFFFFF
+        }
+
         return AgeProfile(
             id = ageId.toString(),
             seed = rand.nextLong(),
             terrainType = terrain,
             colors = ColorSettings(
-                sky = compiled.skyColor ?: java.awt.Color.HSBtoRGB(rand.nextFloat(), 0.5f + rand.nextFloat() * 0.5f, 0.7f + rand.nextFloat() * 0.3f) and 0xFFFFFF,
-                fog = compiled.fogColor ?: java.awt.Color.HSBtoRGB(rand.nextFloat(), 0.5f + rand.nextFloat() * 0.5f, 0.7f + rand.nextFloat() * 0.3f) and 0xFFFFFF,
-                water = compiled.waterColor ?: 0x3F76E4,
-                grass = compiled.grassColor ?: 0x91BD59,     
-                foliage = compiled.foliageColor ?: 0x77AB2F  
+                sky = compiled.skyColor ?: randomRGB(),
+                fog = compiled.fogColor ?: randomRGB(),
+                water = compiled.waterColor ?: randomRGB(),
+                grass = compiled.grassColor ?: randomRGB(),     
+                foliage = compiled.foliageColor ?: randomRGB()  
             ),
             time = TimeSettings(
                 sunNormalCount = sunNormal,
@@ -186,7 +243,7 @@ object AgeProfileManager {
                 noWeather = weatherMode == "no_weather"
             ),
             biomes = BiomeSet(
-                mode = if (compiled.biomes.size <= 1) BiomeMode.SINGLE else BiomeMode.WEIGHTED,
+                mode = finalBiomeMode,
                 biomes = biomesList
             ),
             spawning = SpawnSettings(noMobs, hostileMult, passiveMult),

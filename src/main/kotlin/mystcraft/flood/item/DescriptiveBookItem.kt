@@ -3,6 +3,10 @@ package mystcraft.flood.item
 
 import mystcraft.flood.MystcraftReforged
 import mystcraft.flood.access.DimensionInjector
+import mystcraft.flood.generation.AgeTravelEffects
+import mystcraft.flood.generation.BiosphereFeature
+import mystcraft.flood.generation.profile.AgeProfileManager
+import mystcraft.flood.generation.profile.TerrainType
 import net.fabricmc.fabric.api.dimension.v1.FabricDimensions
 import net.minecraft.client.item.TooltipContext
 import net.minecraft.entity.effect.StatusEffectInstance
@@ -18,7 +22,9 @@ import net.minecraft.util.Formatting
 import net.minecraft.util.Hand
 import net.minecraft.util.Identifier
 import net.minecraft.util.TypedActionResult
+import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.Vec3d
+import net.minecraft.world.Heightmap
 import net.minecraft.world.TeleportTarget
 import net.minecraft.world.World
 
@@ -63,10 +69,17 @@ class DescriptiveBookItem(settings: Settings) : Item(settings) {
         val targetWorld = server.getWorld(dimKey)
 
         if (targetWorld != null) {
-            val dropHeight = 200.0
+            val profile = AgeProfileManager.getOrGenerateProfile(server, ageId)
+            val targetPos = when (profile.terrainType) {
+                TerrainType.BIOSPHERES -> {
+                    BiosphereFeature.buildOriginBiosphere(targetWorld)
+                    Vec3d(0.5, BiosphereFeature.SAFE_ENTRY_Y.toDouble(), 0.5)
+                }
+                else -> Vec3d(0.0, computeEntryY(targetWorld).toDouble(), 0.0)
+            }
 
             val teleportTarget = TeleportTarget(
-                Vec3d(0.0, dropHeight, 0.0), 
+                targetPos,
                 Vec3d.ZERO,
                 player.yaw,
                 player.pitch
@@ -74,11 +87,24 @@ class DescriptiveBookItem(settings: Settings) : Item(settings) {
             
             player.addStatusEffect(StatusEffectInstance(StatusEffects.SLOW_FALLING, 300, 0, false, false))
             player.addStatusEffect(StatusEffectInstance(StatusEffects.RESISTANCE, 400, 4, false, false))
-            
-            FabricDimensions.teleport(player, targetWorld, teleportTarget)
+
+            AgeTravelEffects.playDeparture(player.serverWorld, player)
+            val result = FabricDimensions.teleport(player, targetWorld, teleportTarget)
+            if (result != null) {
+                AgeTravelEffects.playArrival(targetWorld, teleportTarget.position)
+            }
         } else {
             player.sendMessage(Text.literal("Age dimension is not loaded.").formatted(Formatting.RED), true)
         }
+    }
+
+    private fun computeEntryY(targetWorld: net.minecraft.server.world.ServerWorld): Int {
+        val surfaceY = targetWorld.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, 0, 0)
+        if (surfaceY <= targetWorld.bottomY + 4) {
+            return 120
+        }
+
+        return (surfaceY + 24).coerceIn(96, 160)
     }
 
     override fun appendTooltip(stack: ItemStack, world: World?, tooltip: MutableList<Text>, context: TooltipContext) {

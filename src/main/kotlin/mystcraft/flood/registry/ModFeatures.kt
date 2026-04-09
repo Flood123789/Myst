@@ -17,6 +17,15 @@ object ModFeatures {
     val STAR_FISSURE: Feature<DefaultFeatureConfig> = StarFissureFeature(DefaultFeatureConfig.CODEC)
     val GIANT_TREE: Feature<DefaultFeatureConfig> = GiantTreeFeature(DefaultFeatureConfig.CODEC)
     val CRYSTAL_FORMATIONS: Feature<DefaultFeatureConfig> = CrystalFormationFeature(DefaultFeatureConfig.CODEC)
+    
+    val TENDRILS: Feature<DefaultFeatureConfig> = TendrilsFeature(DefaultFeatureConfig.CODEC)
+    val GIANT_OBELISKS: Feature<DefaultFeatureConfig> = GiantObeliskFeature(DefaultFeatureConfig.CODEC)
+    val FLOATING_CASTLE: Feature<DefaultFeatureConfig> = FloatingCastleFeature(DefaultFeatureConfig.CODEC)
+
+    // === NEW FEATURES ADDED HERE ===
+    val CITY_GRID: Feature<DefaultFeatureConfig> = CityGridFeature(DefaultFeatureConfig.CODEC)
+    val BIOSPHERE: Feature<DefaultFeatureConfig> = BiosphereFeature(DefaultFeatureConfig.CODEC)
+    val EXOTIC_SURFACE: Feature<DefaultFeatureConfig> = ExoticSurfaceFeature(DefaultFeatureConfig.CODEC)
 
     private var hasRegistered = false
 
@@ -30,6 +39,15 @@ object ModFeatures {
         Registry.register(Registries.FEATURE, Identifier(MystcraftReforged.MOD_ID, "star_fissure"), STAR_FISSURE)
         Registry.register(Registries.FEATURE, Identifier(MystcraftReforged.MOD_ID, "giant_tree"), GIANT_TREE)
         Registry.register(Registries.FEATURE, Identifier(MystcraftReforged.MOD_ID, "crystal_formations"), CRYSTAL_FORMATIONS)
+        Registry.register(Registries.FEATURE, Identifier(MystcraftReforged.MOD_ID, "floating_castle"), FLOATING_CASTLE)
+        
+        Registry.register(Registries.FEATURE, Identifier(MystcraftReforged.MOD_ID, "tendrils"), TENDRILS)
+        Registry.register(Registries.FEATURE, Identifier(MystcraftReforged.MOD_ID, "giant_obelisks"), GIANT_OBELISKS)
+
+        // === NEW REGISTRY CALLS ADDED HERE ===
+        Registry.register(Registries.FEATURE, Identifier(MystcraftReforged.MOD_ID, "city_grid"), CITY_GRID)
+        Registry.register(Registries.FEATURE, Identifier(MystcraftReforged.MOD_ID, "biosphere"), BIOSPHERE)
+        Registry.register(Registries.FEATURE, Identifier(MystcraftReforged.MOD_ID, "exotic_surface"), EXOTIC_SURFACE)
 
         MystcraftReforged.LOGGER.info("Successfully registered all worldgen features.")
     }

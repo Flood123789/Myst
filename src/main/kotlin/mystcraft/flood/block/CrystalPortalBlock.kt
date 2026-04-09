@@ -2,6 +2,10 @@ package mystcraft.flood.block
 
 import mystcraft.flood.block.entity.BookReceptacleBlockEntity
 import mystcraft.flood.block.entity.CrystalPortalBlockEntity
+import mystcraft.flood.generation.AgeTravelEffects
+import mystcraft.flood.generation.BiosphereFeature
+import mystcraft.flood.generation.profile.AgeProfileManager
+import mystcraft.flood.generation.profile.TerrainType
 import net.fabricmc.fabric.api.dimension.v1.FabricDimensions
 import net.minecraft.block.Block
 import net.minecraft.block.BlockRenderType
@@ -21,6 +25,7 @@ import net.minecraft.util.math.Vec3d
 import net.minecraft.registry.RegistryKey
 import net.minecraft.registry.RegistryKeys
 import net.minecraft.world.BlockView
+import net.minecraft.world.Heightmap
 import net.minecraft.world.TeleportTarget
 import net.minecraft.world.World
 import net.minecraft.util.shape.VoxelShape
@@ -111,18 +116,37 @@ class CrystalPortalBlock(settings: Settings) : BlockWithEntity(settings) {
                 val destVec = if (be.targetX != null && be.targetY != null && be.targetZ != null) {
                     Vec3d(be.targetX!!, be.targetY!!, be.targetZ!!)
                 } else {
+                    val profile = AgeProfileManager.getOrGenerateProfile(world.server!!, targetKey.value)
                     if (entity is LivingEntity) {
                         entity.addStatusEffect(net.minecraft.entity.effect.StatusEffectInstance(net.minecraft.entity.effect.StatusEffects.SLOW_FALLING, 300, 0, false, false))
                         entity.addStatusEffect(net.minecraft.entity.effect.StatusEffectInstance(net.minecraft.entity.effect.StatusEffects.RESISTANCE, 400, 4, false, false))
                     }
-                    Vec3d(0.0, 200.0, 0.0)
+                    if (profile.terrainType == TerrainType.BIOSPHERES) {
+                        BiosphereFeature.buildOriginBiosphere(targetWorld)
+                        Vec3d(0.5, BiosphereFeature.SAFE_ENTRY_Y.toDouble(), 0.5)
+                    } else {
+                        Vec3d(0.0, computeEntryY(targetWorld).toDouble(), 0.0)
+                    }
                 }
 
-                FabricDimensions.teleport(entity, targetWorld, TeleportTarget(
+                AgeTravelEffects.playDeparture(world as net.minecraft.server.world.ServerWorld, entity.pos)
+                val result = FabricDimensions.teleport(entity, targetWorld, TeleportTarget(
                     destVec, 
                     entity.velocity, entity.yaw, entity.pitch
                 ))
+                if (result != null) {
+                    AgeTravelEffects.playArrival(targetWorld, destVec)
+                }
             }
         }
+    }
+
+    private fun computeEntryY(targetWorld: net.minecraft.server.world.ServerWorld): Int {
+        val surfaceY = targetWorld.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, 0, 0)
+        if (surfaceY <= targetWorld.bottomY + 4) {
+            return 120
+        }
+
+        return (surfaceY + 24).coerceIn(96, 160)
     }
 }
