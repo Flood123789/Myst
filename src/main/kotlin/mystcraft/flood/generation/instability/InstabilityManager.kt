@@ -27,7 +27,7 @@ object InstabilityManager {
 
         val profile = AgeProfileManager.getOrGenerateProfile(world.server, world.registryKey.value)
         
-        if (profile.stability.isStable || profile.stability.instabilityScore <= 0) return
+        if (profile.stability.isStable || !profile.stability.effectsEnabled || profile.stability.instabilityScore <= 0) return
 
         val score = profile.stability.instabilityScore
 

@@ -1,0 +1,8 @@
+{
+  "feature": "mystcraft-reforged:exotic_surface",
+  "placement": [
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

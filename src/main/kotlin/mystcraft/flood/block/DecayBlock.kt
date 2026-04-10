@@ -31,7 +31,7 @@ class DecayBlock(settings: Settings) : Block(settings) {
 
         // THE DORMANT CHECK: If the age is perfectly stable, do nothing!
         val profile = AgeProfileManager.getOrGenerateProfile(serverWorld.server, serverWorld.registryKey.value)
-        if (profile.stability.isStable || profile.stability.instabilityScore <= 0) return
+        if (profile.stability.isStable || !profile.stability.effectsEnabled || profile.stability.instabilityScore <= 0) return
 
         val neighborFluid = world.getFluidState(sourcePos)
         if (!neighborFluid.isEmpty) {
@@ -46,7 +46,7 @@ class DecayBlock(settings: Settings) : Block(settings) {
 
         // THE DORMANT CHECK: If the age is perfectly stable, the rot sleeps!
         val profile = AgeProfileManager.getOrGenerateProfile(world.server, world.registryKey.value)
-        if (profile.stability.isStable || profile.stability.instabilityScore <= 0) return
+        if (profile.stability.isStable || !profile.stability.effectsEnabled || profile.stability.instabilityScore <= 0) return
 
         // LAG SAVER
         if (!DecayManager.requestPermission()) return

@@ -1,0 +1,8 @@
+{
+  "feature": "mystcraft-reforged:biosphere",
+  "placement": [
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

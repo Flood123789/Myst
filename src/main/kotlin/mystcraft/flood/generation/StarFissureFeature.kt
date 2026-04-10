@@ -31,7 +31,11 @@ class StarFissureFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFe
         if (random.nextInt(200) != 0) return false
 
         // 3. Find the absolute surface of the terrain
-        val topY = world.getTopY(Heightmap.Type.WORLD_SURFACE_WG, origin.x, origin.z)
+        val topY = if (profile.terrainType == TerrainType.CAVES) {
+            serverWorld.topY - 1
+        } else {
+            world.getTopY(Heightmap.Type.WORLD_SURFACE_WG, origin.x, origin.z)
+        }
         if (topY < 20) return false 
         
         val centerPos = BlockPos(origin.x, topY, origin.z)
@@ -90,10 +94,10 @@ class StarFissureFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFe
                     // CORE VOID
                     if (distance <= currentRadius) {
                         if (y == -64) {
-                            safeSetBlock(world, serverWorld, origin, currentPos, ModBlocks.STAR_FISSURE.defaultState)
+                            safeSetBlock(world, serverWorld, origin, currentPos, ModBlocks.STAR_FISSURE.defaultState, allowUnbreakable = true)
                         } else {
                             // Use safeSetBlock to erase blocks even in neighboring chunks
-                            safeSetBlock(world, serverWorld, origin, currentPos, Blocks.AIR.defaultState)
+                            safeSetBlock(world, serverWorld, origin, currentPos, Blocks.AIR.defaultState, allowUnbreakable = true)
                         }
                     } 
                     // CORRUPTED EDGE
@@ -133,12 +137,12 @@ class StarFissureFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFe
     private fun safeSetBlock(
         world: net.minecraft.world.StructureWorldAccess, 
         serverWorld: net.minecraft.server.world.ServerWorld,
-        origin: BlockPos, target: BlockPos, state: BlockState
+        origin: BlockPos, target: BlockPos, state: BlockState, allowUnbreakable: Boolean = false
     ) {
         if (isSafeToRead(origin, target)) {
             val existing = world.getBlockState(target)
-            // Abort only if it hits bedrock, unless we are specifically placing the void floor
-            if (target.y > -64 && existing.getHardness(world, target) < 0.0f) return 
+            // Abort only if it hits bedrock/unbreakable blocks and the current carve is not allowed to pierce them.
+            if (!allowUnbreakable && target.y > -64 && existing.getHardness(world, target) < 0.0f) return 
             
             // Flag 2 prevents neighbor updates cascading during worldgen
             world.setBlockState(target, state, 2)

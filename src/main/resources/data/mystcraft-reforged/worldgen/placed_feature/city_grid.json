@@ -1,0 +1,8 @@
+{
+  "feature": "mystcraft-reforged:city_grid",
+  "placement": [
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

@@ -78,6 +78,13 @@ object AgeCommand {
                         .then(CommandManager.literal("rain").executes { setAgeWeather(it, "rain") })
                         .then(CommandManager.literal("thunder").executes { setAgeWeather(it, "thunder") })
                     )
+
+                    // === 5. INSTABILITY COMMAND ===
+                    .then(CommandManager.literal("instability")
+                        .then(CommandManager.literal("toggle")
+                            .executes { toggleAgeInstability(it) }
+                        )
+                    )
             )
         }
     }
@@ -144,6 +151,31 @@ object AgeCommand {
         }
 
         source.sendFeedback({ Text.literal("Age weather permanently set to $weatherType for Age: $id") }, true)
+        return 1
+    }
+
+    private fun toggleAgeInstability(context: CommandContext<ServerCommandSource>): Int {
+        val source = context.source
+        val world = source.world
+        val id = world.registryKey.value
+
+        if (id.namespace != MystcraftReforged.MOD_ID) {
+            source.sendError(Text.literal("You must be in a Mystcraft Age to toggle instability effects!"))
+            return 0
+        }
+
+        val profile = AgeProfileManager.getOrGenerateProfile(world.server, id)
+        profile.stability.effectsEnabled = !profile.stability.effectsEnabled
+
+        world.players.forEach { player ->
+            ModMessages.sendDimensionSync(player, id, profile)
+        }
+
+        val stateText = if (profile.stability.effectsEnabled) "enabled" else "disabled"
+        source.sendFeedback(
+            { Text.literal("Instability effects are now $stateText for Age: $id (score remains ${profile.stability.instabilityScore}).") },
+            true
+        )
         return 1
     }
 }

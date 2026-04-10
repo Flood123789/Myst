@@ -2,6 +2,7 @@ package mystcraft.flood.generation.profile
 
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import com.google.gson.JsonParser
 
 data class AgeProfile(
     val id: String,
@@ -17,7 +18,16 @@ data class AgeProfile(
 ) {
     companion object {
         val GSON: Gson = GsonBuilder().setPrettyPrinting().serializeNulls().create()
-        fun fromJson(json: String): AgeProfile = GSON.fromJson(json, AgeProfile::class.java)
+        fun fromJson(json: String): AgeProfile {
+            val root = JsonParser.parseString(json).asJsonObject
+            val profile = GSON.fromJson(root, AgeProfile::class.java)
+
+            if (root.has("stability") && !root.getAsJsonObject("stability").has("effectsEnabled")) {
+                profile.stability.effectsEnabled = true
+            }
+
+            return profile
+        }
     }
     fun toJson(): String = GSON.toJson(this)
 }
@@ -60,7 +70,11 @@ data class WeatherSettings(
     var noWeather: Boolean
 )
 
-data class StabilityProfile(var isStable: Boolean, var instabilityScore: Int)
+data class StabilityProfile(
+    var isStable: Boolean,
+    var instabilityScore: Int,
+    var effectsEnabled: Boolean = true
+)
 
 data class SpawnSettings(
     // === NEW: Modifiable multipliers ===

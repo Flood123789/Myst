@@ -18,6 +18,7 @@ import mystcraft.flood.server.command.AgeCommand
 import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents
+import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
 import net.minecraft.entity.effect.StatusEffectInstance
 import net.minecraft.entity.effect.StatusEffects
@@ -32,6 +33,7 @@ import mystcraft.flood.registry.ModLoot
 import mystcraft.flood.registry.ModSounds
 import mystcraft.flood.registry.ModWorldgenCodecs
 import mystcraft.flood.generation.DeferredTreePlacer
+import mystcraft.flood.generation.AgeTravelSafety
 
 object MystcraftReforged : ModInitializer {
 
@@ -166,6 +168,23 @@ object MystcraftReforged : ModInitializer {
                 }
             }
         }
+
+        ServerPlayerEvents.AFTER_RESPAWN.register(ServerPlayerEvents.AfterRespawn { oldPlayer, newPlayer, _ ->
+            if (oldPlayer.spawnPointPosition != null) return@AfterRespawn
+
+            val oldWorld = oldPlayer.serverWorld
+            if (oldWorld.registryKey.value.namespace != MOD_ID) return@AfterRespawn
+
+            val safePos = AgeTravelSafety.sanitizeArrival(oldWorld, oldPlayer.pos.add(0.0, 1.0, 0.0))
+            val teleportTarget = net.minecraft.world.TeleportTarget(
+                safePos,
+                net.minecraft.util.math.Vec3d.ZERO,
+                oldPlayer.yaw,
+                oldPlayer.pitch
+            )
+
+            net.fabricmc.fabric.api.dimension.v1.FabricDimensions.teleport(newPlayer, oldWorld, teleportTarget)
+        })
 
         ServerWorldEvents.UNLOAD.register { server, world ->
             val id = world.registryKey.value

@@ -3,6 +3,7 @@ package mystcraft.flood.block
 import mystcraft.flood.block.entity.BookReceptacleBlockEntity
 import mystcraft.flood.block.entity.CrystalPortalBlockEntity
 import mystcraft.flood.generation.AgeTravelEffects
+import mystcraft.flood.generation.AgeTravelSafety
 import mystcraft.flood.generation.BiosphereFeature
 import mystcraft.flood.generation.profile.AgeProfileManager
 import mystcraft.flood.generation.profile.TerrainType
@@ -114,7 +115,7 @@ class CrystalPortalBlock(settings: Settings) : BlockWithEntity(settings) {
                 entity.portalCooldown = 100 
                 
                 val destVec = if (be.targetX != null && be.targetY != null && be.targetZ != null) {
-                    Vec3d(be.targetX!!, be.targetY!!, be.targetZ!!)
+                    AgeTravelSafety.sanitizeArrival(targetWorld, Vec3d(be.targetX!!, be.targetY!!, be.targetZ!!))
                 } else {
                     val profile = AgeProfileManager.getOrGenerateProfile(world.server!!, targetKey.value)
                     if (entity is LivingEntity) {
@@ -123,9 +124,9 @@ class CrystalPortalBlock(settings: Settings) : BlockWithEntity(settings) {
                     }
                     if (profile.terrainType == TerrainType.BIOSPHERES) {
                         BiosphereFeature.buildOriginBiosphere(targetWorld)
-                        Vec3d(0.5, BiosphereFeature.SAFE_ENTRY_Y.toDouble(), 0.5)
+                        AgeTravelSafety.sanitizeArrival(targetWorld, Vec3d(0.5, BiosphereFeature.SAFE_ENTRY_Y.toDouble(), 0.5))
                     } else {
-                        Vec3d(0.0, computeEntryY(targetWorld).toDouble(), 0.0)
+                        AgeTravelSafety.sanitizeArrival(targetWorld, Vec3d(0.5, computeEntryY(targetWorld).toDouble(), 0.5))
                     }
                 }
 

@@ -4,6 +4,7 @@ package mystcraft.flood.item
 import mystcraft.flood.MystcraftReforged
 import mystcraft.flood.access.DimensionInjector
 import mystcraft.flood.generation.AgeTravelEffects
+import mystcraft.flood.generation.AgeTravelSafety
 import mystcraft.flood.generation.BiosphereFeature
 import mystcraft.flood.generation.profile.AgeProfileManager
 import mystcraft.flood.generation.profile.TerrainType
@@ -73,9 +74,9 @@ class DescriptiveBookItem(settings: Settings) : Item(settings) {
             val targetPos = when (profile.terrainType) {
                 TerrainType.BIOSPHERES -> {
                     BiosphereFeature.buildOriginBiosphere(targetWorld)
-                    Vec3d(0.5, BiosphereFeature.SAFE_ENTRY_Y.toDouble(), 0.5)
+                    AgeTravelSafety.sanitizeArrival(targetWorld, Vec3d(0.5, BiosphereFeature.SAFE_ENTRY_Y.toDouble(), 0.5))
                 }
-                else -> Vec3d(0.0, computeEntryY(targetWorld).toDouble(), 0.0)
+                else -> AgeTravelSafety.sanitizeArrival(targetWorld, Vec3d(0.5, computeEntryY(targetWorld).toDouble(), 0.5))
             }
 
             val teleportTarget = TeleportTarget(

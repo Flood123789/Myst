@@ -25,6 +25,12 @@ class BookBinderScreenHandler(
     private val pageSlots = mutableListOf<Slot>()
     private var isUpdating = false // Pause button to prevent infinite recursive loops
 
+    private enum class BookMode {
+        BLANK_DESCRIPTIVE,
+        DESCRIPTIVE,
+        LINKING
+    }
+
     // Custom Output Slot handles consuming resources when we grab the crafted book
     inner class BookOutputSlot(
         inventory: Inventory,
@@ -42,21 +48,30 @@ class BookBinderScreenHandler(
 
         override fun onTakeItem(player: PlayerEntity, stack: ItemStack) {
             isUpdating = true 
-            
-            // 1. Consume 1 Leather
-            input.removeStack(0, 1)
-            
-            // 2. Consume 1 of EVERY page currently in the grid
-            for (i in 1 until 57) {
-                if (!input.getStack(i).isEmpty) {
-                    input.removeStack(i, 1)
+
+            when (detectBookMode()) {
+                BookMode.LINKING -> {
+                    input.removeStack(0, 1)
+                    consumeSingleBlankPage()
+                }
+                BookMode.BLANK_DESCRIPTIVE -> {
+                    input.removeStack(0, 1)
+                }
+                BookMode.DESCRIPTIVE -> {
+                    input.removeStack(0, 1)
+                    for (i in 1 until 57) {
+                        val pageStack = input.getStack(i)
+                        if (!pageStack.isEmpty && pageStack.item is SymbolPageItem) {
+                            input.removeStack(i, 1)
+                        }
+                    }
+                }
+                null -> {
                 }
             }
-            
-            // 3. Let the game safely transfer the item to the cursor
+
             super.onTakeItem(player, stack)
-            
-            // 4. Update the table for any leftover materials
+
             isUpdating = false 
             updateBookOutput() 
         }
@@ -83,7 +98,7 @@ class BookBinderScreenHandler(
         // === Slots 2-57: HIDDEN PAGES ===
         for (i in 1 until 57) {
             val slot = object : Slot(input, i, -2000, -2000) {
-                override fun canInsert(stack: ItemStack): Boolean = stack.item is SymbolPageItem
+                override fun canInsert(stack: ItemStack): Boolean = stack.item is SymbolPageItem || stack.isOf(ModItems.PAGE)
                 override fun getMaxItemCount(): Int = 1
                 // CRITICAL FIX: Trigger logic when any page changes!
                 override fun markDirty() {
@@ -116,46 +131,54 @@ class BookBinderScreenHandler(
         isUpdating = true
 
         val leather = input.getStack(0)
+        val mode = detectBookMode()
         
-        if (leather.isOf(Items.LEATHER)) {
-            val bookStack = ItemStack(ModItems.DESCRIPTIVE_BOOK) 
-            val bookNbt = bookStack.orCreateNbt
-            val pageList = NbtList()
-            var symbolCount = 0
+        if (leather.isOf(Items.LEATHER) && mode != null) {
+            when (mode) {
+                BookMode.LINKING -> {
+                    output.setStack(0, ItemStack(ModItems.LINKING_BOOK))
+                }
+                BookMode.BLANK_DESCRIPTIVE -> {
+                    output.setStack(0, ItemStack(ModItems.DESCRIPTIVE_BOOK))
+                }
+                BookMode.DESCRIPTIVE -> {
+                    val bookStack = ItemStack(ModItems.DESCRIPTIVE_BOOK)
+                    val bookNbt = bookStack.orCreateNbt
+                    val pageList = NbtList()
+                    var symbolCount = 0
 
-            // Scan all 56 slots for pages
-            for (i in 1 until 57) {
-                val pageStack = input.getStack(i)
-                if (!pageStack.isEmpty && pageStack.item is SymbolPageItem) {
-                    
-                    var symbolId = "unknown"
-                    if (pageStack.hasNbt() && pageStack.nbt!!.contains("Symbol")) {
-                        symbolId = pageStack.nbt!!.getString("Symbol")
-                    } else {
-                        symbolId = Registries.ITEM.getId(pageStack.item).toString()
-                    }
-                    
-                    // === THE ANVIL HEX HACK ===
-                    if (symbolId == "mystcraft-reforged:color_custom" || symbolId == "color_custom") {
-                        val customName = pageStack.name.string
-                        if (customName.startsWith("#")) {
-                            symbolId = "color_custom:$customName"
-                        } else {
-                            symbolId = "color_custom"
+                    for (i in 1 until 57) {
+                        val pageStack = input.getStack(i)
+                        if (!pageStack.isEmpty && pageStack.item is SymbolPageItem) {
+                            var symbolId = "unknown"
+                            if (pageStack.hasNbt() && pageStack.nbt!!.contains("Symbol")) {
+                                symbolId = pageStack.nbt!!.getString("Symbol")
+                            } else {
+                                symbolId = Registries.ITEM.getId(pageStack.item).toString()
+                            }
+
+                            if (symbolId == "mystcraft-reforged:color_custom" || symbolId == "color_custom") {
+                                val customName = pageStack.name.string
+                                symbolId = if (customName.startsWith("#")) {
+                                    "color_custom:$customName"
+                                } else {
+                                    "color_custom"
+                                }
+                            }
+
+                            pageList.add(NbtString.of(symbolId))
+                            symbolCount++
                         }
                     }
-                    
-                    pageList.add(NbtString.of(symbolId))
-                    symbolCount++
+
+                    if (symbolCount > 0) {
+                        bookNbt.put("Pages", pageList)
+                        output.setStack(0, bookStack)
+                    } else {
+                        output.setStack(0, ItemStack.EMPTY)
+                    }
                 }
             }
-
-            // Write the symbols to the book if there are any
-            if (symbolCount > 0) {
-                bookNbt.put("Pages", pageList)
-            }
-            
-            output.setStack(0, bookStack)
         } else {
             output.setStack(0, ItemStack.EMPTY)
         }
@@ -201,7 +224,7 @@ class BookBinderScreenHandler(
                 if (originalStack.isOf(Items.LEATHER)) {
                     if (!this.insertItem(originalStack, 0, 1, false)) return ItemStack.EMPTY
                 }
-                else if (originalStack.item is SymbolPageItem) {
+                else if (originalStack.item is SymbolPageItem || originalStack.isOf(ModItems.PAGE)) {
                     for (i in 2 until 58) {
                         val pageSlot = slots[i]
                         if (!pageSlot.hasStack()) {
@@ -229,5 +252,37 @@ class BookBinderScreenHandler(
         super.onClosed(player)
         // Erase the crafted book display so it doesn't get dropped for free
         output.setStack(0, ItemStack.EMPTY) 
+    }
+
+    private fun detectBookMode(): BookMode? {
+        var hasBlankPage = false
+        var hasSymbolPages = false
+
+        for (i in 1 until 57) {
+            val pageStack = input.getStack(i)
+            if (pageStack.isEmpty) continue
+
+            when {
+                pageStack.isOf(ModItems.PAGE) -> hasBlankPage = true
+                pageStack.item is SymbolPageItem -> hasSymbolPages = true
+            }
+        }
+
+        return when {
+            hasBlankPage -> BookMode.LINKING
+            hasSymbolPages -> BookMode.DESCRIPTIVE
+            input.getStack(0).isOf(Items.LEATHER) -> BookMode.BLANK_DESCRIPTIVE
+            else -> null
+        }
+    }
+
+    private fun consumeSingleBlankPage() {
+        for (i in 1 until 57) {
+            val pageStack = input.getStack(i)
+            if (pageStack.isOf(ModItems.PAGE)) {
+                input.removeStack(i, 1)
+                return
+            }
+        }
     }
 }

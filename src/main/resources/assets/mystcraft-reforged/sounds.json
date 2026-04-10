@@ -1,0 +1,24 @@
+{
+  "age_enter": {
+    "subtitle": "subtitles.mystcraft-reforged.age_enter",
+    "sounds": [
+      {
+        "name": "mystcraft-reforged:age_travel",
+        "stream": false,
+        "volume": 1.0,
+        "pitch": 1.0
+      }
+    ]
+  },
+  "age_leave": {
+    "subtitle": "subtitles.mystcraft-reforged.age_leave",
+    "sounds": [
+      {
+        "name": "mystcraft-reforged:age_travel",
+        "stream": false,
+        "volume": 0.9,
+        "pitch": 0.72
+      }
+    ]
+  }
+}
