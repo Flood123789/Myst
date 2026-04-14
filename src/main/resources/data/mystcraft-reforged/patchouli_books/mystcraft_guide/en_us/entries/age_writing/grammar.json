@@ -1,0 +1,16 @@
+{
+  "name": "Symbol Grammar",
+  "category": "mystcraft-reforged:age_writing",
+  "icon": "mystcraft-reforged:agebook",
+  "sortnum": 0,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "Mystcraft reads pages sequentially. Terrain, biome rules, time, weather, colors, and special modifiers all feed into the final Age profile. Conflicting symbols do not cancel cleanly; they add $(thing)instability$()."
+    },
+    {
+      "type": "patchouli:text",
+      "text": "Defined Ages are safer than vague ones. Terrain, biomes, time, suns, moons, stars, and weather all make an Age more stable when written intentionally. Random or barely-defined Ages tend to drift toward exotic or hostile outcomes."
+    }
+  ]
+}

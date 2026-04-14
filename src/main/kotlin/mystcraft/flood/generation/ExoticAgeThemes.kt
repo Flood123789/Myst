@@ -9,6 +9,7 @@ object ExoticAgeThemes {
     const val CABLES = "exotic_cables"
     const val FRACTAL_CUBES = "exotic_fractal_cubes"
     const val LIGHT_FISSURES = "exotic_light_fissures"
+    const val VIRUS = "exotic_virus"
 
     val ALL = listOf(
         HEX,
@@ -16,7 +17,8 @@ object ExoticAgeThemes {
         SEPARATORS,
         CABLES,
         FRACTAL_CUBES,
-        LIGHT_FISSURES
+        LIGHT_FISSURES,
+        VIRUS
     )
 
     fun fromModifiers(modifiers: List<String>): String? = modifiers.firstOrNull { it in ALL }

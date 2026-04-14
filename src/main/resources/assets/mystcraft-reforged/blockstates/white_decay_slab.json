@@ -1,0 +1,16 @@
+{
+  "multipart": [
+    {
+      "when": { "type": "bottom" },
+      "apply": { "model": "mystcraft-reforged:block/white_decay_slab" }
+    },
+    {
+      "when": { "type": "top" },
+      "apply": { "model": "mystcraft-reforged:block/white_decay_slab_top" }
+    },
+    {
+      "when": { "type": "double" },
+      "apply": { "model": "mystcraft-reforged:block/white_decay" }
+    }
+  ]
+}

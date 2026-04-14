@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/door_bottom_right_open",
+  "textures": {
+    "bottom": "mystcraft-reforged:block/decay_white",
+    "top": "mystcraft-reforged:block/decay_white"
+  }
+}

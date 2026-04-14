@@ -1,6 +1,8 @@
 ﻿{
   "itemgroup.mystcraft-reforged.mystcraft_group": "Mystcraft Reforged",
   "itemgroup.mystcraft-reforged.mystcraft_pages": "Mystcraft: Symbol Pages",
+  "itemgroup.mystcraft-reforged.mystcraft_effect_pages": "Mystcraft: Effect Pages",
+  "item.mystcraft-reforged.guide_book": "Mystcraft Primer",
   "item.mystcraft-reforged.agebook": "Descriptive Book",
   "item.mystcraft-reforged.linkingbook": "Linking Book",
   "item.mystcraft-reforged.linkpanel": "Link Panel",
@@ -21,9 +23,11 @@
   "block.mystcraft-reforged.linkmodifier": "Link Modifier",
   "block.mystcraft-reforged.book_receptacle": "Book Receptacle",
   "block.mystcraft-reforged.black_decay": "Black Decay",
+  "block.mystcraft-reforged.white_decay": "White Decay",
   "block.mystcraft-reforged.book_binder": "Book Binder",
   "block.mystcraft-reforged.star_fissure": "Star Fissure",
   "block.mystcraft-reforged.crystal_block": "Crystal",
+  "patchouli.mystcraft-reforged.guide_missing": "Patchouli is not installed. Install it to read the Mystcraft Primer.",
   "subtitles.mystcraft-reforged.age_enter": "Age opens",
   "subtitles.mystcraft-reforged.age_leave": "Age closes"
 }

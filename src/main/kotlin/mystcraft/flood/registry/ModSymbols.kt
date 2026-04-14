@@ -13,10 +13,15 @@ import net.minecraft.world.biome.BiomeKeys
 object ModSymbols {
     // Using a MutableSet instead of a List prevents duplicates when you reload worlds!
     val availableSymbols = mutableSetOf<Identifier>()
+    val AGE_EFFECT_SYMBOL: Identifier = Identifier("mystcraft-reforged", "age_effect")
+
+    private fun isPotionPageSymbol(symbolId: Identifier): Boolean = symbolId == AGE_EFFECT_SYMBOL || Registries.STATUS_EFFECT.containsId(symbolId)
 
     fun register() {
         // 1. Scan Status Effects / Potions (Dynamic)
-        Registries.STATUS_EFFECT.ids.forEach { availableSymbols.add(it) }
+        Registries.STATUS_EFFECT.ids
+            .filter { Registries.STATUS_EFFECT.get(it)?.isInstant == false }
+            .forEach { availableSymbols.add(it) }
 
         // 2. "Baked" Terrain Types
         availableSymbols.add(Identifier("mystcraft-reforged", "terrain_standard"))
@@ -41,6 +46,7 @@ object ModSymbols {
         availableSymbols.add(Identifier("mystcraft-reforged", "weather_thunder"))
         availableSymbols.add(Identifier("mystcraft-reforged", "weather_endless_storm"))
         availableSymbols.add(Identifier("mystcraft-reforged", "weather_no_weather"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "low_gravity"))
 
         // === NEW STUFF: Modifiers ===
         availableSymbols.add(Identifier("mystcraft-reforged", "dense_ores")) 
@@ -48,12 +54,15 @@ object ModSymbols {
         availableSymbols.add(Identifier("mystcraft-reforged", "crystal_formations"))
         availableSymbols.add(Identifier("mystcraft-reforged", "tendrils"))
         availableSymbols.add(Identifier("mystcraft-reforged", "obelisks"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "ancient_bones"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "forgotten_ruins"))
         availableSymbols.add(Identifier("mystcraft-reforged", "exotic_hex"))
         availableSymbols.add(Identifier("mystcraft-reforged", "exotic_wire_cells"))
         availableSymbols.add(Identifier("mystcraft-reforged", "exotic_separators"))
         availableSymbols.add(Identifier("mystcraft-reforged", "exotic_cables"))
         availableSymbols.add(Identifier("mystcraft-reforged", "exotic_fractal_cubes"))
         availableSymbols.add(Identifier("mystcraft-reforged", "exotic_light_fissures"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "exotic_virus"))
 
         // === NEW STUFF: Biome Controllers ===
         availableSymbols.add(Identifier("mystcraft-reforged", "biome_checkerboard"))
@@ -94,6 +103,7 @@ object ModSymbols {
         availableSymbols.add(Identifier("mystcraft-reforged", "spawning_no_mobs"))
         availableSymbols.add(Identifier("mystcraft-reforged", "spawning_extra_hostile"))
         availableSymbols.add(Identifier("mystcraft-reforged", "spawning_extra_passive"))
+        availableSymbols.add(AGE_EFFECT_SYMBOL)
 
         // The Wildcard Page
         availableSymbols.add(Identifier("mystcraft-reforged", "random"))
@@ -121,7 +131,13 @@ object ModSymbols {
         // 7. Inject them into your CUSTOM Creative Tab!
         ItemGroupEvents.modifyEntriesEvent(ModItemGroups.MYSTCRAFT_PAGES_KEY).register { entries ->
             // Sorting them alphabetically by their path so the menu isn't a chaotic mess
-            availableSymbols.sortedBy { it.path }.forEach { symbolId ->
+            availableSymbols.sortedBy { it.path }.filterNot(::isPotionPageSymbol).forEach { symbolId ->
+                entries.add(SymbolPageItem.createStack(symbolId))
+            }
+        }
+
+        ItemGroupEvents.modifyEntriesEvent(ModItemGroups.MYSTCRAFT_EFFECTS_KEY).register { entries ->
+            availableSymbols.sortedBy { it.path }.filter(::isPotionPageSymbol).forEach { symbolId ->
                 entries.add(SymbolPageItem.createStack(symbolId))
             }
         }

@@ -1,0 +1,9 @@
+{
+  "name": "Mystcraft Primer",
+  "landing_text": "Mystcraft lets you write Ages out of symbols, link between dimensions, and wrestle with the instability you create. This primer covers the core loop, the grammar, and the stranger worlds you can discover.",
+  "version": 1,
+  "creative_tab": "mystcraft-reforged:mystcraft_group",
+  "model": "mystcraft-reforged:guide_book",
+  "use_resource_pack": true,
+  "show_progress": false
+}

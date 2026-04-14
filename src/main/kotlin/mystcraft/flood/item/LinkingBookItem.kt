@@ -1,6 +1,7 @@
 package mystcraft.flood.item
 
 import net.fabricmc.fabric.api.dimension.v1.FabricDimensions
+import mystcraft.flood.generation.AgeLifecycleManager
 import mystcraft.flood.generation.AgeTravelEffects
 import net.minecraft.client.item.TooltipContext
 import net.minecraft.entity.player.PlayerEntity
@@ -40,6 +41,9 @@ class LinkingBookItem(settings: Settings) : Item(settings) {
             val targetWorld = world.server?.getWorld(dimKey)
 
             if (targetWorld != null) {
+                if (!AgeLifecycleManager.mayEnterAge(user, dimId, linkStyleMessage = true)) {
+                    return TypedActionResult.success(stack)
+                }
                 val targetPos = Vec3d(nbt.getDouble("PosX"), nbt.getDouble("PosY"), nbt.getDouble("PosZ"))
                 val teleportTarget = TeleportTarget(targetPos, Vec3d.ZERO, nbt.getFloat("Yaw"), nbt.getFloat("Pitch"))
                 AgeTravelEffects.playDeparture(user.serverWorld, user)
@@ -47,6 +51,8 @@ class LinkingBookItem(settings: Settings) : Item(settings) {
                 if (result != null) {
                     AgeTravelEffects.playArrival(targetWorld, teleportTarget.position)
                 }
+            } else if (world.server != null && AgeLifecycleManager.isDeadAge(world.server!!, dimId)) {
+                user.sendMessage(AgeLifecycleManager.deadLinkMessage(), false)
             } else {
                 user.sendMessage(Text.literal("Target dimension is unavailable."), true)
             }

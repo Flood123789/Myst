@@ -1,6 +1,7 @@
 package mystcraft.flood.item
 
 import mystcraft.flood.registry.ModSymbols
+import net.minecraft.registry.Registries
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.item.Item
 import net.minecraft.item.ItemStack
@@ -17,7 +18,7 @@ class LostPageItem(settings: Settings) : Item(settings) {
 
         if (!world.isClient) {
             // 1. Pick a completely random symbol from our master registry!
-            val randomSymbol = ModSymbols.availableSymbols.random()
+            val randomSymbol = pickWeightedSymbol(world.random)
             
             // 2. Generate the actual, usable Symbol Page
             val identifiedPage = SymbolPageItem.createStack(randomSymbol)
@@ -37,5 +38,35 @@ class LostPageItem(settings: Settings) : Item(settings) {
         }
 
         return TypedActionResult.success(stack, world.isClient())
+    }
+
+    private fun pickWeightedSymbol(random: net.minecraft.util.math.random.Random): net.minecraft.util.Identifier {
+        val weighted = ModSymbols.availableSymbols.map { symbol -> symbol to weightFor(symbol) }
+        val totalWeight = weighted.sumOf { it.second }.coerceAtLeast(1)
+        var roll = random.nextInt(totalWeight)
+
+        for ((symbol, weight) in weighted) {
+            roll -= weight
+            if (roll < 0) {
+                return symbol
+            }
+        }
+
+        return weighted.first().first
+    }
+
+    private fun weightFor(symbol: net.minecraft.util.Identifier): Int {
+        if (symbol == ModSymbols.AGE_EFFECT_SYMBOL) return 1
+        if (Registries.STATUS_EFFECT.containsId(symbol)) return 3
+
+        return when (symbol.path) {
+            "terrain_cities", "terrain_biospheres", "dense_ores", "spawning_no_mobs", "exotic_virus" -> 2
+            "ancient_bones" -> 3
+            "forgotten_ruins" -> 4
+            "terrain_caves", "terrain_floating_islands", "giant_trees", "crystal_formations", "tendrils",
+            "obelisks", "weather_endless_storm", "stars_dense", "no_stars", "sun_red", "sun_blue", "low_gravity",
+            "biome_checkerboard", "biome_vanilla" -> 5
+            else -> if (symbol.path.startsWith("exotic_")) 4 else 14
+        }
     }
 }

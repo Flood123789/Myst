@@ -1,0 +1,16 @@
+{
+  "name": "Cities and Biospheres",
+  "category": "mystcraft-reforged:worlds",
+  "icon": "mystcraft-reforged:symbol_page",
+  "sortnum": 0,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "$(thing)City Ages$() generate roads, towers, apartment blocks, subway systems, and bridges. They are powerful terrain types and carry a heavier instability burden than standard terrain."
+    },
+    {
+      "type": "patchouli:text",
+      "text": "$(thing)Biosphere Ages$() are void worlds filled with linked domes. Each sphere can carry a real biome, including modded ones, so native mobs and atmosphere can appear inside a dome if that biome supports them."
+    }
+  ]
+}

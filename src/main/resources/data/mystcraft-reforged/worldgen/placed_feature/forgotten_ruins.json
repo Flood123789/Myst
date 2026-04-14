@@ -1,0 +1,8 @@
+{
+  "feature": "mystcraft-reforged:forgotten_ruins",
+  "placement": [
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

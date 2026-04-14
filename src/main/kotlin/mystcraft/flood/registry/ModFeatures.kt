@@ -26,6 +26,8 @@ object ModFeatures {
     val CITY_GRID: Feature<DefaultFeatureConfig> = CityGridFeature(DefaultFeatureConfig.CODEC)
     val BIOSPHERE: Feature<DefaultFeatureConfig> = BiosphereFeature(DefaultFeatureConfig.CODEC)
     val EXOTIC_SURFACE: Feature<DefaultFeatureConfig> = ExoticSurfaceFeature(DefaultFeatureConfig.CODEC)
+    val ANCIENT_REMAINS: Feature<DefaultFeatureConfig> = AncientRemainsFeature(DefaultFeatureConfig.CODEC)
+    val FORGOTTEN_RUINS: Feature<DefaultFeatureConfig> = ForgottenRuinsFeature(DefaultFeatureConfig.CODEC)
 
     private var hasRegistered = false
 
@@ -48,6 +50,8 @@ object ModFeatures {
         Registry.register(Registries.FEATURE, Identifier(MystcraftReforged.MOD_ID, "city_grid"), CITY_GRID)
         Registry.register(Registries.FEATURE, Identifier(MystcraftReforged.MOD_ID, "biosphere"), BIOSPHERE)
         Registry.register(Registries.FEATURE, Identifier(MystcraftReforged.MOD_ID, "exotic_surface"), EXOTIC_SURFACE)
+        Registry.register(Registries.FEATURE, Identifier(MystcraftReforged.MOD_ID, "ancient_remains"), ANCIENT_REMAINS)
+        Registry.register(Registries.FEATURE, Identifier(MystcraftReforged.MOD_ID, "forgotten_ruins"), FORGOTTEN_RUINS)
 
         MystcraftReforged.LOGGER.info("Successfully registered all worldgen features.")
     }

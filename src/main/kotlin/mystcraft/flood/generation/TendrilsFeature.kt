@@ -24,10 +24,11 @@ class TendrilsFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatu
 
         // Grab the profile so we can check modifiers AND get the seed
         val profile = AgeProfileManager.getOrGenerateProfile(serverWorld.server, ageId)
+        if (AgeLifecycleManager.isDeadAge(profile)) return false
         if (!profile.modifiers.contains("tendrils")) return false
 
         // Rarity: 1 in 20 chunks
-        if (random.nextInt(20) != 0) return false
+        if (random.nextInt(AgeFeatureTuning.rarityRollDivisor(profile, 20, "tendrils")) != 0) return false
 
         // Use the Age's seed so the material is consistent across the entire dimension!
         val ageRand = kotlin.random.Random(profile.seed)

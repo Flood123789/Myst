@@ -1,0 +1,8 @@
+{
+  "feature": "mystcraft-reforged:ancient_remains",
+  "placement": [
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

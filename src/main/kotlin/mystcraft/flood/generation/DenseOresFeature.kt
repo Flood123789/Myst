@@ -23,6 +23,7 @@ class DenseOresFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeat
 
         // 2. Check the profile to see if Dense Ores is active!
         val profile = AgeProfileManager.getOrGenerateProfile(serverWorld.server, serverWorld.registryKey.value)
+        if (AgeLifecycleManager.isDeadAge(profile)) return false
         
         // NOTE: Adjust this check to match however you are storing Page data in your AgeProfile!
         // For example, if you use a boolean flag or a list of active page names:

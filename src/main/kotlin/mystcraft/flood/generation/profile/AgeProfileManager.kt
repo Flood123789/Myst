@@ -3,6 +3,8 @@ package mystcraft.flood.generation.profile
 import mystcraft.flood.MystcraftReforged
 import mystcraft.flood.generation.AgeCompiler
 import mystcraft.flood.generation.ExoticAgeThemes
+import mystcraft.flood.generation.HistoricAgeThemes
+import net.minecraft.registry.Registries
 import net.minecraft.registry.RegistryKeys
 import net.minecraft.server.MinecraftServer
 import net.minecraft.util.Identifier
@@ -27,6 +29,14 @@ object AgeProfileManager {
             repeat(2) { add(TerrainType.CITIES) }
         }
         return pool.random(rand)
+    }
+
+    private fun randomAgeEffectId(rand: Random): String? {
+        val eligible = Registries.STATUS_EFFECT.ids.filter { id ->
+            Registries.STATUS_EFFECT.get(id)?.isInstant == false
+        }
+        if (eligible.isEmpty()) return null
+        return eligible.random(rand).toString()
     }
 
     @JvmOverloads
@@ -61,9 +71,12 @@ object AgeProfileManager {
         val hasExplicitBiomePages = compiled.biomes.isNotEmpty() || compiled.biomeController != null
         val hasExplicitTimePage = compiled.timeMode != null
         val hasExplicitWeatherPage = compiled.weatherMode != null
+        val hasExplicitGravityPage = normalizedSymbols.any { it == "low_gravity" }
         
         var modifierInstability = 0
         val activeModifiers = mutableListOf<String>()
+        var selectedAgeEffectId = compiled.ageEffectId
+        val explicitInstabilityFeaturePages = mutableSetOf<String>()
 
         var hasSunPages = false
         var hasMoonPages = false
@@ -79,14 +92,17 @@ object AgeProfileManager {
         var noMobs = false
         var hostileMult = 1.0f
         var passiveMult = 1.0f
+        var gravityScale = if (compiled.lowGravity) 0.45f else 1.0f
 
         // 1. SCAN EXPLICIT PAGES
         for (symbol in normalizedSymbols) {
+            val originalSymbol = symbol
             var cleanSymbol = symbol
             
             if (cleanSymbol == "random") {
                 val wildcards = listOf(
                     "tendrils", "obelisks", "giant_trees", "crystal_formations", "dense_ores",
+                    HistoricAgeThemes.ANCIENT_BONES, HistoricAgeThemes.FORGOTTEN_RUINS,
                     "spawning_no_mobs", "spawning_extra_hostile", "sun_red", "moon_extra"
                 )
                 cleanSymbol = wildcards.random(rand)
@@ -95,17 +111,20 @@ object AgeProfileManager {
 
             when (cleanSymbol) {
                 // === MODIFIERS ===
-                "dense_ores" -> if (!activeModifiers.contains("dense_ores")) { activeModifiers.add("dense_ores"); modifierInstability += 75 }
-                "giant_trees" -> if (!activeModifiers.contains("giant_trees")) { activeModifiers.add("giant_trees"); modifierInstability += 15 }
-                "crystal_formations" -> if (!activeModifiers.contains("crystal_formations")) { activeModifiers.add("crystal_formations"); modifierInstability += 10 }
-                "tendrils" -> if (!activeModifiers.contains("tendrils")) { activeModifiers.add("tendrils"); modifierInstability += 20 }
-                "obelisks" -> if (!activeModifiers.contains("giant_obelisks")) { activeModifiers.add("giant_obelisks"); modifierInstability += 15 }
-                ExoticAgeThemes.HEX -> if (!activeModifiers.contains(ExoticAgeThemes.HEX)) { activeModifiers.add(ExoticAgeThemes.HEX); modifierInstability += 20 }
-                ExoticAgeThemes.WIRE_CELLS -> if (!activeModifiers.contains(ExoticAgeThemes.WIRE_CELLS)) { activeModifiers.add(ExoticAgeThemes.WIRE_CELLS); modifierInstability += 20 }
-                ExoticAgeThemes.SEPARATORS -> if (!activeModifiers.contains(ExoticAgeThemes.SEPARATORS)) { activeModifiers.add(ExoticAgeThemes.SEPARATORS); modifierInstability += 20 }
-                ExoticAgeThemes.CABLES -> if (!activeModifiers.contains(ExoticAgeThemes.CABLES)) { activeModifiers.add(ExoticAgeThemes.CABLES); modifierInstability += 20 }
-                ExoticAgeThemes.FRACTAL_CUBES -> if (!activeModifiers.contains(ExoticAgeThemes.FRACTAL_CUBES)) { activeModifiers.add(ExoticAgeThemes.FRACTAL_CUBES); modifierInstability += 20 }
-                ExoticAgeThemes.LIGHT_FISSURES -> if (!activeModifiers.contains(ExoticAgeThemes.LIGHT_FISSURES)) { activeModifiers.add(ExoticAgeThemes.LIGHT_FISSURES); modifierInstability += 20 }
+                "dense_ores" -> if (!activeModifiers.contains("dense_ores")) { activeModifiers.add("dense_ores"); modifierInstability += 75; if (originalSymbol != "random") explicitInstabilityFeaturePages.add("dense_ores") }
+                "giant_trees" -> if (!activeModifiers.contains("giant_trees")) { activeModifiers.add("giant_trees"); modifierInstability += 15; if (originalSymbol != "random") explicitInstabilityFeaturePages.add("giant_trees") }
+                "crystal_formations" -> if (!activeModifiers.contains("crystal_formations")) { activeModifiers.add("crystal_formations"); modifierInstability += 10; if (originalSymbol != "random") explicitInstabilityFeaturePages.add("crystal_formations") }
+                "tendrils" -> if (!activeModifiers.contains("tendrils")) { activeModifiers.add("tendrils"); modifierInstability += 20; if (originalSymbol != "random") explicitInstabilityFeaturePages.add("tendrils") }
+                "obelisks" -> if (!activeModifiers.contains("giant_obelisks")) { activeModifiers.add("giant_obelisks"); modifierInstability += 15; if (originalSymbol != "random") explicitInstabilityFeaturePages.add("obelisks") }
+                HistoricAgeThemes.ANCIENT_BONES -> if (!activeModifiers.contains(HistoricAgeThemes.ANCIENT_BONES)) { activeModifiers.add(HistoricAgeThemes.ANCIENT_BONES); modifierInstability += 14; if (originalSymbol != "random") explicitInstabilityFeaturePages.add(HistoricAgeThemes.ANCIENT_BONES) }
+                HistoricAgeThemes.FORGOTTEN_RUINS -> if (!activeModifiers.contains(HistoricAgeThemes.FORGOTTEN_RUINS)) { activeModifiers.add(HistoricAgeThemes.FORGOTTEN_RUINS); modifierInstability += 18; if (originalSymbol != "random") explicitInstabilityFeaturePages.add(HistoricAgeThemes.FORGOTTEN_RUINS) }
+                ExoticAgeThemes.HEX -> if (!activeModifiers.contains(ExoticAgeThemes.HEX)) { activeModifiers.add(ExoticAgeThemes.HEX); modifierInstability += 20; if (originalSymbol != "random") explicitInstabilityFeaturePages.add(ExoticAgeThemes.HEX) }
+                ExoticAgeThemes.WIRE_CELLS -> if (!activeModifiers.contains(ExoticAgeThemes.WIRE_CELLS)) { activeModifiers.add(ExoticAgeThemes.WIRE_CELLS); modifierInstability += 20; if (originalSymbol != "random") explicitInstabilityFeaturePages.add(ExoticAgeThemes.WIRE_CELLS) }
+                ExoticAgeThemes.SEPARATORS -> if (!activeModifiers.contains(ExoticAgeThemes.SEPARATORS)) { activeModifiers.add(ExoticAgeThemes.SEPARATORS); modifierInstability += 20; if (originalSymbol != "random") explicitInstabilityFeaturePages.add(ExoticAgeThemes.SEPARATORS) }
+                ExoticAgeThemes.CABLES -> if (!activeModifiers.contains(ExoticAgeThemes.CABLES)) { activeModifiers.add(ExoticAgeThemes.CABLES); modifierInstability += 20; if (originalSymbol != "random") explicitInstabilityFeaturePages.add(ExoticAgeThemes.CABLES) }
+                ExoticAgeThemes.FRACTAL_CUBES -> if (!activeModifiers.contains(ExoticAgeThemes.FRACTAL_CUBES)) { activeModifiers.add(ExoticAgeThemes.FRACTAL_CUBES); modifierInstability += 20; if (originalSymbol != "random") explicitInstabilityFeaturePages.add(ExoticAgeThemes.FRACTAL_CUBES) }
+                ExoticAgeThemes.LIGHT_FISSURES -> if (!activeModifiers.contains(ExoticAgeThemes.LIGHT_FISSURES)) { activeModifiers.add(ExoticAgeThemes.LIGHT_FISSURES); modifierInstability += 20; if (originalSymbol != "random") explicitInstabilityFeaturePages.add(ExoticAgeThemes.LIGHT_FISSURES) }
+                ExoticAgeThemes.VIRUS -> if (!activeModifiers.contains(ExoticAgeThemes.VIRUS)) { activeModifiers.add(ExoticAgeThemes.VIRUS); modifierInstability += 24; if (originalSymbol != "random") explicitInstabilityFeaturePages.add(ExoticAgeThemes.VIRUS) }
                 
                 // === CELESTIAL ===
                 "sun_normal" -> { sunNormal++; hasSunPages = true }
@@ -221,6 +240,22 @@ object AgeProfileManager {
                 timeMode !in setOf("fast", "slow", "fixed") &&
                 weatherMode == "normal"
 
+        if (selectedAgeEffectId != null) {
+            modifierInstability += 65
+        } else if ((usedRandomPage || sparseAge) && rand.nextFloat() < 0.015f) {
+            selectedAgeEffectId = randomAgeEffectId(rand)
+            if (selectedAgeEffectId != null) {
+                modifierInstability += 45
+            }
+        }
+
+        if (compiled.lowGravity) {
+            modifierInstability += 22
+        } else if ((usedRandomPage || sparseAge) && rand.nextFloat() < 0.06f) {
+            gravityScale = 0.45f
+            modifierInstability += 14
+        }
+
         var finalInstability = modifierInstability + compiled.conflictInstability
 
         finalInstability += when {
@@ -242,6 +277,7 @@ object AgeProfileManager {
         if (weatherMode == "endless_storm") finalInstability += 15
         if (weatherMode == "endless_rain") finalInstability += 6
         if (biomesList.size > 3) finalInstability += (biomesList.size - 3) * 10
+        finalInstability -= explicitInstabilityFeaturePages.size * 24
 
         if (isSingleBiomeAge) finalInstability -= 14
         if (finalBiomeMode == BiomeMode.VANILLA_DISTRIBUTION) finalInstability -= 10
@@ -249,8 +285,11 @@ object AgeProfileManager {
         if (hasExplicitTerrainPage && terrain == TerrainType.STANDARD) finalInstability -= 8
         if (hasExplicitWeatherPage && weatherMode == "normal") finalInstability -= 4
         if (hasExplicitTimePage && timeMode == "normal") finalInstability -= 4
+        if (hasExplicitGravityPage.not() && gravityScale < 1.0f) finalInstability += 8
 
         finalInstability = finalInstability.coerceAtLeast(0)
+        val authoredFeaturePages = explicitInstabilityFeaturePages.count { it != "dense_ores" }
+        val authoredFeatureRarityFactor = (1.0f - authoredFeaturePages * 0.08f).coerceAtLeast(0.25f)
 
         if (ExoticAgeThemes.fromModifiers(activeModifiers) == null && terrain != TerrainType.CITIES && terrain != TerrainType.BIOSPHERES) {
             val exoticChance = when {
@@ -262,10 +301,52 @@ object AgeProfileManager {
                 finalInstability >= 20 -> 0.35f
                 finalInstability > 0 -> 0.10f
                 else -> 0.0f
-            }
+            } * authoredFeatureRarityFactor
 
             if (rand.nextFloat() < exoticChance) {
                 activeModifiers.add(ExoticAgeThemes.random(rand))
+            }
+        }
+
+        if (!activeModifiers.contains("crystal_formations")) {
+            val crystalChance = when {
+                usedRandomPage -> 0.62f
+                sparseAge -> 0.34f
+                finalInstability >= 70 -> 0.28f
+                finalInstability >= 40 -> 0.16f
+                else -> 0.0f
+            } * authoredFeatureRarityFactor
+            if (rand.nextFloat() < crystalChance) {
+                activeModifiers.add("crystal_formations")
+            }
+        }
+
+        if (!activeModifiers.contains(HistoricAgeThemes.ANCIENT_BONES) && terrain != TerrainType.BIOSPHERES) {
+            val bonesChance = when {
+                usedRandomPage -> 0.68f
+                sparseAge -> 0.52f
+                finalInstability >= 75 -> 0.58f
+                finalInstability >= 45 -> 0.34f
+                finalInstability >= 20 -> 0.16f
+                else -> 0.0f
+            } * authoredFeatureRarityFactor
+            if (rand.nextFloat() < bonesChance) {
+                activeModifiers.add(HistoricAgeThemes.ANCIENT_BONES)
+            }
+        }
+
+        if (!activeModifiers.contains(HistoricAgeThemes.FORGOTTEN_RUINS) && terrain != TerrainType.BIOSPHERES && terrain != TerrainType.CITIES) {
+            val ruinsChance = when {
+                usedRandomPage -> 0.54f
+                sparseAge -> 0.38f
+                isOverworldLike && finalInstability >= 20 -> 0.28f
+                finalInstability >= 70 -> 0.46f
+                finalInstability >= 40 -> 0.24f
+                finalInstability >= 18 -> 0.10f
+                else -> 0.0f
+            } * authoredFeatureRarityFactor
+            if (rand.nextFloat() < ruinsChance) {
+                activeModifiers.add(HistoricAgeThemes.FORGOTTEN_RUINS)
             }
         }
 
@@ -310,6 +391,8 @@ object AgeProfileManager {
                 biomes = biomesList
             ),
             spawning = SpawnSettings(noMobs, hostileMult, passiveMult),
+            ageEffect = AgeEffectProfile(selectedAgeEffectId, true),
+            physics = PhysicsSettings(gravityScale),
             stability = StabilityProfile(finalInstability <= 0, finalInstability),
             modifiers = activeModifiers 
         )
@@ -318,7 +401,19 @@ object AgeProfileManager {
     fun saveAndUnload(server: MinecraftServer, ageId: Identifier) {
         val profile = profileCache.remove(ageId) ?: return
         profile.time.savedTime = profile.time.liveTimeOfDay
+        writeProfile(server, ageId, profile)
+    }
+
+    fun save(server: MinecraftServer, ageId: Identifier) {
+        profileCache[ageId]?.let { profile ->
+            profile.time.savedTime = profile.time.liveTimeOfDay
+            writeProfile(server, ageId, profile)
+        }
+    }
+
+    private fun writeProfile(server: MinecraftServer, ageId: Identifier, profile: AgeProfile) {
         val dir = server.getSavePath(WorldSavePath.ROOT).resolve("mystcraft_profiles")
+        if (!Files.exists(dir)) Files.createDirectories(dir)
         Files.writeString(dir.resolve("${ageId.path}.json"), profile.toJson())
     }
 }

@@ -1,0 +1,47 @@
+{
+  "multipart": [
+    { "when": { "facing": "east", "half": "bottom", "shape": "inner_left" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs_inner", "y": 270, "uvlock": true } },
+    { "when": { "facing": "east", "half": "bottom", "shape": "inner_right" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs_inner" } },
+    { "when": { "facing": "east", "half": "bottom", "shape": "outer_left" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs_outer", "y": 270, "uvlock": true } },
+    { "when": { "facing": "east", "half": "bottom", "shape": "outer_right" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs_outer" } },
+    { "when": { "facing": "east", "half": "bottom", "shape": "straight" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs" } },
+    { "when": { "facing": "east", "half": "top", "shape": "inner_left" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs_inner", "x": 180, "uvlock": true } },
+    { "when": { "facing": "east", "half": "top", "shape": "inner_right" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs_inner", "x": 180, "y": 90, "uvlock": true } },
+    { "when": { "facing": "east", "half": "top", "shape": "outer_left" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs_outer", "x": 180, "uvlock": true } },
+    { "when": { "facing": "east", "half": "top", "shape": "outer_right" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs_outer", "x": 180, "y": 90, "uvlock": true } },
+    { "when": { "facing": "east", "half": "top", "shape": "straight" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs", "x": 180, "uvlock": true } },
+
+    { "when": { "facing": "north", "half": "bottom", "shape": "inner_left" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs_inner", "y": 180, "uvlock": true } },
+    { "when": { "facing": "north", "half": "bottom", "shape": "inner_right" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs_inner", "y": 270, "uvlock": true } },
+    { "when": { "facing": "north", "half": "bottom", "shape": "outer_left" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs_outer", "y": 180, "uvlock": true } },
+    { "when": { "facing": "north", "half": "bottom", "shape": "outer_right" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs_outer", "y": 270, "uvlock": true } },
+    { "when": { "facing": "north", "half": "bottom", "shape": "straight" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs", "y": 270, "uvlock": true } },
+    { "when": { "facing": "north", "half": "top", "shape": "inner_left" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs_inner", "x": 180, "y": 270, "uvlock": true } },
+    { "when": { "facing": "north", "half": "top", "shape": "inner_right" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs_inner", "x": 180, "uvlock": true } },
+    { "when": { "facing": "north", "half": "top", "shape": "outer_left" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs_outer", "x": 180, "y": 270, "uvlock": true } },
+    { "when": { "facing": "north", "half": "top", "shape": "outer_right" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs_outer", "x": 180, "uvlock": true } },
+    { "when": { "facing": "north", "half": "top", "shape": "straight" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs", "x": 180, "y": 270, "uvlock": true } },
+
+    { "when": { "facing": "south", "half": "bottom", "shape": "inner_left" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs_inner" } },
+    { "when": { "facing": "south", "half": "bottom", "shape": "inner_right" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs_inner", "y": 90, "uvlock": true } },
+    { "when": { "facing": "south", "half": "bottom", "shape": "outer_left" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs_outer" } },
+    { "when": { "facing": "south", "half": "bottom", "shape": "outer_right" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs_outer", "y": 90, "uvlock": true } },
+    { "when": { "facing": "south", "half": "bottom", "shape": "straight" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs", "y": 90, "uvlock": true } },
+    { "when": { "facing": "south", "half": "top", "shape": "inner_left" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs_inner", "x": 180, "y": 90, "uvlock": true } },
+    { "when": { "facing": "south", "half": "top", "shape": "inner_right" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs_inner", "x": 180, "y": 180, "uvlock": true } },
+    { "when": { "facing": "south", "half": "top", "shape": "outer_left" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs_outer", "x": 180, "y": 90, "uvlock": true } },
+    { "when": { "facing": "south", "half": "top", "shape": "outer_right" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs_outer", "x": 180, "y": 180, "uvlock": true } },
+    { "when": { "facing": "south", "half": "top", "shape": "straight" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs", "x": 180, "y": 90, "uvlock": true } },
+
+    { "when": { "facing": "west", "half": "bottom", "shape": "inner_left" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs_inner", "y": 90, "uvlock": true } },
+    { "when": { "facing": "west", "half": "bottom", "shape": "inner_right" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs_inner", "y": 180, "uvlock": true } },
+    { "when": { "facing": "west", "half": "bottom", "shape": "outer_left" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs_outer", "y": 90, "uvlock": true } },
+    { "when": { "facing": "west", "half": "bottom", "shape": "outer_right" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs_outer", "y": 180, "uvlock": true } },
+    { "when": { "facing": "west", "half": "bottom", "shape": "straight" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs", "y": 180, "uvlock": true } },
+    { "when": { "facing": "west", "half": "top", "shape": "inner_left" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs_inner", "x": 180, "y": 180, "uvlock": true } },
+    { "when": { "facing": "west", "half": "top", "shape": "inner_right" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs_inner", "x": 180, "y": 270, "uvlock": true } },
+    { "when": { "facing": "west", "half": "top", "shape": "outer_left" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs_outer", "x": 180, "y": 180, "uvlock": true } },
+    { "when": { "facing": "west", "half": "top", "shape": "outer_right" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs_outer", "x": 180, "y": 270, "uvlock": true } },
+    { "when": { "facing": "west", "half": "top", "shape": "straight" }, "apply": { "model": "mystcraft-reforged:block/white_decay_stairs", "x": 180, "y": 180, "uvlock": true } }
+  ]
+}

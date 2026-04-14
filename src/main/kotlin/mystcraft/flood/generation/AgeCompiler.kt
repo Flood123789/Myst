@@ -1,5 +1,8 @@
 package mystcraft.flood.generation
 
+import net.minecraft.registry.Registries
+import net.minecraft.util.Identifier
+
 // This class MUST match what AgeProfileManager expects!
 data class CompiledAgeData(
     var terrainType: String? = null,
@@ -14,6 +17,8 @@ data class CompiledAgeData(
     var waterColor: Int? = null,
     var grassColor: Int? = null,
     var foliageColor: Int? = null,
+    var ageEffectId: String? = null,
+    var lowGravity: Boolean = false,
     
     var conflictInstability: Int = 0 // Tracks "bad grammar" penalties
 )
@@ -24,6 +29,8 @@ object AgeCompiler {
         
         // Memory banks for sequential grammar
         val pendingColors = mutableListOf<Int>()
+        val ageEffectCandidates = mutableListOf<String>()
+        var ageEffectTargetCount = 0
         
         // Conflict trackers to handle winners/losers at the end
         val terrains = mutableListOf<String>()
@@ -42,7 +49,7 @@ object AgeCompiler {
                     "time_fast", "time_fixed", 
                     "weather_storm", "weather_rain",
                     "red", "purple", "black", "green",
-                    "biome_checkerboard", "biome_vanilla" // <--- Added wildcards
+                    "biome_checkerboard", "biome_vanilla", "low_gravity" // <--- Added wildcards
                 )
                 clean = wildcards.random()
                 data.conflictInstability += 5 // A small "Chaos Tax" for using wildcard pages
@@ -84,6 +91,11 @@ object AgeCompiler {
                 clean.contains("color_water") -> { data.waterColor = pendingColors.lastOrNull(); pendingColors.clear() }
                 clean.contains("color_grass") -> { data.grassColor = pendingColors.lastOrNull(); pendingColors.clear() }
                 clean.contains("color_foliage") -> { data.foliageColor = pendingColors.lastOrNull(); pendingColors.clear() }
+
+                // === AGE EFFECTS ===
+                clean == "age_effect" -> {
+                    ageEffectTargetCount++
+                }
                 
                 // === TERRAIN TYPES ===
                 clean.contains("floating_islands") -> terrains.add("FLOATING_ISLANDS")
@@ -102,11 +114,15 @@ object AgeCompiler {
                 clean.contains("weather_rain") -> weathers.add("endless_rain")
                 clean.contains("weather_storm") || clean.contains("thunder") -> weathers.add("endless_storm")
                 clean.contains("weather_clear") || clean.contains("no_weather") -> weathers.add("no_weather")
+                clean == "low_gravity" -> data.lowGravity = true
 
                 // === BIOME CONTROLLERS ===
                 clean.contains("checkerboard") -> biomeControllers.add("CHECKERBOARD")
                 clean.contains("vanilla") || clean.contains("native") -> biomeControllers.add("VANILLA")
                 
+                // === STATUS EFFECT SYMBOLS ===
+                isStatusEffectId(clean) -> ageEffectCandidates.add(clean)
+
                 // === BIOMES ===
                 clean.contains(":") -> data.biomes.add(clean)
             }
@@ -119,6 +135,23 @@ object AgeCompiler {
         // Unused modifiers cause instability (Grammar Leaks!)
         if (pendingColors.isNotEmpty()) {
             data.conflictInstability += pendingColors.size * 25
+        }
+
+        if (ageEffectTargetCount > 0) {
+            val selectedEffect = ageEffectCandidates.lastOrNull()
+            if (selectedEffect == null) {
+                data.conflictInstability += ageEffectTargetCount * 20
+            } else {
+                if (ageEffectCandidates.distinct().size > 1) {
+                    data.conflictInstability += (ageEffectCandidates.distinct().size - 1) * 12
+                }
+                if (ageEffectTargetCount > 1) {
+                    data.conflictInstability += (ageEffectTargetCount - 1) * 8
+                }
+                data.ageEffectId = selectedEffect
+            }
+        } else if (ageEffectCandidates.isNotEmpty()) {
+            data.conflictInstability += ageEffectCandidates.size * 15
         }
         
         // Terrain Conflict: Floating Islands AND Caves? Pick 1, add instability
@@ -172,5 +205,10 @@ object AgeCompiler {
         }
         
         return data
+    }
+
+    private fun isStatusEffectId(symbol: String): Boolean {
+        val id = Identifier.tryParse(symbol) ?: return false
+        return Registries.STATUS_EFFECT.containsId(id)
     }
 }

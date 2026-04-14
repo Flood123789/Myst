@@ -1,0 +1,12 @@
+{
+  "multipart": [
+    {
+      "when": { "hanging": "false" },
+      "apply": { "model": "mystcraft-reforged:block/white_decay_lantern" }
+    },
+    {
+      "when": { "hanging": "true" },
+      "apply": { "model": "mystcraft-reforged:block/white_decay_lantern_hanging" }
+    }
+  ]
+}

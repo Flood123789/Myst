@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/template_glass_pane_side_alt",
+  "textures": {
+    "pane": "mystcraft-reforged:block/decay_white",
+    "edge": "mystcraft-reforged:block/decay_white"
+  }
+}

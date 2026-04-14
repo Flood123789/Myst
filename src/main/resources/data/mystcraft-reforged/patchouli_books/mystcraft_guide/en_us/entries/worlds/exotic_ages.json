@@ -1,0 +1,16 @@
+{
+  "name": "Exotic Ages",
+  "category": "mystcraft-reforged:worlds",
+  "icon": "mystcraft-reforged:lost_page",
+  "sortnum": 1,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "Random and unstable Ages have a high chance to pick up exotic surface themes: hex plates, wire cells, separators, cables, fractal cubes, or light fissures. These are cosmetic and structural anomalies inspired by alien worlds."
+    },
+    {
+      "type": "patchouli:text",
+      "text": "$(item)Lost Pages$() identify into weighted random symbols. Standard pages are common, while extremely valuable pages such as city terrain, biospheres, dense ores, and $(thing)Age Effect$() pages are intentionally rare."
+    }
+  ]
+}

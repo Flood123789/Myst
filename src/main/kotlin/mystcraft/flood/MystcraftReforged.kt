@@ -26,6 +26,7 @@ import net.minecraft.util.math.Vec3d
 import org.slf4j.LoggerFactory
 import mystcraft.flood.block.ModBlocks
 import mystcraft.flood.block.entity.ModBlockEntities
+import mystcraft.flood.block.WhiteDecayShapeRegistry
 import mystcraft.flood.gui.ModScreens
 import mystcraft.flood.generation.instability.InstabilityManager
 import mystcraft.flood.block.DecayManager
@@ -34,6 +35,7 @@ import mystcraft.flood.registry.ModSounds
 import mystcraft.flood.registry.ModWorldgenCodecs
 import mystcraft.flood.generation.DeferredTreePlacer
 import mystcraft.flood.generation.AgeTravelSafety
+import mystcraft.flood.generation.AgeLifecycleManager
 
 object MystcraftReforged : ModInitializer {
 
@@ -48,10 +50,12 @@ object MystcraftReforged : ModInitializer {
         ModItems.registerModItems()
         ModItemGroups.registerItemGroups()
         ModBlocks.registerModBlocks()
+        WhiteDecayShapeRegistry.warmUp()
         ModBlockEntities.registerBlockEntities()
         ModScreens.register()
         ModLoot.register()
         ModSounds.register()
+        ModMessages.registerC2SPackets()
         AgeCommand.register()
         InstabilityManager.register()
         DecayManager.register()
@@ -129,11 +133,30 @@ object MystcraftReforged : ModInitializer {
             RegistryKey.of(RegistryKeys.PLACED_FEATURE, Identifier(MOD_ID, "exotic_surface"))
         )
 
+        BiomeModifications.addFeature(
+            BiomeSelectors.all(),
+            GenerationStep.Feature.SURFACE_STRUCTURES,
+            RegistryKey.of(RegistryKeys.PLACED_FEATURE, Identifier(MOD_ID, "ancient_remains"))
+        )
+
+        BiomeModifications.addFeature(
+            BiomeSelectors.all(),
+            GenerationStep.Feature.SURFACE_STRUCTURES,
+            RegistryKey.of(RegistryKeys.PLACED_FEATURE, Identifier(MOD_ID, "forgotten_ruins"))
+        )
+
         // 4. Server Events (Time, Syncing, Unloading)
         ServerTickEvents.END_WORLD_TICK.register { world ->
             val id = world.registryKey.value
             if (id.namespace == MOD_ID) {
                 val profile = AgeProfileManager.getOrGenerateProfile(world.server, id)
+
+                if (AgeLifecycleManager.isDeadAge(profile)) {
+                    world.players.toList().forEach { player ->
+                        AgeLifecycleManager.exileIfDeadAge(player)
+                    }
+                    return@register
+                }
                 
                 // If the time isn't locked to a specific hour, move the sun forward
                 if (profile.time.fixedTime == null) {
@@ -167,6 +190,7 @@ object MystcraftReforged : ModInitializer {
                     ModMessages.sendDimensionSync(handler.player, id, profile)
                 }
             }
+            AgeLifecycleManager.exileIfDeadAge(handler.player)
         }
 
         ServerPlayerEvents.AFTER_RESPAWN.register(ServerPlayerEvents.AfterRespawn { oldPlayer, newPlayer, _ ->
@@ -174,6 +198,8 @@ object MystcraftReforged : ModInitializer {
 
             val oldWorld = oldPlayer.serverWorld
             if (oldWorld.registryKey.value.namespace != MOD_ID) return@AfterRespawn
+            val oldProfile = AgeProfileManager.getOrGenerateProfile(oldWorld.server, oldWorld.registryKey.value)
+            if (AgeLifecycleManager.isDeadAge(oldProfile)) return@AfterRespawn
 
             val safePos = AgeTravelSafety.sanitizeArrival(oldWorld, oldPlayer.pos.add(0.0, 1.0, 0.0))
             val teleportTarget = net.minecraft.world.TeleportTarget(

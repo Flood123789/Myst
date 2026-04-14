@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/fence_post",
+  "textures": {
+    "texture": "mystcraft-reforged:block/decay_white"
+  }
+}

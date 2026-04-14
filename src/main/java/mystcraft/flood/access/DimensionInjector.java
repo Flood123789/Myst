@@ -6,4 +6,5 @@ import java.util.List;
 
 public interface DimensionInjector {
     void mystcraft$injectDimension(Identifier ageId, List<String> symbols);
+    void mystcraft$reloadDimension(Identifier ageId);
 }

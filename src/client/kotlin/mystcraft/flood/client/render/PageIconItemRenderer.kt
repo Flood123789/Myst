@@ -73,13 +73,17 @@ object PageIconItemRenderer : BuiltinItemRendererRegistry.DynamicItemRenderer {
         when {
             clean.startsWith("terrain_") -> drawCube(matrices, providers, BLUE, light, overlay)
             clean.startsWith("biome_") -> if (clean.contains("checkerboard")) drawGrid(matrices, providers, light, overlay) else drawTree(matrices, providers, light, overlay)
+            clean == "age_effect" -> drawAgeEffect(matrices, providers, light, overlay)
             clean.startsWith("sun_") -> drawSun(matrices, providers, light, overlay)
             clean.startsWith("moon_") -> drawMoon(matrices, providers, light, overlay)
             clean.startsWith("stars_") || clean == "no_stars" -> drawStars(matrices, providers, light, overlay)
             clean.startsWith("time_") -> drawClock(matrices, providers, light, overlay)
             clean.startsWith("weather_") -> drawWeather(clean, matrices, providers, light, overlay)
+            clean == "low_gravity" -> drawLowGravity(matrices, providers, light, overlay)
             clean.startsWith("spawning_") -> drawPaw(matrices, providers, light, overlay)
             clean == "dense_ores" -> drawOre(matrices, providers, light, overlay)
+            clean == "ancient_bones" -> drawBones(matrices, providers, light, overlay)
+            clean == "forgotten_ruins" -> drawRuins(matrices, providers, light, overlay)
             clean == "crystal_formations" -> drawCrystals(matrices, providers, light, overlay)
             clean == "tendrils" -> drawTendrils(matrices, providers, light, overlay)
             clean == "obelisks" || clean == "giant_obelisks" -> drawObelisk(matrices, providers, light, overlay)
@@ -123,6 +127,7 @@ object PageIconItemRenderer : BuiltinItemRendererRegistry.DynamicItemRenderer {
             clean.contains("separator") -> drawSeparator(matrices, providers, light, overlay)
             clean.contains("cable") -> drawCable(matrices, providers, light, overlay)
             clean.contains("fractal") -> drawFractal(matrices, providers, light, overlay)
+            clean.contains("virus") -> drawVirus(matrices, providers, light, overlay)
             else -> drawLightFissure(matrices, providers, light, overlay)
         }
     }
@@ -245,10 +250,37 @@ object PageIconItemRenderer : BuiltinItemRendererRegistry.DynamicItemRenderer {
         rect(matrices, providers, 6.5f, 8.4f, 9.5f, 10.7f, TEAL, light, overlay)
     }
 
+    private fun drawAgeEffect(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
+        drawPotion(matrices, providers, light, overlay)
+        star(matrices, providers, 11.1f, 5.2f, 0.7f, GOLD, light, overlay)
+        line(matrices, providers, 10.2f, 7.3f, 11.8f, 6.1f, 0.45f, GOLD, light, overlay)
+        line(matrices, providers, 10.1f, 9.6f, 11.8f, 10.8f, 0.45f, GOLD, light, overlay)
+    }
+
     private fun drawOre(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
         diamond(matrices, providers, 5.6f, 8.8f, 1.2f, GOLD, light, overlay)
         diamond(matrices, providers, 8f, 6.8f, 1.35f, SILVER, light, overlay)
         diamond(matrices, providers, 10.5f, 9.2f, 1.1f, RED, light, overlay)
+    }
+
+    private fun drawBones(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
+        line(matrices, providers, 4.4f, 10.9f, 11.7f, 5.1f, 0.9f, SILVER, light, overlay)
+        line(matrices, providers, 5.2f, 11.8f, 12.5f, 6f, 0.5f, PAPER, light, overlay)
+        line(matrices, providers, 6f, 10.2f, 6f, 5.6f, 0.55f, SILVER, light, overlay)
+        line(matrices, providers, 8f, 9.1f, 8f, 4.8f, 0.55f, SILVER, light, overlay)
+        line(matrices, providers, 10f, 7.7f, 10f, 4.5f, 0.55f, SILVER, light, overlay)
+        sunCore(matrices, providers, 4.6f, 11.1f, 0.8f, PAPER, light, overlay)
+        sunCore(matrices, providers, 11.8f, 5.2f, 0.8f, PAPER, light, overlay)
+    }
+
+    private fun drawRuins(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
+        rect(matrices, providers, 4.3f, 10.9f, 11.7f, 11.7f, GRAY, light, overlay)
+        rect(matrices, providers, 4.8f, 6.2f, 5.8f, 10.9f, SILVER, light, overlay)
+        rect(matrices, providers, 7.5f, 5.1f, 8.5f, 10.9f, SILVER, light, overlay)
+        rect(matrices, providers, 10.2f, 7.1f, 11.2f, 10.9f, SILVER, light, overlay)
+        rect(matrices, providers, 4.8f, 5.4f, 8.5f, 6.4f, SILVER, light, overlay)
+        line(matrices, providers, 8.5f, 6.4f, 10.5f, 4.4f, 0.55f, GOLD, light, overlay)
+        rect(matrices, providers, 6.1f, 8.1f, 6.9f, 8.9f, GREEN, light, overlay)
     }
 
     private fun drawCrystals(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
@@ -317,6 +349,17 @@ object PageIconItemRenderer : BuiltinItemRendererRegistry.DynamicItemRenderer {
         rect(matrices, providers, 7.6f, 3f, 8.4f, 13f, GOLD, light, overlay)
     }
 
+    private fun drawVirus(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
+        rect(matrices, providers, 6.6f, 3.8f, 9.4f, 7.6f, PURPLE, light, overlay)
+        line(matrices, providers, 6.6f, 3.8f, 8f, 2.4f, 0.45f, BLUE, light, overlay)
+        line(matrices, providers, 9.4f, 3.8f, 8f, 2.4f, 0.45f, BLUE, light, overlay)
+        line(matrices, providers, 6.6f, 7.6f, 8f, 9.1f, 0.45f, BLUE, light, overlay)
+        line(matrices, providers, 9.4f, 7.6f, 8f, 9.1f, 0.45f, BLUE, light, overlay)
+        rect(matrices, providers, 7.45f, 7.9f, 8.55f, 11.8f, SILVER, light, overlay)
+        line(matrices, providers, 4.3f, 11.2f, 7.1f, 9.3f, 0.45f, PURPLE, light, overlay)
+        line(matrices, providers, 11.7f, 11.2f, 8.9f, 9.3f, 0.45f, PURPLE, light, overlay)
+    }
+
     private fun drawGrid(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
         rect(matrices, providers, 4.3f, 4.3f, 7.5f, 7.5f, GREEN, light, overlay)
         rect(matrices, providers, 8.5f, 4.3f, 11.7f, 7.5f, BLUE, light, overlay)
@@ -337,6 +380,14 @@ object PageIconItemRenderer : BuiltinItemRendererRegistry.DynamicItemRenderer {
         rect(matrices, providers, 6.4f, 4.5f, 7.6f, 6.4f, INK, light, overlay)
         rect(matrices, providers, 8.4f, 4.5f, 9.6f, 6.4f, INK, light, overlay)
         rect(matrices, providers, 10.2f, 5.5f, 11.4f, 7.1f, INK, light, overlay)
+    }
+
+    private fun drawLowGravity(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
+        line(matrices, providers, 4.8f, 11.2f, 8f, 5.3f, 0.55f, BLUE, light, overlay)
+        line(matrices, providers, 8f, 5.3f, 11.2f, 11.2f, 0.55f, BLUE, light, overlay)
+        star(matrices, providers, 8f, 4.2f, 0.7f, GOLD, light, overlay)
+        line(matrices, providers, 5.5f, 8.8f, 6.5f, 8.1f, 0.4f, SILVER, light, overlay)
+        line(matrices, providers, 9.5f, 8.8f, 10.5f, 8.1f, 0.4f, SILVER, light, overlay)
     }
 
     private fun drawSwatch(matrices: MatrixStack, providers: VertexConsumerProvider, color: Int, light: Int, overlay: Int, x1: Float = 4f, y1: Float = 4f, x2: Float = 12f, y2: Float = 12f) {

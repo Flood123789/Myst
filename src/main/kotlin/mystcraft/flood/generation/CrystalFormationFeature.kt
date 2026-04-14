@@ -27,10 +27,11 @@ class CrystalFormationFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defa
         if (ageId.namespace != MystcraftReforged.MOD_ID) return false
 
         val profile = AgeProfileManager.getOrGenerateProfile(serverWorld.server, ageId)
+        if (AgeLifecycleManager.isDeadAge(profile)) return false
         if (!profile.modifiers.contains("crystal_formations")) return false
 
         // Rarity: Spawn fairly often if the page is used (1 in 4 chunks)
-        if (random.nextInt(1000) != 0) return false
+        if (random.nextInt(AgeFeatureTuning.rarityRollDivisor(profile, 1000, "crystal_formations")) != 0) return false
 
         val topY = world.getTopY(Heightmap.Type.WORLD_SURFACE_WG, origin.x, origin.z)
         if (topY < 20 || topY > 150) return false 

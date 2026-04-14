@@ -32,11 +32,12 @@ class GiantObeliskFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultF
 
         // 2. Modifier Check: Must have the "giant_obelisks" page in the book
         val profile = AgeProfileManager.getOrGenerateProfile(serverWorld.server, ageId)
+        if (AgeLifecycleManager.isDeadAge(profile)) return false
         if (!profile.modifiers.contains("giant_obelisks")) return false
 
         // 3. Rarity Check: 1 in 100 chunks. 
         // Increase this number to make them rarer, decrease it to see them more often.
-        if (random.nextInt(100) != 0) return false
+        if (random.nextInt(AgeFeatureTuning.rarityRollDivisor(profile, 100, "giant_obelisks")) != 0) return false
 
         // 4. Height Check: Use OCEAN_FLOOR so they can emerge from deep water too
         val topY = world.getTopY(Heightmap.Type.OCEAN_FLOOR_WG, origin.x, origin.z)

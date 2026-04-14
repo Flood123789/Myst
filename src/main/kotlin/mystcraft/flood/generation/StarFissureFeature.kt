@@ -25,6 +25,7 @@ class StarFissureFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFe
         // 1. Only spawn in Mystcraft Ages
         if (serverWorld.registryKey.value.namespace != MystcraftReforged.MOD_ID) return false
         val profile = AgeProfileManager.getOrGenerateProfile(serverWorld.server, serverWorld.registryKey.value)
+        if (AgeLifecycleManager.isDeadAge(profile)) return false
         if (profile.terrainType == TerrainType.BIOSPHERES) return false
 
         // 2. Rarity Check: 1 in 200 chunks

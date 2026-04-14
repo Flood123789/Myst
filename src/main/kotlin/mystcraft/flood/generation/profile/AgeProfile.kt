@@ -7,12 +7,15 @@ import com.google.gson.JsonParser
 data class AgeProfile(
     val id: String,
     val seed: Long,
-    val terrainType: TerrainType,
+    var terrainType: TerrainType,
     val colors: ColorSettings,
     val time: TimeSettings,
     val weather: WeatherSettings,
     val biomes: BiomeSet,
     val spawning: SpawnSettings,
+    val ageEffect: AgeEffectProfile = AgeEffectProfile(),
+    val physics: PhysicsSettings = PhysicsSettings(),
+    val ageState: AgeState = AgeState(),
     val stability: StabilityProfile,
     val modifiers: MutableList<String> = mutableListOf() 
 ) {
@@ -22,8 +25,25 @@ data class AgeProfile(
             val root = JsonParser.parseString(json).asJsonObject
             val profile = GSON.fromJson(root, AgeProfile::class.java)
 
+            if (!root.has("ageEffect")) {
+                profile.ageEffect.effectId = null
+                profile.ageEffect.enabled = true
+            } else if (!root.getAsJsonObject("ageEffect").has("enabled")) {
+                profile.ageEffect.enabled = true
+            }
+
             if (root.has("stability") && !root.getAsJsonObject("stability").has("effectsEnabled")) {
                 profile.stability.effectsEnabled = true
+            }
+
+            if (!root.has("physics")) {
+                profile.physics.gravityScale = 1.0f
+            }
+
+            if (!root.has("ageState")) {
+                profile.ageState.isSacrificed = false
+                profile.ageState.sacrificedAt = null
+                profile.ageState.sacrificedBy = null
             }
 
             return profile
@@ -32,7 +52,7 @@ data class AgeProfile(
     fun toJson(): String = GSON.toJson(this)
 }
 
-enum class TerrainType { STANDARD, CAVES, FLOATING_ISLANDS, FLAT, BIOSPHERES, CITIES }
+enum class TerrainType { STANDARD, CAVES, FLOATING_ISLANDS, FLAT, BIOSPHERES, CITIES, VOID }
 
 enum class BiomeMode { SINGLE, VANILLA_DISTRIBUTION, CHECKERBOARD, WEIGHTED }
 
@@ -43,7 +63,7 @@ data class BiomeSet(
     var biomes: MutableList<BiomeWeight>
 )
 
-data class ColorSettings(val sky: Int, val fog: Int, val water: Int, val grass: Int, val foliage: Int)
+data class ColorSettings(var sky: Int, var fog: Int, var water: Int, var grass: Int, var foliage: Int)
 
 data class TimeSettings(
     // === NEW: Expanded Celestial Data ===
@@ -68,6 +88,21 @@ data class WeatherSettings(
     var isEndlessRain: Boolean,
     var isEndlessStorm: Boolean,
     var noWeather: Boolean
+)
+
+data class AgeEffectProfile(
+    var effectId: String? = null,
+    var enabled: Boolean = true
+)
+
+data class PhysicsSettings(
+    var gravityScale: Float = 1.0f
+)
+
+data class AgeState(
+    var isSacrificed: Boolean = false,
+    var sacrificedAt: Long? = null,
+    var sacrificedBy: String? = null
 )
 
 data class StabilityProfile(

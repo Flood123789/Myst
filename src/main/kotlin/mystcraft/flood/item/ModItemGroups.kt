@@ -24,9 +24,11 @@ object ModItemGroups {
                 entries.add(ModItems.INK_VIAL)
                 entries.add(ModItems.LINK_PANEL)
                 entries.add(ModItems.PAGE)
+                entries.add(ModItems.GUIDE_BOOK)
                 entries.add(ModItems.DESCRIPTIVE_BOOK)
                 entries.add(ModItems.LINKING_BOOK)
                 entries.add(ModBlocks.BLACK_DECAY)
+                entries.add(ModBlocks.WHITE_DECAY)
                 entries.add(ModBlocks.STAR_FISSURE) // ADDED: Show the Star Fissure block in the main tab for easy access
                 entries.add(ModBlocks.CRYSTAL_BLOCK) // ADDED: Show the Crystal Block in the main tab for easy access
                 entries.add(ModBlocks.BOOK_RECEPTACLE) // ADDED: Show the Book Receptacle block in the main tab for easy access
@@ -51,6 +53,20 @@ object ModItemGroups {
             .icon { ItemStack(ModItems.PAGE) } // Using the blank page as the tab icon
             // Notice there is no .entries block here. 
             // The scanner will populate this tab dynamically after all mods load!
+            .build()
+    )
+
+    val MYSTCRAFT_EFFECTS_KEY: RegistryKey<ItemGroup> = RegistryKey.of(
+        RegistryKeys.ITEM_GROUP,
+        Identifier(MystcraftReforged.MOD_ID, "mystcraft_effect_pages")
+    )
+
+    val MYSTCRAFT_EFFECTS_GROUP: ItemGroup = Registry.register(
+        Registries.ITEM_GROUP,
+        MYSTCRAFT_EFFECTS_KEY.value,
+        FabricItemGroup.builder()
+            .displayName(Text.translatable("itemgroup.mystcraft-reforged.mystcraft_effect_pages"))
+            .icon { SymbolPageItem.createStack(Identifier(MystcraftReforged.MOD_ID, "age_effect")) }
             .build()
     )
 

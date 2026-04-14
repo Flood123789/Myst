@@ -46,10 +46,19 @@ public abstract class MinecraftServerMixin implements DimensionInjector {
 
     @Override
     public void mystcraft$injectDimension(Identifier ageId, List<String> symbols) {
+        mystcraft$createOrReplaceDimension(ageId, symbols, false);
+    }
+
+    @Override
+    public void mystcraft$reloadDimension(Identifier ageId) {
+        mystcraft$createOrReplaceDimension(ageId, Collections.emptyList(), true);
+    }
+
+    private void mystcraft$createOrReplaceDimension(Identifier ageId, List<String> symbols, boolean replaceExisting) {
         MinecraftServer server = (MinecraftServer) (Object) this;
         RegistryKey<World> worldKey = RegistryKey.of(RegistryKeys.WORLD, ageId);
 
-        if (this.worlds.containsKey(worldKey)) return;
+        if (this.worlds.containsKey(worldKey) && !replaceExisting) return;
 
         try {
             Registry<DimensionOptions> optionsRegistry = this.getRegistryManager().get(RegistryKeys.DIMENSION);
@@ -61,6 +70,7 @@ public abstract class MinecraftServerMixin implements DimensionInjector {
             Pair<ChunkGenerator, AgeProfile> result = AgeBuilder.INSTANCE.buildGenerator(server, ageId, symbols);
             ChunkGenerator customGen = result.getFirst();
             AgeProfile profile = result.getSecond();
+            DimensionOptions liveOptions = new DimensionOptions(typeEntry, customGen);
 
             SimpleRegistry<DimensionOptions> simpleOptionsRegistry = (SimpleRegistry<DimensionOptions>) optionsRegistry;
             SimpleRegistryAccessor optionsAccessor = (SimpleRegistryAccessor) simpleOptionsRegistry;
@@ -69,9 +79,18 @@ public abstract class MinecraftServerMixin implements DimensionInjector {
 
             if (!optionsRegistry.contains(dimOptionsKey)) {
                 optionsAccessor.setFrozen(false);
-                DimensionOptions newOptions = new DimensionOptions(typeEntry, customGen);
-                Registry.register(simpleOptionsRegistry, dimOptionsKey.getValue(), newOptions);
+                Registry.register(simpleOptionsRegistry, dimOptionsKey.getValue(), liveOptions);
                 optionsAccessor.setFrozen(true);
+            }
+
+            if (replaceExisting) {
+                ServerWorld oldWorld = this.worlds.remove(worldKey);
+                if (oldWorld != null) {
+                    try {
+                        oldWorld.close();
+                    } catch (Throwable ignored) {
+                    }
+                }
             }
 
             ServerWorldProperties worldProperties = new UnmodifiableLevelProperties(
@@ -92,7 +111,7 @@ public abstract class MinecraftServerMixin implements DimensionInjector {
                     this.session,
                     worldProperties,
                     worldKey,
-                    optionsRegistry.get(dimOptionsKey),
+                    liveOptions,
                     listener,
                     false,
                     profile.getSeed(), 

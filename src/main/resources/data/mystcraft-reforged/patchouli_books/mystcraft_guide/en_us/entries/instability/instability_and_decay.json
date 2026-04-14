@@ -1,0 +1,16 @@
+{
+  "name": "Instability and Decay",
+  "category": "mystcraft-reforged:instability",
+  "icon": "mystcraft-reforged:black_decay",
+  "sortnum": 0,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "Instability is saved per Age as a score. Low levels cause debuffs. Higher levels can call lightning, spawn black decay, and eventually cause explosions and collapse. The $(thing)/mystcraft instability toggle$() command pauses those effects for the current Age only."
+    },
+    {
+      "type": "patchouli:text",
+      "text": "$(thing)Black Decay$() only grows when instability effects are enabled for that Age. Turning instability off pauses both the random effects and decay spread, but the underlying score remains stored in the Age profile."
+    }
+  ]
+}

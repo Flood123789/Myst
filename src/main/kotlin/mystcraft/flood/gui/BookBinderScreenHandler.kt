@@ -24,6 +24,7 @@ class BookBinderScreenHandler(
 
     private val pageSlots = mutableListOf<Slot>()
     private var isUpdating = false // Pause button to prevent infinite recursive loops
+    private var draftAgeName = ""
 
     private enum class BookMode {
         BLANK_DESCRIPTIVE,
@@ -139,7 +140,9 @@ class BookBinderScreenHandler(
                     output.setStack(0, ItemStack(ModItems.LINKING_BOOK))
                 }
                 BookMode.BLANK_DESCRIPTIVE -> {
-                    output.setStack(0, ItemStack(ModItems.DESCRIPTIVE_BOOK))
+                    val bookStack = ItemStack(ModItems.DESCRIPTIVE_BOOK)
+                    applyDraftName(bookStack)
+                    output.setStack(0, bookStack)
                 }
                 BookMode.DESCRIPTIVE -> {
                     val bookStack = ItemStack(ModItems.DESCRIPTIVE_BOOK)
@@ -173,6 +176,7 @@ class BookBinderScreenHandler(
 
                     if (symbolCount > 0) {
                         bookNbt.put("Pages", pageList)
+                        applyDraftName(bookStack)
                         output.setStack(0, bookStack)
                     } else {
                         output.setStack(0, ItemStack.EMPTY)
@@ -283,6 +287,22 @@ class BookBinderScreenHandler(
                 input.removeStack(i, 1)
                 return
             }
+        }
+    }
+
+    fun setDraftAgeName(rawName: String) {
+        val trimmed = rawName.trim().take(64)
+        if (trimmed == draftAgeName) return
+        draftAgeName = trimmed
+        updateBookOutput()
+    }
+
+    private fun applyDraftName(bookStack: ItemStack) {
+        val nbt = bookStack.orCreateNbt
+        if (draftAgeName.isNotBlank()) {
+            nbt.putString("Age_Name", draftAgeName)
+        } else {
+            nbt.remove("Age_Name")
         }
     }
 }

@@ -33,6 +33,7 @@ class FloatingCastleFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defaul
 
         if (serverWorld.registryKey.value.namespace != MystcraftReforged.MOD_ID) return false
         val profile = AgeProfileManager.getOrGenerateProfile(serverWorld.server, serverWorld.registryKey.value)
+        if (AgeLifecycleManager.isDeadAge(profile)) return false
         if (profile.terrainType == TerrainType.BIOSPHERES) return false
 
         val chunkPos = ChunkPos(origin)

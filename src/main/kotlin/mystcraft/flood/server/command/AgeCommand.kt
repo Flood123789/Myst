@@ -4,6 +4,7 @@ import com.mojang.brigadier.arguments.IntegerArgumentType
 import com.mojang.brigadier.context.CommandContext
 import mystcraft.flood.MystcraftReforged
 import mystcraft.flood.access.DimensionInjector
+import mystcraft.flood.generation.AgeLifecycleManager
 import mystcraft.flood.generation.profile.AgeProfileManager
 import mystcraft.flood.network.ModMessages
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback
@@ -42,6 +43,9 @@ object AgeCommand {
                                 val source = context.source
                                 val player = source.player ?: return@executes 0
                                 val targetWorld = DimensionArgumentType.getDimensionArgument(context, "age")
+                                if (!AgeLifecycleManager.mayEnterAge(player, targetWorld.registryKey.value)) {
+                                    return@executes 0
+                                }
                                 targetWorld.getChunk(0, 0, net.minecraft.world.chunk.ChunkStatus.FULL, true)
                                 val surfaceY = targetWorld.getTopY(Heightmap.Type.WORLD_SURFACE, 0, 0).toDouble()
 
@@ -83,6 +87,16 @@ object AgeCommand {
                     .then(CommandManager.literal("instability")
                         .then(CommandManager.literal("toggle")
                             .executes { toggleAgeInstability(it) }
+                        )
+                    )
+                    .then(CommandManager.literal("age_effect")
+                        .then(CommandManager.literal("toggle")
+                            .executes { toggleAgeEffect(it) }
+                        )
+                    )
+                    .then(CommandManager.literal("sacrifice")
+                        .then(CommandManager.argument("age", DimensionArgumentType.dimension())
+                            .executes { sacrificeAge(it) }
                         )
                     )
             )
@@ -176,6 +190,52 @@ object AgeCommand {
             { Text.literal("Instability effects are now $stateText for Age: $id (score remains ${profile.stability.instabilityScore}).") },
             true
         )
+        return 1
+    }
+
+    private fun toggleAgeEffect(context: CommandContext<ServerCommandSource>): Int {
+        val source = context.source
+        val world = source.world
+        val id = world.registryKey.value
+
+        if (id.namespace != MystcraftReforged.MOD_ID) {
+            source.sendError(Text.literal("You must be in a Mystcraft Age to toggle age effects!"))
+            return 0
+        }
+
+        val profile = AgeProfileManager.getOrGenerateProfile(world.server, id)
+        val effectId = profile.ageEffect.effectId
+        if (effectId == null) {
+            source.sendFeedback({ Text.literal("This Age does not have an age effect selected.") }, false)
+            return 0
+        }
+
+        profile.ageEffect.enabled = !profile.ageEffect.enabled
+        world.players.forEach { player ->
+            ModMessages.sendDimensionSync(player, id, profile)
+        }
+
+        val stateText = if (profile.ageEffect.enabled) "enabled" else "disabled"
+        source.sendFeedback({ Text.literal("Age effect '$effectId' is now $stateText for Age: $id") }, true)
+        return 1
+    }
+
+    private fun sacrificeAge(context: CommandContext<ServerCommandSource>): Int {
+        val source = context.source
+        val targetWorld = DimensionArgumentType.getDimensionArgument(context, "age")
+        val ageId = targetWorld.registryKey.value
+        if (ageId.namespace != MystcraftReforged.MOD_ID) {
+            source.sendError(Text.literal("Only Mystcraft Ages can be sacrificed."))
+            return 0
+        }
+
+        val success = AgeLifecycleManager.sacrificeAge(source.server, ageId, source.name)
+        if (!success) {
+            source.sendError(Text.literal("That Age is already sacrificed or could not be processed."))
+            return 0
+        }
+
+        source.sendFeedback({ Text.literal("Sacrificed Age: $ageId") }, true)
         return 1
     }
 }

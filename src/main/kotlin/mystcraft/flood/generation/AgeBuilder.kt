@@ -24,6 +24,19 @@ object AgeBuilder {
     fun buildGenerator(server: MinecraftServer, ageId: Identifier, symbols: List<String> = emptyList()): Pair<ChunkGenerator, AgeProfile> {
         val profile = AgeProfileManager.getOrGenerateProfile(server, ageId, symbols)
         val registries = server.registryManager
+        val biomeRegistry = registries.get(RegistryKeys.BIOME)
+
+        if (profile.ageState.isSacrificed || profile.terrainType == TerrainType.VOID) {
+            val voidBiomeId = if (profile.biomes.biomes.isNotEmpty()) {
+                Identifier(profile.biomes.biomes.first().biomeId)
+            } else {
+                Identifier("minecraft:plains")
+            }
+            val biomeEntry = biomeRegistry.getEntry(RegistryKey.of(RegistryKeys.BIOME, voidBiomeId)).orElseGet {
+                biomeRegistry.getEntry(RegistryKey.of(RegistryKeys.BIOME, Identifier("minecraft:plains"))).orElseThrow()
+            }
+            return Pair(BlankAgeChunkGenerator(FixedBiomeSource(biomeEntry)), profile)
+        }
 
         // ==========================================
         // 1. TERRAIN SETTINGS
@@ -39,8 +52,6 @@ object AgeBuilder {
         // ==========================================
         // 2. BIOME SOURCE GENERATION
         // ==========================================
-        val biomeRegistry = registries.get(RegistryKeys.BIOME)
-
         val biomeSource = when (profile.biomes.mode) {
             BiomeMode.VANILLA_DISTRIBUTION -> {
                 val parameterRegistry = registries.get(RegistryKeys.MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST)

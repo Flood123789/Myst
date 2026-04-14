@@ -1,0 +1,16 @@
+{
+  "name": "Age Effects",
+  "category": "mystcraft-reforged:instability",
+  "icon": "mystcraft-reforged:symbol_page",
+  "sortnum": 1,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "$(thing)Effect Pages$() live in their own creative tab. Combine a potion-effect page with the rare $(thing)Age Effect$() page in your grammar to bind that effect to the Age. The selected effect is applied randomly, without particles, and it carries a high instability cost."
+    },
+    {
+      "type": "patchouli:text",
+      "text": "Age effects are separate from instability. Even a stable Age can keep its age effect. Use $(thing)/mystcraft age_effect toggle$() in the current Age to pause or resume it. If no age effect is written into the Age, the command does nothing."
+    }
+  ]
+}

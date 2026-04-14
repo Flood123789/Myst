@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "active=false": { "model": "mystcraft-reforged:block/white_decay" },
+    "active=true": { "model": "mystcraft-reforged:block/white_decay" }
+  }
+}

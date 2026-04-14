@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/template_torch",
+  "textures": {
+    "torch": "mystcraft-reforged:block/decay_white"
+  }
+}

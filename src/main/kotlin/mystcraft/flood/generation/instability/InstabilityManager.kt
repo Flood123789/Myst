@@ -2,7 +2,10 @@ package mystcraft.flood.generation.instability
 
 import mystcraft.flood.MystcraftReforged
 import mystcraft.flood.block.ModBlocks 
+import mystcraft.flood.generation.AgeLifecycleManager
+import mystcraft.flood.generation.profile.AgeProfile
 import mystcraft.flood.generation.profile.AgeProfileManager
+import net.minecraft.entity.effect.StatusEffect
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import net.minecraft.block.Blocks
 import net.minecraft.entity.EntityType
@@ -23,13 +26,17 @@ object InstabilityManager {
     }
 
     private fun processInstability(world: ServerWorld) {
+        val profile = AgeProfileManager.getOrGenerateProfile(world.server, world.registryKey.value)
+        if (AgeLifecycleManager.isDeadAge(profile)) return
+
+        applyLowGravity(world, profile)
         if (world.time % 20L != 0L) return
 
-        val profile = AgeProfileManager.getOrGenerateProfile(world.server, world.registryKey.value)
-        
+        processAgeEffect(world, profile)
         if (profile.stability.isStable || !profile.stability.effectsEnabled || profile.stability.instabilityScore <= 0) return
 
         val score = profile.stability.instabilityScore
+        val naturalDecayState = getNaturalDecayState(profile)
 
         for (player in world.players) {
             if (player.isCreative || player.isSpectator) continue
@@ -90,7 +97,7 @@ object InstabilityManager {
                         val targetState = world.getBlockState(seedPos)
                         
                         if (!targetState.isAir && !targetState.isOf(Blocks.BEDROCK)) {
-                            world.setBlockState(seedPos, ModBlocks.BLACK_DECAY.defaultState, 3)
+                            world.setBlockState(seedPos, naturalDecayState, 3)
                         }
                     }
                 }
@@ -117,4 +124,48 @@ object InstabilityManager {
             }
         }
     }
+
+    private fun processAgeEffect(world: ServerWorld, profile: AgeProfile) {
+        val effectId = profile.ageEffect.effectId ?: return
+        if (!profile.ageEffect.enabled) return
+
+        val statusEffect = net.minecraft.registry.Registries.STATUS_EFFECT.get(net.minecraft.util.Identifier.tryParse(effectId))
+        if (statusEffect == null) return
+
+        for (player in world.players) {
+            if (player.isCreative || player.isSpectator) continue
+            if (world.random.nextFloat() < 0.06f) {
+                applyAgeEffect(player, statusEffect)
+            }
+        }
+    }
+
+    private fun applyAgeEffect(player: net.minecraft.server.network.ServerPlayerEntity, statusEffect: StatusEffect) {
+        if (statusEffect.isInstant) {
+            statusEffect.applyInstantEffect(null, null, player, 0, 1.0)
+            return
+        }
+
+        player.addStatusEffect(
+            StatusEffectInstance(statusEffect, 180, 0, false, false, false)
+        )
+    }
+
+    private fun applyLowGravity(world: ServerWorld, profile: AgeProfile) {
+        val gravityScale = profile.physics.gravityScale
+        if (gravityScale >= 0.999f) return
+
+        for (player in world.players) {
+            if (player.isCreative || player.isSpectator || player.isOnGround || player.velocity.y >= 0.0) continue
+
+            val currentVelocity = player.velocity
+            val softenedFall = currentVelocity.y * gravityScale
+            player.velocity = Vec3d(currentVelocity.x, softenedFall.coerceAtLeast(-0.28), currentVelocity.z)
+            player.velocityModified = true
+            player.fallDistance *= gravityScale
+        }
+    }
+
+    private fun getNaturalDecayState(profile: AgeProfile) =
+        if ((profile.seed and 1L) == 0L) ModBlocks.BLACK_DECAY.defaultState else ModBlocks.WHITE_DECAY.defaultState
 }

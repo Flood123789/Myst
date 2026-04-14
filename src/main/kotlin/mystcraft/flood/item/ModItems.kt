@@ -19,6 +19,7 @@ object ModItems {
     val LOST_PAGE = Registry.register(Registries.ITEM, Identifier(MystcraftReforged.MOD_ID, "lost_page"), LostPageItem(Item.Settings()))
 
     // === The Books ===
+    val GUIDE_BOOK = register("guide_book", GuideBookItem(Item.Settings().maxCount(1)))
     val DESCRIPTIVE_BOOK = register("agebook", DescriptiveBookItem(Item.Settings().maxCount(1)))
     val LINKING_BOOK = register("linkingbook", LinkingBookItem(Item.Settings().maxCount(1)))
 
@@ -41,6 +42,7 @@ object ModItems {
 
         // Inject books into the Tools Creative Menu
         ItemGroupEvents.modifyEntriesEvent(ItemGroups.TOOLS).register { entries ->
+            entries.add(GUIDE_BOOK)
             entries.add(DESCRIPTIVE_BOOK)
             entries.add(LINKING_BOOK)
         }

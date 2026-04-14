@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    {
+      "item": "minecraft:leather"
+    },
+    {
+      "item": "mystcraft-reforged:page"
+    },
+    {
+      "item": "mystcraft-reforged:page"
+    },
+    {
+      "item": "mystcraft-reforged:page"
+    }
+  ],
+  "result": {
+    "item": "mystcraft-reforged:guide_book"
+  }
+}

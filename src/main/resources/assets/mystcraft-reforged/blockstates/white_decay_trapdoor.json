@@ -1,0 +1,19 @@
+{
+  "multipart": [
+    { "when": { "facing": "north", "half": "bottom", "open": "false" }, "apply": { "model": "mystcraft-reforged:block/white_decay_trapdoor_bottom" } },
+    { "when": { "facing": "north", "half": "top", "open": "false" }, "apply": { "model": "mystcraft-reforged:block/white_decay_trapdoor_top" } },
+    { "when": { "facing": "north", "open": "true" }, "apply": { "model": "mystcraft-reforged:block/white_decay_trapdoor_open" } },
+
+    { "when": { "facing": "east", "half": "bottom", "open": "false" }, "apply": { "model": "mystcraft-reforged:block/white_decay_trapdoor_bottom" } },
+    { "when": { "facing": "east", "half": "top", "open": "false" }, "apply": { "model": "mystcraft-reforged:block/white_decay_trapdoor_top" } },
+    { "when": { "facing": "east", "open": "true" }, "apply": { "model": "mystcraft-reforged:block/white_decay_trapdoor_open", "y": 90 } },
+
+    { "when": { "facing": "south", "half": "bottom", "open": "false" }, "apply": { "model": "mystcraft-reforged:block/white_decay_trapdoor_bottom" } },
+    { "when": { "facing": "south", "half": "top", "open": "false" }, "apply": { "model": "mystcraft-reforged:block/white_decay_trapdoor_top" } },
+    { "when": { "facing": "south", "open": "true" }, "apply": { "model": "mystcraft-reforged:block/white_decay_trapdoor_open", "y": 180 } },
+
+    { "when": { "facing": "west", "half": "bottom", "open": "false" }, "apply": { "model": "mystcraft-reforged:block/white_decay_trapdoor_bottom" } },
+    { "when": { "facing": "west", "half": "top", "open": "false" }, "apply": { "model": "mystcraft-reforged:block/white_decay_trapdoor_top" } },
+    { "when": { "facing": "west", "open": "true" }, "apply": { "model": "mystcraft-reforged:block/white_decay_trapdoor_open", "y": 270 } }
+  ]
+}

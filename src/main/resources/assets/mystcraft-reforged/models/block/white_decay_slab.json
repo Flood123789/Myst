@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/slab",
+  "textures": {
+    "bottom": "mystcraft-reforged:block/decay_white",
+    "top": "mystcraft-reforged:block/decay_white",
+    "side": "mystcraft-reforged:block/decay_white"
+  }
+}

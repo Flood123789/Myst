@@ -1,0 +1,16 @@
+{
+  "name": "Books and Pages",
+  "category": "mystcraft-reforged:getting_started",
+  "icon": "mystcraft-reforged:page",
+  "sortnum": 1,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "$(item)Empty Pages$() are the base stock. $(item)Leather$() by itself in the $(thing)Book Binder$() creates a blank $(item)Descriptive Book$(), which is how you begin collecting and arranging symbols."
+    },
+    {
+      "type": "patchouli:text",
+      "text": "$(item)Leather$() plus an $(item)Empty Page$() in the binder creates a $(item)Linking Book$(). If symbol pages are in the binder too, they are left behind instead of being consumed, so you can write a link without destroying your grammar pages."
+    }
+  ]
+}

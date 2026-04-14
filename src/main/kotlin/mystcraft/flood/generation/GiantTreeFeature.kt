@@ -27,10 +27,11 @@ class GiantTreeFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeat
         if (ageId.namespace != MystcraftReforged.MOD_ID) return false
 
         val profile = AgeProfileManager.getOrGenerateProfile(serverWorld.server, ageId)
+        if (AgeLifecycleManager.isDeadAge(profile)) return false
         if (!profile.modifiers.contains("giant_trees")) return false
 
         // 1 in 15 chunks
-        if (random.nextInt(15) != 0) return false
+        if (random.nextInt(AgeFeatureTuning.rarityRollDivisor(profile, 15, "giant_trees")) != 0) return false
 
         val topY = world.getTopY(Heightmap.Type.WORLD_SURFACE_WG, origin.x, origin.z)
         if (topY < 40 || topY > 150) return false 

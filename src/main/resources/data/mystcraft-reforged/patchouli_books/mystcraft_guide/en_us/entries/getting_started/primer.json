@@ -1,0 +1,17 @@
+{
+  "name": "Primer",
+  "category": "mystcraft-reforged:getting_started",
+  "icon": "mystcraft-reforged:guide_book",
+  "sortnum": 0,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "Craft this primer with $(item)Leather$() and three $(item)Empty Pages$(). If Patchouli is installed, right-clicking it opens this manual. Without Patchouli, the item still exists and reminds you that the guide is available."
+    },
+    {
+      "type": "patchouli:crafting",
+      "recipe": "mystcraft-reforged:guide_book",
+      "text": "Empty Pages are the paper stock of Mystcraft. You will use them for the primer, binder work, and other page-writing steps."
+    }
+  ]
+}
