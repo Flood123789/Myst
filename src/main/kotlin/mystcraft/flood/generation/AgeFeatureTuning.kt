@@ -10,13 +10,19 @@ object AgeFeatureTuning {
         "giant_obelisks",
         HistoricAgeThemes.ANCIENT_BONES,
         HistoricAgeThemes.FORGOTTEN_RUINS,
+        HistoricAgeThemes.COLLAPSED_OBSERVATORY,
+        HistoricAgeThemes.ANCIENT_AQUEDUCTS,
+        HistoricAgeThemes.GATEWAY_RUINS,
         ExoticAgeThemes.HEX,
         ExoticAgeThemes.WIRE_CELLS,
         ExoticAgeThemes.SEPARATORS,
         ExoticAgeThemes.CABLES,
         ExoticAgeThemes.FRACTAL_CUBES,
         ExoticAgeThemes.LIGHT_FISSURES,
-        ExoticAgeThemes.VIRUS
+        ExoticAgeThemes.VIRUS,
+        AmbientAgeThemes.PAGE_STORMS,
+        AmbientAgeThemes.MEMORY_BLOOMS,
+        AmbientAgeThemes.STABLE_SANCTUARIES
     )
 
     private fun extraFeatureCount(profile: AgeProfile, exempt: String? = null): Int =

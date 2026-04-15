@@ -43,6 +43,7 @@ object AgeBuilder {
         // ==========================================
         val settingsRegistry = registries.get(RegistryKeys.CHUNK_GENERATOR_SETTINGS)
         val settingsKey = when (profile.terrainType) {
+            TerrainType.AMPLIFIED -> ChunkGeneratorSettings.AMPLIFIED
             TerrainType.CAVES -> ChunkGeneratorSettings.CAVES
             TerrainType.FLOATING_ISLANDS -> ChunkGeneratorSettings.FLOATING_ISLANDS 
             else -> ChunkGeneratorSettings.OVERWORLD // STANDARD, FLAT, and CITIES fallback

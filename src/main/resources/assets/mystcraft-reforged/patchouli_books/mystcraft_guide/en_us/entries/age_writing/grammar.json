@@ -1,0 +1,32 @@
+{
+  "name": "Grammar & Syntax",
+  "icon": "minecraft:writable_book",
+  "category": "mystcraft-reforged:age_writing",
+  "pages": [
+    {
+      "type": "text",
+      "title": "The Art of Writing",
+      "text": "Writing a stable Age requires strict grammar. The golden rule is simple: $(c)modifiers must precede the thing they modify.$() $(br)$(br)Examples: color pages go before the color target, and a rare $(thing)Age Effect$() page goes before the chosen potion effect page."
+    },
+    {
+      "type": "text",
+      "title": "Grammar Leaks",
+      "text": "A grammar leak happens when a modifier is written without a destination. A custom color with no color target, or an Age Effect page with no effect page after it, leaves the compiler guessing. That guess is never good for stability."
+    },
+    {
+      "type": "text",
+      "title": "Contradictions",
+      "text": "Conflicting absolutes tear the fabric of an Age apart. Writing $(c)Fast Time$() and $(c)Slow Time$() together, or multiple terrain identities that fight each other, stacks heavy instability even if the book still compiles."
+    },
+    {
+      "type": "text",
+      "title": "Stable Basics",
+      "text": "If you want a calmer Age, define the basics: $(li)terrain$(li)biomes$(li)time$(li)sun$(li)moon$(li)stars$(li)weather$() $(br)Simple, explicit Ages are safer than sparse ones, and a clearly authored single-biome Age is especially stable."
+    },
+    {
+      "type": "text",
+      "title": "The Wildcard",
+      "text": "Including a $(c)Random$() page forces the universe to fill in blanks with chaos. Random Ages are far more likely to roll exotic landmarks, historic remains, rare oddities, and higher instability."
+    }
+  ]
+}

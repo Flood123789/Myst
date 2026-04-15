@@ -164,6 +164,11 @@ object AgeLifecycleManager {
         profile.weather.isEndlessRain = false
         profile.weather.isEndlessStorm = false
         profile.weather.noWeather = true
+        profile.weather.currentRaining = false
+        profile.weather.currentThundering = false
+        profile.weather.clearTicks = 12000
+        profile.weather.rainTicks = 0
+        profile.weather.thunderTicks = 0
         profile.spawning.noMobs = true
         profile.spawning.hostileMultiplier = 0.0f
         profile.spawning.passiveMultiplier = 0.0f
@@ -172,6 +177,9 @@ object AgeLifecycleManager {
         profile.physics.gravityScale = 1.0f
         profile.stability.effectsEnabled = false
         profile.modifiers.clear()
+        profile.ageState.surfaceSpawnX = null
+        profile.ageState.surfaceSpawnY = null
+        profile.ageState.surfaceSpawnZ = null
     }
 
     private fun calculateReductionPercent(targetScore: Int, sacrificeScore: Int): Double {

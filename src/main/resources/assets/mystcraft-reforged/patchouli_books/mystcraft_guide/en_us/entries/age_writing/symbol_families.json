@@ -1,0 +1,24 @@
+{
+  "name": "Symbol Families",
+  "category": "mystcraft-reforged:age_writing",
+  "icon": "mystcraft-reforged:symbol_page",
+  "sortnum": 2,
+  "pages": [
+    {
+      "type": "text",
+      "text": "Mystcraft pages fall into a few broad families: $(li)terrain$(li)biomes and biome controllers$(li)time and weather$(li)celestial pages$(li)spawn rules$(li)feature pages$(li)color modifiers and color targets$(li)special pages like $(thing)Random$(), $(thing)Age Effect$(), and $(thing)Low Gravity$()."
+    },
+    {
+      "type": "text",
+      "text": "$(thing)Color pages$() are a two-part sentence. Write a color first, then write the target it should tint. Example: $(c)Blue$() followed by $(c)Water$() makes blue water. The same pattern applies to sky, fog, grass, and foliage."
+    },
+    {
+      "type": "text",
+      "text": "$(thing)Biome pages$() can define a single-biome Age, a weighted list, or work beside a controller page like checkerboard or vanilla-style distribution. A clearly authored single-biome Age is one of the easiest ways to keep instability low."
+    },
+    {
+      "type": "text",
+      "text": "$(thing)Low Gravity$() is a direct page, not a modifier pair. It softens falls and changes how players move through the Age. It is unusual enough to raise instability, but it is still much lighter than writing a full Age Effect."
+    }
+  ]
+}

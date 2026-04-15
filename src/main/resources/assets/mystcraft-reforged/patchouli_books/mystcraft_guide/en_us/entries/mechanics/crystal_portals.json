@@ -1,0 +1,22 @@
+{
+  "name": "Crystal Portals",
+  "icon": "mystcraft-reforged:crystal_block",
+  "category": "mystcraft-reforged:mechanics",
+  "sortnum": 1,
+  "pages": [
+    {
+      "type": "text",
+      "title": "Permanent Links",
+      "text": "While books can be used from the hand, establishing a permanent gateway requires a Crystal Portal. $(br)$(br)Build an enclosed frame out of $(c)Crystal Blocks$(). The frame can be vertical or horizontal and can use a range of shapes as long as the structure closes properly."
+    },
+    {
+      "type": "text",
+      "title": "Ignition",
+      "text": "One block of the frame must be a $(c)Book Receptacle$(). Once the frame is sealed, place a valid Linking Book or Descriptive Book into the receptacle. If the frame is valid, the portal ignites instantly and inherits the linked Age's visual identity."
+    },
+    {
+      "type": "text",
+      "text": "Removing the book from the receptacle, or breaking any crystal block in the frame, severs the connection immediately."
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "name": "Historic Features",
+  "category": "mystcraft-reforged:worlds",
+  "icon": "minecraft:bone_block",
+  "sortnum": 2,
+  "pages": [
+    {
+      "type": "text",
+      "text": "Historic features are separate from exotic ones. Ancient bones, forgotten ruins, archives, and crystal formations can appear in unstable or random Ages, and they can generate alongside exotic anomalies instead of replacing them."
+    },
+    {
+      "type": "text",
+      "text": "Bones suggest the remains of creatures from another era, including rare colossal skeletons. Ruins imply cultures that rose and fell long before the linkbook age. Archives preserve pages, books, and the idea that someone once tried to understand these worlds."
+    },
+    {
+      "type": "text",
+      "text": "Because these are separate feature families, a single Age can feel both alien and historical at the same time: impossible surface geometry above, buried libraries and dead civilizations below."
+    }
+  ]
+}

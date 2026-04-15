@@ -28,6 +28,12 @@ object ModFeatures {
     val EXOTIC_SURFACE: Feature<DefaultFeatureConfig> = ExoticSurfaceFeature(DefaultFeatureConfig.CODEC)
     val ANCIENT_REMAINS: Feature<DefaultFeatureConfig> = AncientRemainsFeature(DefaultFeatureConfig.CODEC)
     val FORGOTTEN_RUINS: Feature<DefaultFeatureConfig> = ForgottenRuinsFeature(DefaultFeatureConfig.CODEC)
+    val COLLAPSED_OBSERVATORY: Feature<DefaultFeatureConfig> = CollapsedObservatoryFeature(DefaultFeatureConfig.CODEC)
+    val ANCIENT_AQUEDUCTS: Feature<DefaultFeatureConfig> = AncientAqueductFeature(DefaultFeatureConfig.CODEC)
+    val GATEWAY_RUINS: Feature<DefaultFeatureConfig> = GatewayRuinsFeature(DefaultFeatureConfig.CODEC)
+    val PAGE_STORMS: Feature<DefaultFeatureConfig> = PageStormFeature(DefaultFeatureConfig.CODEC)
+    val MEMORY_BLOOMS: Feature<DefaultFeatureConfig> = MemoryBloomFeature(DefaultFeatureConfig.CODEC)
+    val STABLE_SANCTUARIES: Feature<DefaultFeatureConfig> = StableSanctuaryFeature(DefaultFeatureConfig.CODEC)
 
     private var hasRegistered = false
 
@@ -52,6 +58,12 @@ object ModFeatures {
         Registry.register(Registries.FEATURE, Identifier(MystcraftReforged.MOD_ID, "exotic_surface"), EXOTIC_SURFACE)
         Registry.register(Registries.FEATURE, Identifier(MystcraftReforged.MOD_ID, "ancient_remains"), ANCIENT_REMAINS)
         Registry.register(Registries.FEATURE, Identifier(MystcraftReforged.MOD_ID, "forgotten_ruins"), FORGOTTEN_RUINS)
+        Registry.register(Registries.FEATURE, Identifier(MystcraftReforged.MOD_ID, "collapsed_observatory"), COLLAPSED_OBSERVATORY)
+        Registry.register(Registries.FEATURE, Identifier(MystcraftReforged.MOD_ID, "ancient_aqueducts"), ANCIENT_AQUEDUCTS)
+        Registry.register(Registries.FEATURE, Identifier(MystcraftReforged.MOD_ID, "gateway_ruins"), GATEWAY_RUINS)
+        Registry.register(Registries.FEATURE, Identifier(MystcraftReforged.MOD_ID, "page_storms"), PAGE_STORMS)
+        Registry.register(Registries.FEATURE, Identifier(MystcraftReforged.MOD_ID, "memory_blooms"), MEMORY_BLOOMS)
+        Registry.register(Registries.FEATURE, Identifier(MystcraftReforged.MOD_ID, "stable_sanctuaries"), STABLE_SANCTUARIES)
 
         MystcraftReforged.LOGGER.info("Successfully registered all worldgen features.")
     }

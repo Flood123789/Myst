@@ -82,8 +82,15 @@ object PageIconItemRenderer : BuiltinItemRendererRegistry.DynamicItemRenderer {
             clean == "low_gravity" -> drawLowGravity(matrices, providers, light, overlay)
             clean.startsWith("spawning_") -> drawPaw(matrices, providers, light, overlay)
             clean == "dense_ores" -> drawOre(matrices, providers, light, overlay)
+            clean == "giant_trees" -> drawGiantTree(matrices, providers, light, overlay)
             clean == "ancient_bones" -> drawBones(matrices, providers, light, overlay)
             clean == "forgotten_ruins" -> drawRuins(matrices, providers, light, overlay)
+            clean == "collapsed_observatory" -> drawObservatory(matrices, providers, light, overlay)
+            clean == "ancient_aqueducts" -> drawAqueduct(matrices, providers, light, overlay)
+            clean == "gateway_ruins" -> drawGateway(matrices, providers, light, overlay)
+            clean == "page_storms" -> drawPageStorm(matrices, providers, light, overlay)
+            clean == "memory_blooms" -> drawMemoryBloom(matrices, providers, light, overlay)
+            clean == "stable_sanctuaries" -> drawSanctuary(matrices, providers, light, overlay)
             clean == "crystal_formations" -> drawCrystals(matrices, providers, light, overlay)
             clean == "tendrils" -> drawTendrils(matrices, providers, light, overlay)
             clean == "obelisks" || clean == "giant_obelisks" -> drawObelisk(matrices, providers, light, overlay)
@@ -163,6 +170,16 @@ object PageIconItemRenderer : BuiltinItemRendererRegistry.DynamicItemRenderer {
         rect(matrices, providers, 7.2f, 9f, 8.8f, 12.3f, 0xFF7A5234.toInt(), light, overlay)
         rect(matrices, providers, 4.6f, 4.5f, 11.4f, 9.2f, GREEN, light, overlay)
         rect(matrices, providers, 5.6f, 3.2f, 10.4f, 5f, GREEN, light, overlay)
+    }
+
+    private fun drawGiantTree(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
+        rect(matrices, providers, 6.8f, 7.8f, 9.2f, 12.6f, 0xFF6D472C.toInt(), light, overlay)
+        rect(matrices, providers, 4.1f, 4.8f, 11.9f, 8.6f, GREEN, light, overlay)
+        rect(matrices, providers, 5.1f, 3.1f, 10.9f, 5.2f, GREEN, light, overlay)
+        rect(matrices, providers, 3.4f, 6.2f, 5.2f, 8.3f, 0xFF4E9F54.toInt(), light, overlay)
+        rect(matrices, providers, 10.8f, 5.8f, 12.6f, 8.1f, 0xFF4E9F54.toInt(), light, overlay)
+        line(matrices, providers, 7.3f, 9.1f, 5.3f, 6.6f, 0.5f, 0xFF7A5234.toInt(), light, overlay)
+        line(matrices, providers, 8.7f, 9.0f, 10.7f, 6.4f, 0.5f, 0xFF7A5234.toInt(), light, overlay)
     }
 
     private fun drawSky(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
@@ -281,6 +298,59 @@ object PageIconItemRenderer : BuiltinItemRendererRegistry.DynamicItemRenderer {
         rect(matrices, providers, 4.8f, 5.4f, 8.5f, 6.4f, SILVER, light, overlay)
         line(matrices, providers, 8.5f, 6.4f, 10.5f, 4.4f, 0.55f, GOLD, light, overlay)
         rect(matrices, providers, 6.1f, 8.1f, 6.9f, 8.9f, GREEN, light, overlay)
+    }
+
+    private fun drawObservatory(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
+        rect(matrices, providers, 4.4f, 10.8f, 11.6f, 11.8f, GRAY, light, overlay)
+        line(matrices, providers, 4.8f, 10.8f, 8f, 5.1f, 0.5f, SILVER, light, overlay)
+        line(matrices, providers, 8f, 5.1f, 11.2f, 10.8f, 0.5f, SILVER, light, overlay)
+        line(matrices, providers, 5.7f, 7.7f, 10.8f, 4.8f, 0.8f, BLUE, light, overlay)
+        star(matrices, providers, 11.2f, 4.3f, 0.55f, GOLD, light, overlay)
+    }
+
+    private fun drawAqueduct(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
+        rect(matrices, providers, 4.2f, 5.2f, 11.8f, 6.2f, SILVER, light, overlay)
+        rect(matrices, providers, 5f, 6.2f, 5.9f, 11.8f, GRAY, light, overlay)
+        rect(matrices, providers, 7.6f, 6.2f, 8.4f, 10.8f, GRAY, light, overlay)
+        rect(matrices, providers, 10f, 6.2f, 10.9f, 11.8f, GRAY, light, overlay)
+        line(matrices, providers, 5.1f, 11.4f, 8f, 8.5f, 0.45f, GOLD, light, overlay)
+        line(matrices, providers, 8f, 8.5f, 10.7f, 11.4f, 0.45f, GOLD, light, overlay)
+    }
+
+    private fun drawGateway(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
+        rect(matrices, providers, 5f, 4.8f, 6.2f, 11.8f, INK, light, overlay)
+        rect(matrices, providers, 9.8f, 4.8f, 11f, 11.8f, INK, light, overlay)
+        rect(matrices, providers, 5f, 4.2f, 11f, 5.4f, PURPLE, light, overlay)
+        rect(matrices, providers, 6.5f, 6.1f, 9.5f, 10.6f, PAPER, light, overlay)
+        line(matrices, providers, 6.7f, 10.3f, 9.2f, 6.6f, 0.45f, BLUE, light, overlay)
+    }
+
+    private fun drawPageStorm(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
+        line(matrices, providers, 8f, 3.4f, 8f, 12.3f, 0.45f, GRAY, light, overlay)
+        line(matrices, providers, 4.8f, 10.8f, 7.1f, 8.4f, 0.55f, PAPER, light, overlay)
+        line(matrices, providers, 7.1f, 8.4f, 10.6f, 6.2f, 0.55f, PAPER, light, overlay)
+        line(matrices, providers, 10.6f, 6.2f, 8.9f, 4.2f, 0.55f, PAPER, light, overlay)
+        line(matrices, providers, 5.4f, 6.1f, 7.6f, 5.1f, 0.55f, SILVER, light, overlay)
+        star(matrices, providers, 8.1f, 12.5f, 0.6f, PURPLE, light, overlay)
+    }
+
+    private fun drawMemoryBloom(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
+        rect(matrices, providers, 6.9f, 7.1f, 9.1f, 9.4f, TEAL, light, overlay)
+        line(matrices, providers, 8f, 8.3f, 5.4f, 5.4f, 0.55f, PURPLE, light, overlay)
+        line(matrices, providers, 8f, 8.3f, 10.6f, 5.4f, 0.55f, PURPLE, light, overlay)
+        line(matrices, providers, 8f, 8.3f, 5.3f, 11.2f, 0.55f, GREEN, light, overlay)
+        line(matrices, providers, 8f, 8.3f, 10.7f, 11.2f, 0.55f, GREEN, light, overlay)
+        star(matrices, providers, 8f, 4.4f, 0.5f, GOLD, light, overlay)
+    }
+
+    private fun drawSanctuary(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
+        rect(matrices, providers, 4.6f, 11.2f, 11.4f, 12f, SILVER, light, overlay)
+        rect(matrices, providers, 5.1f, 7.5f, 6.1f, 11.2f, SILVER, light, overlay)
+        rect(matrices, providers, 9.9f, 7.5f, 10.9f, 11.2f, SILVER, light, overlay)
+        rect(matrices, providers, 5.1f, 6.8f, 10.9f, 7.7f, SILVER, light, overlay)
+        rect(matrices, providers, 7.2f, 8.8f, 8.8f, 10.5f, BLUE, light, overlay)
+        star(matrices, providers, 5.4f, 6.5f, 0.45f, GOLD, light, overlay)
+        star(matrices, providers, 10.6f, 6.5f, 0.45f, GOLD, light, overlay)
     }
 
     private fun drawCrystals(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {

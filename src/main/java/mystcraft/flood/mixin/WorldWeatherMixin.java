@@ -16,7 +16,7 @@ public class WorldWeatherMixin {
         World world = (World) (Object) this;
         if (!world.isClient && world.getRegistryKey().getValue().getNamespace().equals("mystcraft-reforged")) {
             AgeProfile profile = AgeProfileManager.INSTANCE.getOrGenerateProfile(world.getServer(), world.getRegistryKey().getValue());
-            cir.setReturnValue(profile.getWeather().isEndlessRain() || profile.getWeather().isEndlessStorm());
+            cir.setReturnValue(profile.getWeather().isCurrentlyRaining());
         }
     }
 
@@ -25,7 +25,7 @@ public class WorldWeatherMixin {
         World world = (World) (Object) this;
         if (!world.isClient && world.getRegistryKey().getValue().getNamespace().equals("mystcraft-reforged")) {
             AgeProfile profile = AgeProfileManager.INSTANCE.getOrGenerateProfile(world.getServer(), world.getRegistryKey().getValue());
-            cir.setReturnValue(profile.getWeather().isEndlessStorm());
+            cir.setReturnValue(profile.getWeather().isCurrentlyThundering());
         }
     }
 }

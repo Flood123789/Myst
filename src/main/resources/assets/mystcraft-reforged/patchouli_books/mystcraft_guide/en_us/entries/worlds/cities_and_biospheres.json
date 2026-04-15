@@ -1,0 +1,20 @@
+{
+  "name": "Cities and Biospheres",
+  "category": "mystcraft-reforged:worlds",
+  "icon": "mystcraft-reforged:symbol_page",
+  "sortnum": 0,
+  "pages": [
+    {
+      "type": "text",
+      "text": "$(thing)City Ages$() generate roads, towers, apartment blocks, transit structures, bridges, and dense built space. They are among the heaviest terrain definitions in the system and naturally carry a higher instability burden than a standard world."
+    },
+    {
+      "type": "text",
+      "text": "$(thing)Biosphere Ages$() are void worlds filled with linked domes. Each sphere can carry a real biome, including modded biomes, so native mobs and atmosphere can appear inside a dome if that biome supports them."
+    },
+    {
+      "type": "text",
+      "text": "Both terrain types are intentionally rare in random Ages. If they appear without being authored, expect the Age to be stranger, riskier, and harder to classify at a glance."
+    }
+  ]
+}

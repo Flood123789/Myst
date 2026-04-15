@@ -44,6 +44,29 @@ data class AgeProfile(
                 profile.ageState.isSacrificed = false
                 profile.ageState.sacrificedAt = null
                 profile.ageState.sacrificedBy = null
+                profile.ageState.surfaceSpawnX = null
+                profile.ageState.surfaceSpawnY = null
+                profile.ageState.surfaceSpawnZ = null
+            } else {
+                val ageState = root.getAsJsonObject("ageState")
+                if (!ageState.has("surfaceSpawnX")) profile.ageState.surfaceSpawnX = null
+                if (!ageState.has("surfaceSpawnY")) profile.ageState.surfaceSpawnY = null
+                if (!ageState.has("surfaceSpawnZ")) profile.ageState.surfaceSpawnZ = null
+            }
+
+            if (!root.has("weather")) {
+                profile.weather.currentRaining = false
+                profile.weather.currentThundering = false
+                profile.weather.clearTicks = 0
+                profile.weather.rainTicks = 0
+                profile.weather.thunderTicks = 0
+            } else {
+                val weather = root.getAsJsonObject("weather")
+                if (!weather.has("currentRaining")) profile.weather.currentRaining = false
+                if (!weather.has("currentThundering")) profile.weather.currentThundering = false
+                if (!weather.has("clearTicks")) profile.weather.clearTicks = 0
+                if (!weather.has("rainTicks")) profile.weather.rainTicks = 0
+                if (!weather.has("thunderTicks")) profile.weather.thunderTicks = 0
             }
 
             return profile
@@ -52,7 +75,7 @@ data class AgeProfile(
     fun toJson(): String = GSON.toJson(this)
 }
 
-enum class TerrainType { STANDARD, CAVES, FLOATING_ISLANDS, FLAT, BIOSPHERES, CITIES, VOID }
+enum class TerrainType { STANDARD, AMPLIFIED, CAVES, FLOATING_ISLANDS, FLAT, BIOSPHERES, CITIES, VOID }
 
 enum class BiomeMode { SINGLE, VANILLA_DISTRIBUTION, CHECKERBOARD, WEIGHTED }
 
@@ -87,8 +110,28 @@ data class TimeSettings(
 data class WeatherSettings(
     var isEndlessRain: Boolean,
     var isEndlessStorm: Boolean,
-    var noWeather: Boolean
-)
+    var noWeather: Boolean,
+    var currentRaining: Boolean = false,
+    var currentThundering: Boolean = false,
+    var clearTicks: Int = 0,
+    var rainTicks: Int = 0,
+    var thunderTicks: Int = 0
+) {
+    fun isNormalWeather(): Boolean = !noWeather && !isEndlessRain && !isEndlessStorm
+
+    fun isCurrentlyRaining(): Boolean = when {
+        noWeather -> false
+        isEndlessStorm || isEndlessRain -> true
+        else -> currentRaining
+    }
+
+    fun isCurrentlyThundering(): Boolean = when {
+        noWeather -> false
+        isEndlessStorm -> true
+        isEndlessRain -> false
+        else -> currentRaining && currentThundering
+    }
+}
 
 data class AgeEffectProfile(
     var effectId: String? = null,
@@ -102,7 +145,10 @@ data class PhysicsSettings(
 data class AgeState(
     var isSacrificed: Boolean = false,
     var sacrificedAt: Long? = null,
-    var sacrificedBy: String? = null
+    var sacrificedBy: String? = null,
+    var surfaceSpawnX: Int? = null,
+    var surfaceSpawnY: Int? = null,
+    var surfaceSpawnZ: Int? = null
 )
 
 data class StabilityProfile(

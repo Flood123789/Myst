@@ -1,0 +1,25 @@
+{
+  "name": "Age Sacrifice",
+  "icon": "minecraft:flint_and_steel",
+  "category": "mystcraft-reforged:instability",
+  "sortnum": 2,
+  "pages": [
+    {
+      "type": "text",
+      "title": "Burning Worlds",
+      "text": "It is possible to stabilize a dangerous Age, but the price is total erasure. You must feed the unstable world the life of another, calmer one. Only $(item)Descriptive Books$() can be sacrificed. Linking books are not enough."
+    },
+    {
+      "type": "text",
+      "text": "Hold the $(c)Target Book$() in your main hand and the $(c)Sacrificial Book$() in your offhand. While sneaking, use the target book. The sacrifice only works if the offhand Age is more stable than the target."
+    },
+    {
+      "type": "text",
+      "text": "The target does not inherit the raw score difference directly. Mystcraft converts the stability gap into a percentage reduction, then removes that percentage from the target Age's current instability. Bigger stability gaps produce stronger purification."
+    },
+    {
+      "type": "text",
+      "text": "A sacrificed Age becomes a dead world: void terrain, no sky bodies, no weather, no ordinary travel, no meaningful generation, and unreadable links. Players found there are expelled unless they are in creative or spectator."
+    }
+  ]
+}

@@ -124,9 +124,23 @@ class CrystalPortalBlock(settings: Settings) : BlockWithEntity(settings) {
                     }
                     if (profile.terrainType == TerrainType.BIOSPHERES) {
                         BiosphereFeature.buildOriginBiosphere(targetWorld)
-                        AgeTravelSafety.sanitizeArrival(targetWorld, Vec3d(0.5, BiosphereFeature.SAFE_ENTRY_Y.toDouble(), 0.5))
+                        val resolved = AgeTravelSafety.resolveAgeSpawn(targetWorld, profile, Vec3d(0.5, BiosphereFeature.SAFE_ENTRY_Y.toDouble(), 0.5))
+                        if (resolved.movedAnchor) {
+                            profile.ageState.surfaceSpawnX = resolved.anchor.x
+                            profile.ageState.surfaceSpawnY = resolved.anchor.y
+                            profile.ageState.surfaceSpawnZ = resolved.anchor.z
+                            AgeProfileManager.save(world.server!!, targetKey.value)
+                        }
+                        resolved.position
                     } else {
-                        AgeTravelSafety.sanitizeArrival(targetWorld, Vec3d(0.5, computeEntryY(targetWorld).toDouble(), 0.5))
+                        val resolved = AgeTravelSafety.resolveAgeSpawn(targetWorld, profile, Vec3d(0.5, computeEntryY(targetWorld).toDouble(), 0.5))
+                        if (resolved.movedAnchor) {
+                            profile.ageState.surfaceSpawnX = resolved.anchor.x
+                            profile.ageState.surfaceSpawnY = resolved.anchor.y
+                            profile.ageState.surfaceSpawnZ = resolved.anchor.z
+                            AgeProfileManager.save(world.server!!, targetKey.value)
+                        }
+                        resolved.position
                     }
                 }
 

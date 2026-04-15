@@ -22,6 +22,8 @@ import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
 import net.minecraft.entity.effect.StatusEffectInstance
 import net.minecraft.entity.effect.StatusEffects
+import net.minecraft.server.world.ServerWorld
+import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.Vec3d
 import org.slf4j.LoggerFactory
 import mystcraft.flood.block.ModBlocks
@@ -36,6 +38,7 @@ import mystcraft.flood.registry.ModWorldgenCodecs
 import mystcraft.flood.generation.DeferredTreePlacer
 import mystcraft.flood.generation.AgeTravelSafety
 import mystcraft.flood.generation.AgeLifecycleManager
+import mystcraft.flood.generation.AgeWeatherController
 
 object MystcraftReforged : ModInitializer {
 
@@ -145,6 +148,42 @@ object MystcraftReforged : ModInitializer {
             RegistryKey.of(RegistryKeys.PLACED_FEATURE, Identifier(MOD_ID, "forgotten_ruins"))
         )
 
+        BiomeModifications.addFeature(
+            BiomeSelectors.all(),
+            GenerationStep.Feature.SURFACE_STRUCTURES,
+            RegistryKey.of(RegistryKeys.PLACED_FEATURE, Identifier(MOD_ID, "collapsed_observatory"))
+        )
+
+        BiomeModifications.addFeature(
+            BiomeSelectors.all(),
+            GenerationStep.Feature.SURFACE_STRUCTURES,
+            RegistryKey.of(RegistryKeys.PLACED_FEATURE, Identifier(MOD_ID, "ancient_aqueducts"))
+        )
+
+        BiomeModifications.addFeature(
+            BiomeSelectors.all(),
+            GenerationStep.Feature.SURFACE_STRUCTURES,
+            RegistryKey.of(RegistryKeys.PLACED_FEATURE, Identifier(MOD_ID, "gateway_ruins"))
+        )
+
+        BiomeModifications.addFeature(
+            BiomeSelectors.all(),
+            GenerationStep.Feature.SURFACE_STRUCTURES,
+            RegistryKey.of(RegistryKeys.PLACED_FEATURE, Identifier(MOD_ID, "page_storms"))
+        )
+
+        BiomeModifications.addFeature(
+            BiomeSelectors.all(),
+            GenerationStep.Feature.VEGETAL_DECORATION,
+            RegistryKey.of(RegistryKeys.PLACED_FEATURE, Identifier(MOD_ID, "memory_blooms"))
+        )
+
+        BiomeModifications.addFeature(
+            BiomeSelectors.all(),
+            GenerationStep.Feature.SURFACE_STRUCTURES,
+            RegistryKey.of(RegistryKeys.PLACED_FEATURE, Identifier(MOD_ID, "stable_sanctuaries"))
+        )
+
         // 4. Server Events (Time, Syncing, Unloading)
         ServerTickEvents.END_WORLD_TICK.register { world ->
             val id = world.registryKey.value
@@ -179,6 +218,12 @@ object MystcraftReforged : ModInitializer {
                         }
                     }
                 }
+
+                if (AgeWeatherController.tick(world, profile)) {
+                    world.players.forEach { player ->
+                        ModMessages.sendDimensionSync(player, id, profile)
+                    }
+                }
             }
         }
 
@@ -194,6 +239,30 @@ object MystcraftReforged : ModInitializer {
         }
 
         ServerPlayerEvents.AFTER_RESPAWN.register(ServerPlayerEvents.AfterRespawn { oldPlayer, newPlayer, _ ->
+            val configuredSpawnDimension = oldPlayer.spawnPointDimension
+            if (configuredSpawnDimension.value.namespace == MOD_ID) {
+                val targetWorld = newPlayer.server.getWorld(configuredSpawnDimension)
+                if (targetWorld != null && !AgeLifecycleManager.isDeadAge(newPlayer.server, configuredSpawnDimension.value)) {
+                    val profile = AgeProfileManager.getOrGenerateProfile(newPlayer.server, configuredSpawnDimension.value)
+                    val preferredPos = oldPlayer.spawnPointPosition?.let { pos ->
+                        Vec3d(pos.x + 0.5, pos.y.toDouble(), pos.z + 0.5)
+                    } ?: oldPlayer.pos.add(0.0, 1.0, 0.0)
+                    val resolved = AgeTravelSafety.resolveAgeSpawn(targetWorld, profile, preferredPos)
+                    persistAgeSpawn(targetWorld, configuredSpawnDimension.value, profile, resolved.anchor)
+
+                    val teleportTarget = net.minecraft.world.TeleportTarget(
+                        resolved.position,
+                        net.minecraft.util.math.Vec3d.ZERO,
+                        oldPlayer.yaw,
+                        oldPlayer.pitch
+                    )
+
+                    net.fabricmc.fabric.api.dimension.v1.FabricDimensions.teleport(newPlayer, targetWorld, teleportTarget)
+                    newPlayer.setSpawnPoint(targetWorld.registryKey, resolved.anchor, newPlayer.yaw, true, true)
+                    return@AfterRespawn
+                }
+            }
+
             if (oldPlayer.spawnPointPosition != null) return@AfterRespawn
 
             val oldWorld = oldPlayer.serverWorld
@@ -201,15 +270,17 @@ object MystcraftReforged : ModInitializer {
             val oldProfile = AgeProfileManager.getOrGenerateProfile(oldWorld.server, oldWorld.registryKey.value)
             if (AgeLifecycleManager.isDeadAge(oldProfile)) return@AfterRespawn
 
-            val safePos = AgeTravelSafety.sanitizeArrival(oldWorld, oldPlayer.pos.add(0.0, 1.0, 0.0))
+            val resolved = AgeTravelSafety.resolveAgeSpawn(oldWorld, oldProfile, oldPlayer.pos.add(0.0, 1.0, 0.0))
+            persistAgeSpawn(oldWorld, oldWorld.registryKey.value, oldProfile, resolved.anchor)
             val teleportTarget = net.minecraft.world.TeleportTarget(
-                safePos,
+                resolved.position,
                 net.minecraft.util.math.Vec3d.ZERO,
                 oldPlayer.yaw,
                 oldPlayer.pitch
             )
 
             net.fabricmc.fabric.api.dimension.v1.FabricDimensions.teleport(newPlayer, oldWorld, teleportTarget)
+            newPlayer.setSpawnPoint(oldWorld.registryKey, resolved.anchor, newPlayer.yaw, true, true)
         })
 
         ServerWorldEvents.UNLOAD.register { server, world ->
@@ -218,6 +289,20 @@ object MystcraftReforged : ModInitializer {
                 AgeProfileManager.saveAndUnload(server, id)
                 LOGGER.info("Persisted Age: $id")
             }
+        }
+    }
+
+    private fun persistAgeSpawn(world: ServerWorld, ageId: Identifier, profile: mystcraft.flood.generation.profile.AgeProfile, anchor: BlockPos) {
+        if (profile.ageState.surfaceSpawnX == anchor.x && profile.ageState.surfaceSpawnY == anchor.y && profile.ageState.surfaceSpawnZ == anchor.z) {
+            return
+        }
+
+        profile.ageState.surfaceSpawnX = anchor.x
+        profile.ageState.surfaceSpawnY = anchor.y
+        profile.ageState.surfaceSpawnZ = anchor.z
+        AgeProfileManager.save(world.server, ageId)
+        world.players.forEach { player ->
+            ModMessages.sendDimensionSync(player, ageId, profile)
         }
     }
 }

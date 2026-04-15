@@ -11,6 +11,7 @@ import net.minecraft.world.Heightmap
 import net.minecraft.world.gen.feature.DefaultFeatureConfig
 import net.minecraft.world.gen.feature.Feature
 import net.minecraft.world.gen.feature.util.FeatureContext
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
@@ -82,29 +83,45 @@ class GiantTreeFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeat
             val currentPos = centerPos.add(0, 2 + random.nextInt(3), 0).mutableCopy()
             
             var velX = dx * 1.2f
-            var velY = -0.2f 
+            var velY = -0.22f 
             var velZ = dz * 1.2f
+            var airborneSteps = 0
 
             for (step in 0..rootLength) {
                 val rootThickness = if (step < rootLength / 3) 2 else 1
 
-                // Gravity logic: If in air, fall. If in ground, spread.
-                if (isSafeToRead(origin, currentPos)) {
-                    if (world.isAir(currentPos)) {
-                        velY -= 0.18f // Physics!
-                        velX *= 0.85f 
-                        velZ *= 0.85f
-                    } else {
-                        velY = -0.25f // Reset to crawling pitch
-                        velX = dx * 1.1f
-                        velZ = dz * 1.1f
-                    }
+                val anchored = isRootAnchored(world, origin, currentPos, rootThickness)
+                if (!anchored) {
+                    airborneSteps++
+                    velY = (velY - 0.12f).coerceAtLeast(-1.15f)
+                    val sagDampen = (0.90f - airborneSteps * 0.015f).coerceAtLeast(0.45f)
+                    velX *= sagDampen
+                    velZ *= sagDampen
+                } else {
+                    airborneSteps = 0
+                    velY = if (step < rootLength / 5) -0.18f else -0.06f
+                    val crawlStrength = if (step < rootLength / 2) 1.05f else 0.82f
+                    velX = dx * crawlStrength
+                    velZ = dz * crawlStrength
                 }
 
                 val nextX = currentPos.x + velX
                 val nextY = currentPos.y + velY
                 val nextZ = currentPos.z + velZ
-                currentPos.set(nextX.toInt(), nextY.toInt(), nextZ.toInt())
+                val tentativePos = BlockPos(nextX.toInt(), nextY.toInt(), nextZ.toInt())
+                val clingPos = findNearbySurfaceToWrap(world, origin, tentativePos, if (airborneSteps > 0) 3 else 2, 10)
+
+                if (clingPos != null) {
+                    airborneSteps = 0
+                    val clingPullX = (clingPos.x - tentativePos.x).toFloat()
+                    val clingPullZ = (clingPos.z - tentativePos.z).toFloat()
+                    velX = dx * 0.9f + clingPullX * 0.45f
+                    velZ = dz * 0.9f + clingPullZ * 0.45f
+                    velY = ((clingPos.y - currentPos.y).coerceIn(-2, 1)).toFloat() * 0.35f
+                    currentPos.set(clingPos.x, clingPos.y, clingPos.z)
+                } else {
+                    currentPos.set(tentativePos.x, tentativePos.y, tentativePos.z)
+                }
 
                 for (bx in -rootThickness..rootThickness) {
                     for (by in -rootThickness..rootThickness) {
@@ -209,6 +226,86 @@ class GiantTreeFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeat
         val originChunkX = origin.x shr 4
         val originChunkZ = origin.z shr 4
         return Math.abs(chunkX - originChunkX) <= 1 && Math.abs(chunkZ - originChunkZ) <= 1
+    }
+
+    private fun isRootAnchored(world: net.minecraft.world.StructureWorldAccess, origin: BlockPos, target: BlockPos, thickness: Int): Boolean {
+        for (dy in 0..1) {
+            val sample = target.down(dy + 1)
+            if (!isSafeToRead(origin, sample)) return false
+
+            for (ox in -thickness..thickness) {
+                for (oz in -thickness..thickness) {
+                    val candidate = sample.add(ox, 0, oz)
+                    if (!isSafeToRead(origin, candidate)) continue
+                    val state = world.getBlockState(candidate)
+                    if (!state.isAir && !state.isReplaceable && !state.isOf(Blocks.WATER)) {
+                        return true
+                    }
+                }
+            }
+        }
+        return false
+    }
+
+    private fun findNearbySurfaceToWrap(
+        world: net.minecraft.world.StructureWorldAccess,
+        origin: BlockPos,
+        target: BlockPos,
+        horizontalRadius: Int,
+        verticalReach: Int
+    ): BlockPos? {
+        var best: BlockPos? = null
+        var bestScore = Double.MAX_VALUE
+
+        for (ox in -horizontalRadius..horizontalRadius) {
+            for (oz in -horizontalRadius..horizontalRadius) {
+                val sampleX = target.x + ox
+                val sampleZ = target.z + oz
+                val surface = findSurfaceAt(world, origin, sampleX, sampleZ, target.y - verticalReach, target.y + 3) ?: continue
+                val dx = (surface.x - target.x).toDouble()
+                val dz = (surface.z - target.z).toDouble()
+                val dy = (surface.y - target.y).toDouble()
+                val score = dx * dx + dz * dz + dy * dy * 1.75
+                if (score < bestScore) {
+                    bestScore = score
+                    best = surface
+                }
+            }
+        }
+
+        return best
+    }
+
+    private fun findSurfaceAt(
+        world: net.minecraft.world.StructureWorldAccess,
+        origin: BlockPos,
+        x: Int,
+        z: Int,
+        minY: Int,
+        maxY: Int
+    ): BlockPos? {
+        if (!isSafeToRead(origin, BlockPos(x, origin.y, z))) return null
+
+        var y = world.getTopY(Heightmap.Type.WORLD_SURFACE_WG, x, z) - 1
+        val lowerBound = maxOf(world.bottomY + 1, minY)
+        val upperBound = minOf(world.topY - 2, maxY)
+        if (upperBound <= lowerBound) return null
+
+        while (y >= lowerBound) {
+            if (y <= upperBound) {
+                val ground = BlockPos(x, y, z)
+                val state = world.getBlockState(ground)
+                if (!state.isAir && !state.isReplaceable && !state.isOf(Blocks.WATER) && !state.isOf(Blocks.LAVA)) {
+                    val above = ground.up()
+                    if (isSafeToRead(origin, above) && world.getBlockState(above).isAir) {
+                        return above
+                    }
+                }
+            }
+            y--
+        }
+
+        return null
     }
 
     private fun safeSetBlock(world: net.minecraft.world.StructureWorldAccess, serverWorld: net.minecraft.server.world.ServerWorld, origin: BlockPos, target: BlockPos, state: net.minecraft.block.BlockState, requireSoft: Boolean) {

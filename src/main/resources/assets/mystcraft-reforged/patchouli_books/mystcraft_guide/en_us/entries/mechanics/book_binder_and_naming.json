@@ -1,0 +1,20 @@
+{
+  "name": "Book Binder",
+  "category": "mystcraft-reforged:mechanics",
+  "icon": "mystcraft-reforged:book_binder",
+  "sortnum": 0,
+  "pages": [
+    {
+      "type": "text",
+      "text": "The $(thing)Book Binder$() is both a crafting station and a drafting interface. It creates guide books, descriptive books, and linking books, and it gives you a place to stage symbol pages before first use."
+    },
+    {
+      "type": "text",
+      "text": "The black panels in the binder are presentation, but the blue field matters. Typing there sets the draft name of the Age. That text becomes the registered dimension path when the descriptive book is first used."
+    },
+    {
+      "type": "text",
+      "text": "Mystcraft sanitizes the name into a valid identifier. Spaces become underscores, invalid characters are replaced, and duplicate names gain a numeric suffix. This keeps Ages readable without risking collisions or broken dimension ids."
+    }
+  ]
+}

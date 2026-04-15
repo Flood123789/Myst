@@ -45,11 +45,13 @@ object AgeCompiler {
             if (clean == "random") {
                 // Pick a random chaotic feature for the compiler to inject!
                 val wildcards = listOf(
-                    "floating_islands", "cave", "flat", "biospheres", "cities",
+                    "floating_islands", "amplified", "cave", "flat", "biospheres", "cities",
                     "time_fast", "time_fixed", 
-                    "weather_storm", "weather_rain",
+                    "weather_storm", "weather_rain", "weather_normal",
                     "red", "purple", "black", "green",
-                    "biome_checkerboard", "biome_vanilla", "low_gravity" // <--- Added wildcards
+                    "biome_checkerboard", "biome_vanilla", "low_gravity",
+                    HistoricAgeThemes.COLLAPSED_OBSERVATORY, HistoricAgeThemes.ANCIENT_AQUEDUCTS, HistoricAgeThemes.GATEWAY_RUINS,
+                    AmbientAgeThemes.PAGE_STORMS, AmbientAgeThemes.MEMORY_BLOOMS, AmbientAgeThemes.STABLE_SANCTUARIES
                 )
                 clean = wildcards.random()
                 data.conflictInstability += 5 // A small "Chaos Tax" for using wildcard pages
@@ -99,6 +101,7 @@ object AgeCompiler {
                 
                 // === TERRAIN TYPES ===
                 clean.contains("floating_islands") -> terrains.add("FLOATING_ISLANDS")
+                clean.contains("amplified") -> terrains.add("AMPLIFIED")
                 clean.contains("cave") -> terrains.add("CAVE")
                 clean.contains("biosphere") -> terrains.add("BIOSPHERES")
                 clean.contains("terrain_cities") || clean == "cities" || clean == "city" || clean.contains("city") -> terrains.add("CITIES")
@@ -114,6 +117,7 @@ object AgeCompiler {
                 clean.contains("weather_rain") -> weathers.add("endless_rain")
                 clean.contains("weather_storm") || clean.contains("thunder") -> weathers.add("endless_storm")
                 clean.contains("weather_clear") || clean.contains("no_weather") -> weathers.add("no_weather")
+                clean.contains("weather_normal") -> weathers.add("normal")
                 clean == "low_gravity" -> data.lowGravity = true
 
                 // === BIOME CONTROLLERS ===

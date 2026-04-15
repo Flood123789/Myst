@@ -1,0 +1,8 @@
+{
+  "feature": "mystcraft-reforged:stable_sanctuaries",
+  "placement": [
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

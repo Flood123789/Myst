@@ -1,0 +1,8 @@
+{
+  "feature": "mystcraft-reforged:ancient_aqueducts",
+  "placement": [
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

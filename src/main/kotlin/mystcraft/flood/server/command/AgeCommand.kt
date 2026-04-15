@@ -79,6 +79,7 @@ object AgeCommand {
                     // === 4. WEATHER COMMAND ===
                     .then(CommandManager.literal("weather")
                         .then(CommandManager.literal("clear").executes { setAgeWeather(it, "clear") })
+                        .then(CommandManager.literal("normal").executes { setAgeWeather(it, "normal") })
                         .then(CommandManager.literal("rain").executes { setAgeWeather(it, "rain") })
                         .then(CommandManager.literal("thunder").executes { setAgeWeather(it, "thunder") })
                     )
@@ -146,16 +147,41 @@ object AgeCommand {
                 profile.weather.noWeather = true
                 profile.weather.isEndlessRain = false
                 profile.weather.isEndlessStorm = false
+                profile.weather.currentRaining = false
+                profile.weather.currentThundering = false
+                profile.weather.clearTicks = 12000
+                profile.weather.rainTicks = 0
+                profile.weather.thunderTicks = 0
+            }
+            "normal" -> {
+                profile.weather.noWeather = false
+                profile.weather.isEndlessRain = false
+                profile.weather.isEndlessStorm = false
+                profile.weather.currentRaining = false
+                profile.weather.currentThundering = false
+                profile.weather.clearTicks = 12000
+                profile.weather.rainTicks = 0
+                profile.weather.thunderTicks = 0
             }
             "rain" -> {
                 profile.weather.noWeather = false
                 profile.weather.isEndlessRain = true
                 profile.weather.isEndlessStorm = false
+                profile.weather.currentRaining = true
+                profile.weather.currentThundering = false
+                profile.weather.clearTicks = 0
+                profile.weather.rainTicks = Int.MAX_VALUE
+                profile.weather.thunderTicks = 0
             }
             "thunder" -> {
                 profile.weather.noWeather = false
                 profile.weather.isEndlessRain = true
                 profile.weather.isEndlessStorm = true
+                profile.weather.currentRaining = true
+                profile.weather.currentThundering = true
+                profile.weather.clearTicks = 0
+                profile.weather.rainTicks = Int.MAX_VALUE
+                profile.weather.thunderTicks = Int.MAX_VALUE
             }
         }
 

@@ -1,0 +1,8 @@
+{
+  "feature": "mystcraft-reforged:gateway_ruins",
+  "placement": [
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

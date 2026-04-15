@@ -1,0 +1,20 @@
+{
+  "name": "Exotic Ages",
+  "category": "mystcraft-reforged:worlds",
+  "icon": "mystcraft-reforged:lost_page",
+  "sortnum": 1,
+  "pages": [
+    {
+      "type": "text",
+      "text": "Random and unstable Ages have a high chance to pick up exotic surface themes: hex plates, wire cells, separators, cables, fractal cubes, light fissures, and virus growths. These are not just decoration. They reshape the silhouette and mood of the world."
+    },
+    {
+      "type": "text",
+      "text": "Explicit feature pages make a world more deliberate. Random Ages can still generate exotic landmarks on their own, but the more authored feature pages an Age carries, the rarer the extra random landmark rolls become. Dense ores are the main exception."
+    },
+    {
+      "type": "text",
+      "text": "$(item)Lost Pages$() identify into weighted random symbols. Standard utility pages are common, while extreme pages like cities, biospheres, dense ores, and $(thing)Age Effect$() are intentionally rare."
+    }
+  ]
+}

@@ -25,6 +25,7 @@ object ModSymbols {
 
         // 2. "Baked" Terrain Types
         availableSymbols.add(Identifier("mystcraft-reforged", "terrain_standard"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "terrain_amplified"))
         availableSymbols.add(Identifier("mystcraft-reforged", "terrain_caves"))
         availableSymbols.add(Identifier("mystcraft-reforged", "terrain_floating_islands"))
         availableSymbols.add(Identifier("mystcraft-reforged", "terrain_flat"))
@@ -42,6 +43,7 @@ object ModSymbols {
 
        // 4. "Baked" Weather Settings
         availableSymbols.add(Identifier("mystcraft-reforged", "weather_clear"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "weather_normal"))
         availableSymbols.add(Identifier("mystcraft-reforged", "weather_rain"))
         availableSymbols.add(Identifier("mystcraft-reforged", "weather_thunder"))
         availableSymbols.add(Identifier("mystcraft-reforged", "weather_endless_storm"))
@@ -56,6 +58,9 @@ object ModSymbols {
         availableSymbols.add(Identifier("mystcraft-reforged", "obelisks"))
         availableSymbols.add(Identifier("mystcraft-reforged", "ancient_bones"))
         availableSymbols.add(Identifier("mystcraft-reforged", "forgotten_ruins"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "collapsed_observatory"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "ancient_aqueducts"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "gateway_ruins"))
         availableSymbols.add(Identifier("mystcraft-reforged", "exotic_hex"))
         availableSymbols.add(Identifier("mystcraft-reforged", "exotic_wire_cells"))
         availableSymbols.add(Identifier("mystcraft-reforged", "exotic_separators"))
@@ -63,6 +68,9 @@ object ModSymbols {
         availableSymbols.add(Identifier("mystcraft-reforged", "exotic_fractal_cubes"))
         availableSymbols.add(Identifier("mystcraft-reforged", "exotic_light_fissures"))
         availableSymbols.add(Identifier("mystcraft-reforged", "exotic_virus"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "page_storms"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "memory_blooms"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "stable_sanctuaries"))
 
         // === NEW STUFF: Biome Controllers ===
         availableSymbols.add(Identifier("mystcraft-reforged", "biome_checkerboard"))

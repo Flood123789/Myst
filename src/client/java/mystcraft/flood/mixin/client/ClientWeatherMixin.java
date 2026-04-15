@@ -17,7 +17,7 @@ public class ClientWeatherMixin {
         if (world.isClient && world.getRegistryKey().getValue().getNamespace().equals("mystcraft-reforged")) {
             AgeProfile profile = ClientAgeCache.INSTANCE.getProperties(world.getRegistryKey().getValue());
             if (profile != null) {
-                cir.setReturnValue(profile.getWeather().isEndlessRain() || profile.getWeather().isEndlessStorm());
+                cir.setReturnValue(profile.getWeather().isCurrentlyRaining());
             }
         }
     }
@@ -29,7 +29,8 @@ public class ClientWeatherMixin {
             AgeProfile profile = ClientAgeCache.INSTANCE.getProperties(world.getRegistryKey().getValue());
             if (profile != null) {
                 if (profile.getWeather().getNoWeather()) cir.setReturnValue(0.0f);
-                else if (profile.getWeather().isEndlessRain() || profile.getWeather().isEndlessStorm()) cir.setReturnValue(1.0f);
+                else if (profile.getWeather().isCurrentlyRaining()) cir.setReturnValue(1.0f);
+                else cir.setReturnValue(0.0f);
             }
         }
     }
@@ -40,7 +41,7 @@ public class ClientWeatherMixin {
         if (world.isClient && world.getRegistryKey().getValue().getNamespace().equals("mystcraft-reforged")) {
             AgeProfile profile = ClientAgeCache.INSTANCE.getProperties(world.getRegistryKey().getValue());
             if (profile != null) {
-                if (profile.getWeather().isEndlessStorm()) cir.setReturnValue(1.0f);
+                if (profile.getWeather().isCurrentlyThundering()) cir.setReturnValue(1.0f);
                 else cir.setReturnValue(0.0f);
             }
         }

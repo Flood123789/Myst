@@ -1,0 +1,8 @@
+{
+  "feature": "mystcraft-reforged:page_storms",
+  "placement": [
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

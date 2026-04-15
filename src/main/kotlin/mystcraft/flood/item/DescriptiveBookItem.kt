@@ -24,6 +24,7 @@ import net.minecraft.util.Formatting
 import net.minecraft.util.Hand
 import net.minecraft.util.Identifier
 import net.minecraft.util.TypedActionResult
+import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.Vec3d
 import net.minecraft.util.WorldSavePath
 import net.minecraft.world.Heightmap
@@ -96,9 +97,9 @@ class DescriptiveBookItem(settings: Settings) : Item(settings) {
             val targetPos = when (profile.terrainType) {
                 TerrainType.BIOSPHERES -> {
                     BiosphereFeature.buildOriginBiosphere(targetWorld)
-                    AgeTravelSafety.sanitizeArrival(targetWorld, Vec3d(0.5, BiosphereFeature.SAFE_ENTRY_Y.toDouble(), 0.5))
+                    resolveAgeSurfaceAnchor(server, targetWorld, ageId, profile, Vec3d(0.5, BiosphereFeature.SAFE_ENTRY_Y.toDouble(), 0.5))
                 }
-                else -> AgeTravelSafety.sanitizeArrival(targetWorld, Vec3d(0.5, computeEntryY(targetWorld).toDouble(), 0.5))
+                else -> resolveAgeSurfaceAnchor(server, targetWorld, ageId, profile, Vec3d(0.5, computeEntryY(targetWorld).toDouble(), 0.5))
             }
 
             val teleportTarget = TeleportTarget(
@@ -114,6 +115,7 @@ class DescriptiveBookItem(settings: Settings) : Item(settings) {
             AgeTravelEffects.playDeparture(player.serverWorld, player)
             val result = FabricDimensions.teleport(player, targetWorld, teleportTarget)
             if (result != null) {
+                bindPlayerRespawn(player, targetWorld, ageId, targetPos)
                 AgeTravelEffects.playArrival(targetWorld, teleportTarget.position)
             }
         } else {
@@ -128,6 +130,40 @@ class DescriptiveBookItem(settings: Settings) : Item(settings) {
         }
 
         return (surfaceY + 24).coerceIn(96, 160)
+    }
+
+    private fun resolveAgeSurfaceAnchor(
+        server: net.minecraft.server.MinecraftServer,
+        targetWorld: net.minecraft.server.world.ServerWorld,
+        ageId: Identifier,
+        profile: mystcraft.flood.generation.profile.AgeProfile,
+        preferredPos: Vec3d
+    ): Vec3d {
+        val resolved = AgeTravelSafety.resolveAgeSpawn(targetWorld, profile, preferredPos)
+        if (resolved.movedAnchor) {
+            profile.ageState.surfaceSpawnX = resolved.anchor.x
+            profile.ageState.surfaceSpawnY = resolved.anchor.y
+            profile.ageState.surfaceSpawnZ = resolved.anchor.z
+            AgeProfileManager.save(server, ageId)
+        }
+        return resolved.position
+    }
+
+    private fun bindPlayerRespawn(
+        player: ServerPlayerEntity,
+        targetWorld: net.minecraft.server.world.ServerWorld,
+        ageId: Identifier,
+        targetPos: Vec3d
+    ) {
+        val anchor = BlockPos.ofFloored(targetPos)
+        val profile = AgeProfileManager.getOrGenerateProfile(player.server, ageId)
+        if (profile.ageState.surfaceSpawnX != anchor.x || profile.ageState.surfaceSpawnY != anchor.y || profile.ageState.surfaceSpawnZ != anchor.z) {
+            profile.ageState.surfaceSpawnX = anchor.x
+            profile.ageState.surfaceSpawnY = anchor.y
+            profile.ageState.surfaceSpawnZ = anchor.z
+            AgeProfileManager.save(player.server, ageId)
+        }
+        player.setSpawnPoint(targetWorld.registryKey, anchor, player.yaw, true, true)
     }
 
     override fun appendTooltip(stack: ItemStack, world: World?, tooltip: MutableList<Text>, context: TooltipContext) {

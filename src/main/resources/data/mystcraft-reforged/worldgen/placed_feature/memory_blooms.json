@@ -1,0 +1,8 @@
+{
+  "feature": "mystcraft-reforged:memory_blooms",
+  "placement": [
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

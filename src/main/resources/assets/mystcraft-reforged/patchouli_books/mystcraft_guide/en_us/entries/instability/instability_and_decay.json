@@ -1,0 +1,28 @@
+{
+  "name": "Instability and Decay",
+  "icon": "mystcraft-reforged:black_decay",
+  "category": "mystcraft-reforged:instability",
+  "sortnum": 0,
+  "pages": [
+    {
+      "type": "text",
+      "title": "What Raises It",
+      "text": "Instability comes from omission, contradiction, and ambition. Sparse books, random pages, conflicting pages, strange terrain, harsh weather, too many biomes, and powerful feature pages all push the score upward."
+    },
+    {
+      "type": "text",
+      "title": "What Lowers It",
+      "text": "Defined Ages are calmer. Explicit terrain, biomes, time, sun, moon, stars, and weather all help. Single-biome Ages are safer. Overworld-like Ages are safer. Even explicit instability-feature pages can reduce the final score compared to letting the same chaos appear randomly."
+    },
+    {
+      "type": "text",
+      "title": "Effects",
+      "text": "Every Mystcraft Age stores an instability score, even if effects are disabled. Higher scores escalate from debuffs into lightning, explosions, and spreading decay. Natural decay color is chosen by the Age itself and may emerge as black or white."
+    },
+    {
+      "type": "text",
+      "title": "Control",
+      "text": "Use $(thing)/mystcraft instability toggle$() while standing inside an Age to pause or resume instability effects for that one Age. The stored score remains in the profile, so you are muting the symptoms rather than rewriting the world."
+    }
+  ]
+}

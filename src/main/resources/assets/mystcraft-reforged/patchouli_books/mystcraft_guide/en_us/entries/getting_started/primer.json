@@ -1,0 +1,21 @@
+{
+  "name": "Primer",
+  "category": "mystcraft-reforged:getting_started",
+  "icon": "mystcraft-reforged:guide_book",
+  "sortnum": 0,
+  "pages": [
+    {
+      "type": "text",
+      "text": "Craft this primer with $(item)Leather$() and three $(item)Empty Pages$(). If Patchouli is installed, right-clicking it opens this manual. Without Patchouli, the item still exists so packs and servers can still hand it out cleanly."
+    },
+    {
+      "type": "crafting",
+      "recipe": "mystcraft-reforged:guide_book",
+      "text": "Mystcraft revolves around five things: $(item)Empty Pages$(), $(item)Symbol Pages$(), $(item)Descriptive Books$(), $(item)Linking Books$(), and the $(thing)Book Binder$(). The binder is where an authored Age begins."
+    },
+    {
+      "type": "text",
+      "text": "The usual loop is simple: gather pages, write a descriptive book, give the Age a name in the binder, and use the book to create the dimension. Stable writing rewards precision. Sparse or contradictory writing invites instability."
+    }
+  ]
+}
