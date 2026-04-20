@@ -37,14 +37,19 @@ class DescriptiveBookItem(settings: Settings) : Item(settings) {
         if (world.isClient || user !is ServerPlayerEntity) return TypedActionResult.pass(user.getStackInHand(hand))
 
         val stack = user.getStackInHand(hand)
-        val nbt = stack.orCreateNbt
-        val server = world.server ?: return TypedActionResult.fail(stack)
+        activate(world, user, stack)
+        return TypedActionResult.success(stack)
+    }
 
-        if (hand == Hand.MAIN_HAND && user.isSneaking) {
+    fun activate(world: World, user: ServerPlayerEntity, stack: ItemStack) {
+        val nbt = stack.orCreateNbt
+        val server = world.server ?: return
+
+        if (user.mainHandStack === stack && user.isSneaking) {
             val offhand = user.offHandStack
             if (offhand.item === ModItems.DESCRIPTIVE_BOOK && offhand !== stack) {
                 if (AgeLifecycleManager.trySacrificeAges(user, stack, offhand)) {
-                    return TypedActionResult.success(stack)
+                    return
                 }
             }
         }
@@ -73,7 +78,6 @@ class DescriptiveBookItem(settings: Settings) : Item(settings) {
             val ageId = Identifier(nbt.getString("Age_ID"))
             teleportToAge(user, ageId)
         }
-        return TypedActionResult.success(stack)
     }
 
     private fun teleportToAge(player: ServerPlayerEntity, ageId: Identifier) {

@@ -1,5 +1,7 @@
 package mystcraft.flood.client.render
 
+import mystcraft.flood.client.cache.ClientAgeCache
+import net.minecraft.client.MinecraftClient
 import net.minecraft.client.render.DimensionEffects
 import net.minecraft.util.math.Vec3d
 
@@ -28,5 +30,11 @@ class MystcraftDimensionEffects : DimensionEffects(
 
     override fun useThickFog(camX: Int, camY: Int): Boolean {
         return false
+    }
+
+    override fun getCloudsHeight(): Float {
+        val world = MinecraftClient.getInstance().world ?: return super.getCloudsHeight()
+        if (world.registryKey.value.namespace != "mystcraft-reforged") return super.getCloudsHeight()
+        return ClientAgeCache.getProperties(world.registryKey.value)?.cloudHeight ?: super.getCloudsHeight()
     }
 }

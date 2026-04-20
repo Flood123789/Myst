@@ -80,6 +80,7 @@ object PageIconItemRenderer : BuiltinItemRendererRegistry.DynamicItemRenderer {
             clean.startsWith("time_") -> drawClock(matrices, providers, light, overlay)
             clean.startsWith("weather_") -> drawWeather(clean, matrices, providers, light, overlay)
             clean == "low_gravity" -> drawLowGravity(matrices, providers, light, overlay)
+            clean.startsWith("cloud_height_") -> drawCloudHeight(clean, matrices, providers, light, overlay)
             clean.startsWith("spawning_") -> drawPaw(matrices, providers, light, overlay)
             clean == "dense_ores" -> drawOre(matrices, providers, light, overlay)
             clean == "giant_trees" -> drawGiantTree(matrices, providers, light, overlay)
@@ -108,6 +109,9 @@ object PageIconItemRenderer : BuiltinItemRendererRegistry.DynamicItemRenderer {
             "color_water" -> drawWater(matrices, providers, light, overlay)
             "color_grass" -> drawGrass(matrices, providers, light, overlay)
             "color_foliage" -> drawLeaf(matrices, providers, light, overlay)
+            "color_ambient" -> drawAmbient(matrices, providers, light, overlay)
+            "color_clouds" -> drawCloudTarget(matrices, providers, light, overlay)
+            "color_fire_lava" -> drawFireLava(matrices, providers, light, overlay)
             "color_red" -> drawSwatch(matrices, providers, 0xFFE24D4D.toInt(), light, overlay)
             "color_blue" -> drawSwatch(matrices, providers, 0xFF4A7FDD.toInt(), light, overlay)
             "color_green" -> drawSwatch(matrices, providers, 0xFF54B859.toInt(), light, overlay)
@@ -124,6 +128,26 @@ object PageIconItemRenderer : BuiltinItemRendererRegistry.DynamicItemRenderer {
         when {
             clean.contains("thunder") || clean.contains("storm") -> drawLightning(matrices, providers, light, overlay)
             clean.contains("rain") -> drawRain(matrices, providers, light, overlay)
+        }
+    }
+
+    private fun drawCloudHeight(clean: String, matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
+        drawCloud(matrices, providers, light, overlay)
+        when {
+            clean.contains("low") -> {
+                line(matrices, providers, 8f, 4.4f, 8f, 11.8f, 0.5f, BLUE, light, overlay)
+                line(matrices, providers, 6.9f, 10.4f, 8f, 11.8f, 0.5f, BLUE, light, overlay)
+                line(matrices, providers, 9.1f, 10.4f, 8f, 11.8f, 0.5f, BLUE, light, overlay)
+            }
+            clean.contains("high") -> {
+                line(matrices, providers, 8f, 11.6f, 8f, 4.2f, 0.5f, BLUE, light, overlay)
+                line(matrices, providers, 6.9f, 5.6f, 8f, 4.2f, 0.5f, BLUE, light, overlay)
+                line(matrices, providers, 9.1f, 5.6f, 8f, 4.2f, 0.5f, BLUE, light, overlay)
+            }
+            else -> {
+                line(matrices, providers, 5.1f, 11.6f, 5.1f, 4.6f, 0.38f, BLUE, light, overlay)
+                line(matrices, providers, 10.9f, 11.6f, 10.9f, 4.6f, 0.38f, BLUE, light, overlay)
+            }
         }
     }
 
@@ -213,6 +237,27 @@ object PageIconItemRenderer : BuiltinItemRendererRegistry.DynamicItemRenderer {
         line(matrices, providers, 8f, 10.8f, 8f, 6f, 0.5f, 0xFF2B7B3A.toInt(), light, overlay)
         line(matrices, providers, 8f, 8f, 10.3f, 6.2f, 0.5f, 0xFF2B7B3A.toInt(), light, overlay)
         line(matrices, providers, 8f, 8f, 5.7f, 6.7f, 0.5f, 0xFF2B7B3A.toInt(), light, overlay)
+    }
+
+    private fun drawAmbient(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
+        star(matrices, providers, 5.3f, 5.2f, 0.55f, GOLD, light, overlay)
+        star(matrices, providers, 10.9f, 6.0f, 0.45f, SILVER, light, overlay)
+        rect(matrices, providers, 4.4f, 8.0f, 11.6f, 10.6f, 0x88A48CFF.toInt(), light, overlay)
+        rect(matrices, providers, 5.3f, 6.7f, 10.7f, 8.4f, 0x6678C8FF.toInt(), light, overlay)
+    }
+
+    private fun drawCloudTarget(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
+        drawCloud(matrices, providers, light, overlay)
+        line(matrices, providers, 4.7f, 11.5f, 11.3f, 11.5f, 0.55f, BLUE, light, overlay)
+        star(matrices, providers, 10.9f, 4.6f, 0.45f, SILVER, light, overlay)
+    }
+
+    private fun drawFireLava(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
+        rect(matrices, providers, 4.8f, 9.8f, 11.2f, 11.2f, 0xFFE25322.toInt(), light, overlay)
+        line(matrices, providers, 6.0f, 11.1f, 6.7f, 7.0f, 0.65f, 0xFFFFC04D.toInt(), light, overlay)
+        line(matrices, providers, 8.0f, 11.1f, 8.8f, 5.6f, 0.75f, 0xFFFF7B2F.toInt(), light, overlay)
+        line(matrices, providers, 10.0f, 11.1f, 9.3f, 7.4f, 0.65f, 0xFFFFC04D.toInt(), light, overlay)
+        rect(matrices, providers, 5.1f, 4.4f, 10.9f, 6.0f, 0xFFFF6A00.toInt(), light, overlay)
     }
 
     private fun drawSun(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {

@@ -1,6 +1,7 @@
 package mystcraft.flood.gui
 
 import mystcraft.flood.MystcraftReforged
+import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerType
 import net.minecraft.registry.Registries
 import net.minecraft.registry.Registry
 import net.minecraft.resource.featuretoggle.FeatureFlags
@@ -12,6 +13,12 @@ object ModScreens {
         Registries.SCREEN_HANDLER,
         Identifier(MystcraftReforged.MOD_ID, "book_binder"),
         ScreenHandlerType(::BookBinderScreenHandler, FeatureFlags.VANILLA_FEATURES)
+    )
+
+    val NOTEBOOK_HANDLER: ScreenHandlerType<NotebookScreenHandler> = Registry.register(
+        Registries.SCREEN_HANDLER,
+        Identifier(MystcraftReforged.MOD_ID, "notebook"),
+        ExtendedScreenHandlerType(::NotebookScreenHandler)
     )
 
     fun register() {

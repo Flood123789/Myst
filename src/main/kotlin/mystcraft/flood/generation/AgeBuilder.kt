@@ -16,6 +16,8 @@ import net.minecraft.world.biome.source.MultiNoiseBiomeSource
 import net.minecraft.world.biome.source.MultiNoiseBiomeSourceParameterLists
 import net.minecraft.world.biome.source.util.MultiNoiseUtil
 import net.minecraft.world.gen.chunk.ChunkGenerator
+import net.minecraft.world.gen.chunk.FlatChunkGenerator
+import net.minecraft.world.gen.chunk.FlatChunkGeneratorConfig
 import net.minecraft.world.gen.chunk.ChunkGeneratorSettings
 import net.minecraft.world.gen.chunk.NoiseChunkGenerator
 
@@ -26,7 +28,7 @@ object AgeBuilder {
         val registries = server.registryManager
         val biomeRegistry = registries.get(RegistryKeys.BIOME)
 
-        if (profile.ageState.isSacrificed || profile.terrainType == TerrainType.VOID) {
+        if (profile.ageState.isSacrificed) {
             val voidBiomeId = if (profile.biomes.biomes.isNotEmpty()) {
                 Identifier(profile.biomes.biomes.first().biomeId)
             } else {
@@ -39,21 +41,12 @@ object AgeBuilder {
         }
 
         // ==========================================
-        // 1. TERRAIN SETTINGS
+        // 1. BIOME SOURCE GENERATION
         // ==========================================
-        val settingsRegistry = registries.get(RegistryKeys.CHUNK_GENERATOR_SETTINGS)
-        val settingsKey = when (profile.terrainType) {
-            TerrainType.AMPLIFIED -> ChunkGeneratorSettings.AMPLIFIED
-            TerrainType.CAVES -> ChunkGeneratorSettings.CAVES
-            TerrainType.FLOATING_ISLANDS -> ChunkGeneratorSettings.FLOATING_ISLANDS 
-            else -> ChunkGeneratorSettings.OVERWORLD // STANDARD, FLAT, and CITIES fallback
-        }
-        val settingsEntry = settingsRegistry.getEntry(settingsKey).get()
-
-        // ==========================================
-        // 2. BIOME SOURCE GENERATION
-        // ==========================================
-        val biomeSource = when (profile.biomes.mode) {
+        val biomeSource = when {
+            profile.terrainType == TerrainType.ALPHA -> ClassicBiomeSources.alphaSource(biomeRegistry)
+            profile.terrainType == TerrainType.BETA -> ClassicBiomeSources.betaSource(biomeRegistry)
+            else -> when (profile.biomes.mode) {
             BiomeMode.VANILLA_DISTRIBUTION -> {
                 val parameterRegistry = registries.get(RegistryKeys.MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST)
                 val overworldPreset = parameterRegistry.getEntry(MultiNoiseBiomeSourceParameterLists.OVERWORLD).get()
@@ -109,14 +102,51 @@ object AgeBuilder {
                 }
             }
         }
+        }
 
         // ==========================================
-        // 3. FINAL GENERATOR ASSEMBLY
+        // 2. FINAL GENERATOR ASSEMBLY
         // ==========================================
+
+        if (profile.terrainType == TerrainType.VOID) {
+            val voidBiomeId = if (profile.biomes.biomes.isNotEmpty()) {
+                Identifier(profile.biomes.biomes.first().biomeId)
+            } else {
+                Identifier("minecraft:plains")
+            }
+            val biomeEntry = biomeRegistry.getEntry(RegistryKey.of(RegistryKeys.BIOME, voidBiomeId)).orElseGet {
+                biomeRegistry.getEntry(RegistryKey.of(RegistryKeys.BIOME, Identifier("minecraft:plains"))).orElseThrow()
+            }
+            return Pair(BlankAgeChunkGenerator(FixedBiomeSource(biomeEntry)), profile)
+        }
+
+        if (profile.terrainType == TerrainType.FLAT) {
+            val flatConfig = FlatChunkGeneratorConfig.getDefaultConfig(
+                registries.getWrapperOrThrow(RegistryKeys.BIOME),
+                registries.getWrapperOrThrow(RegistryKeys.STRUCTURE_SET),
+                registries.getWrapperOrThrow(RegistryKeys.PLACED_FEATURE)
+            )
+            flatConfig.enableFeatures()
+            return Pair(FlatChunkGenerator(flatConfig), profile)
+        }
 
         if (profile.terrainType == TerrainType.BIOSPHERES) {
             return Pair(BiosphereChunkGenerator(BiosphereBiomeSource.fromRegistry(profile.seed, biomeRegistry)), profile)
         }
+
+        // ==========================================
+        // 3. TERRAIN SETTINGS
+        // ==========================================
+        val settingsRegistry = registries.get(RegistryKeys.CHUNK_GENERATOR_SETTINGS)
+        val settingsKey = when (profile.terrainType) {
+            TerrainType.ALPHA -> ChunkGeneratorSettings.AMPLIFIED
+            TerrainType.BETA -> ChunkGeneratorSettings.OVERWORLD
+            TerrainType.AMPLIFIED -> ChunkGeneratorSettings.AMPLIFIED
+            TerrainType.CAVES -> ChunkGeneratorSettings.CAVES
+            TerrainType.FLOATING_ISLANDS -> ChunkGeneratorSettings.FLOATING_ISLANDS
+            else -> ChunkGeneratorSettings.OVERWORLD // STANDARD and CITIES fallback
+        }
+        val settingsEntry = settingsRegistry.getEntry(settingsKey).get()
 
         return Pair(NoiseChunkGenerator(biomeSource, settingsEntry), profile)
     }

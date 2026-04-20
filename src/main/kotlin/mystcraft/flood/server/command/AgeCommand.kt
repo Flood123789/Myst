@@ -1,5 +1,6 @@
 package mystcraft.flood.server.command
 
+import com.mojang.brigadier.arguments.FloatArgumentType
 import com.mojang.brigadier.arguments.IntegerArgumentType
 import com.mojang.brigadier.context.CommandContext
 import mystcraft.flood.MystcraftReforged
@@ -93,6 +94,16 @@ object AgeCommand {
                     .then(CommandManager.literal("age_effect")
                         .then(CommandManager.literal("toggle")
                             .executes { toggleAgeEffect(it) }
+                        )
+                    )
+                    .then(CommandManager.literal("gravity")
+                        .then(CommandManager.literal("get")
+                            .executes { getAgeGravity(it) }
+                        )
+                        .then(CommandManager.literal("set")
+                            .then(CommandManager.argument("scale", FloatArgumentType.floatArg(0.05f, 2.0f))
+                                .executes { setAgeGravity(it, FloatArgumentType.getFloat(it, "scale")) }
+                            )
                         )
                     )
                     .then(CommandManager.literal("sacrifice")
@@ -243,6 +254,42 @@ object AgeCommand {
 
         val stateText = if (profile.ageEffect.enabled) "enabled" else "disabled"
         source.sendFeedback({ Text.literal("Age effect '$effectId' is now $stateText for Age: $id") }, true)
+        return 1
+    }
+
+    private fun getAgeGravity(context: CommandContext<ServerCommandSource>): Int {
+        val source = context.source
+        val world = source.world
+        val id = world.registryKey.value
+
+        if (id.namespace != MystcraftReforged.MOD_ID) {
+            source.sendError(Text.literal("You must be in a Mystcraft Age to inspect gravity!"))
+            return 0
+        }
+
+        val profile = AgeProfileManager.getOrGenerateProfile(world.server, id)
+        source.sendFeedback({ Text.literal("Gravity scale for Age $id is ${profile.physics.gravityScale}") }, false)
+        return 1
+    }
+
+    private fun setAgeGravity(context: CommandContext<ServerCommandSource>, gravityScale: Float): Int {
+        val source = context.source
+        val world = source.world
+        val id = world.registryKey.value
+
+        if (id.namespace != MystcraftReforged.MOD_ID) {
+            source.sendError(Text.literal("You must be in a Mystcraft Age to change gravity!"))
+            return 0
+        }
+
+        val profile = AgeProfileManager.getOrGenerateProfile(world.server, id)
+        profile.physics.gravityScale = gravityScale
+        AgeProfileManager.save(world.server, id)
+        world.players.forEach { player ->
+            ModMessages.sendDimensionSync(player, id, profile)
+        }
+
+        source.sendFeedback({ Text.literal("Gravity scale set to $gravityScale for Age: $id") }, true)
         return 1
     }
 

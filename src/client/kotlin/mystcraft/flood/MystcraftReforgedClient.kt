@@ -7,7 +7,10 @@ import mystcraft.flood.block.entity.ModBlockEntities
 import mystcraft.flood.client.AgeTravelSoundSuppressor
 import mystcraft.flood.client.cache.ClientAgeCache
 import mystcraft.flood.client.gui.BookBinderScreen
+import mystcraft.flood.client.gui.NotebookScreen
 import mystcraft.flood.client.network.ClientMessages
+import mystcraft.flood.client.render.AgePlantTintHelper
+import mystcraft.flood.client.render.BookStandBlockEntityRenderer
 import mystcraft.flood.client.render.BookReceptacleBlockEntityRenderer
 import mystcraft.flood.client.render.MystcraftDimensionEffects
 import mystcraft.flood.client.render.PageIconItemRenderer
@@ -23,6 +26,7 @@ import net.minecraft.client.gui.screen.ingame.HandledScreens
 import net.minecraft.client.render.RenderLayer
 import net.minecraft.client.render.block.entity.BlockEntityRendererFactories
 import net.minecraft.client.render.block.entity.EndPortalBlockEntityRenderer
+import net.minecraft.block.Blocks
 import net.minecraft.util.Identifier
 import mystcraft.flood.item.ModItems
 
@@ -36,6 +40,7 @@ class MystcraftReforgedClient : ClientModInitializer {
         }
         
         HandledScreens.register(ModScreens.BOOK_BINDER_HANDLER, ::BookBinderScreen)
+        HandledScreens.register(ModScreens.NOTEBOOK_HANDLER, ::NotebookScreen)
 
         DimensionRenderingRegistry.registerDimensionEffects(
             Identifier("mystcraft-reforged", "age_effects"),
@@ -53,6 +58,9 @@ class MystcraftReforgedClient : ClientModInitializer {
 
         BlockEntityRendererFactories.register(ModBlockEntities.BOOK_RECEPTACLE) { context ->
             BookReceptacleBlockEntityRenderer(context)
+        }
+        BlockEntityRendererFactories.register(ModBlockEntities.BOOK_STAND) { context ->
+            BookStandBlockEntityRenderer(context)
         }
 
         BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.CRYSTAL_BLOCK, RenderLayer.getTranslucent())
@@ -78,6 +86,37 @@ class MystcraftReforgedClient : ClientModInitializer {
             return@BlockColorProvider -1 
             
         }, ModBlocks.CRYSTAL_PORTAL)
+
+        ColorProviderRegistry.BLOCK.register(net.minecraft.client.color.block.BlockColorProvider { state, world, pos, _ ->
+            AgePlantTintHelper.getTintFor(state.block, world, pos)
+        },
+            Blocks.BIRCH_LEAVES,
+            Blocks.SPRUCE_LEAVES,
+            Blocks.MANGROVE_LEAVES,
+            Blocks.AZALEA_LEAVES,
+            Blocks.FLOWERING_AZALEA_LEAVES,
+            Blocks.VINE,
+            Blocks.LILY_PAD,
+            Blocks.SUGAR_CANE,
+            Blocks.MELON_STEM,
+            Blocks.ATTACHED_MELON_STEM,
+            Blocks.PUMPKIN_STEM,
+            Blocks.ATTACHED_PUMPKIN_STEM,
+            Blocks.GRASS_BLOCK,
+            Blocks.GRASS,
+            Blocks.TALL_GRASS,
+            Blocks.FERN,
+            Blocks.LARGE_FERN,
+            Blocks.POTTED_FERN,
+            Blocks.SEAGRASS,
+            Blocks.TALL_SEAGRASS,
+            Blocks.SMALL_DRIPLEAF,
+            Blocks.BIG_DRIPLEAF,
+            Blocks.BIG_DRIPLEAF_STEM,
+            Blocks.MOSS_BLOCK,
+            Blocks.MOSS_CARPET,
+            Blocks.PINK_PETALS
+        )
         
         MystcraftReforged.LOGGER.info("Client initialized cleanly.")
     }

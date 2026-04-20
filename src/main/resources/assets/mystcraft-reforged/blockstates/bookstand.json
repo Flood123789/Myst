@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "mystcraft-reforged:block/bookstand" },
+    "facing=east":  { "model": "mystcraft-reforged:block/bookstand", "y": 90 },
+    "facing=south": { "model": "mystcraft-reforged:block/bookstand", "y": 180 },
+    "facing=west":  { "model": "mystcraft-reforged:block/bookstand", "y": 270 }
+  }
+}

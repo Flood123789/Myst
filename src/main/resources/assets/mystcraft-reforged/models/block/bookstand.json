@@ -1,0 +1,71 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "mystcraft-reforged:block/bookstand",
+    "stand": "mystcraft-reforged:block/bookstand"
+  },
+  "elements": [
+    {
+      "from": [2, 0, 2],
+      "to": [14, 2, 14],
+      "faces": {
+        "north": { "texture": "#stand", "uv": [2, 14, 14, 16] },
+        "south": { "texture": "#stand", "uv": [2, 14, 14, 16] },
+        "east": { "texture": "#stand", "uv": [2, 14, 14, 16] },
+        "west": { "texture": "#stand", "uv": [2, 14, 14, 16] },
+        "up": { "texture": "#stand", "uv": [2, 2, 14, 14] },
+        "down": { "texture": "#stand", "uv": [2, 2, 14, 14] }
+      }
+    },
+    {
+      "from": [7, 2, 7],
+      "to": [9, 9, 9],
+      "faces": {
+        "north": { "texture": "#stand", "uv": [7, 7, 9, 14] },
+        "south": { "texture": "#stand", "uv": [7, 7, 9, 14] },
+        "east": { "texture": "#stand", "uv": [7, 7, 9, 14] },
+        "west": { "texture": "#stand", "uv": [7, 7, 9, 14] },
+        "up": { "texture": "#stand", "uv": [7, 7, 9, 9] },
+        "down": { "texture": "#stand", "uv": [7, 7, 9, 9] }
+      }
+    },
+    {
+      "from": [4, 9, 4],
+      "to": [12, 10, 12],
+      "faces": {
+        "north": { "texture": "#stand", "uv": [4, 6, 12, 7] },
+        "south": { "texture": "#stand", "uv": [4, 6, 12, 7] },
+        "east": { "texture": "#stand", "uv": [4, 6, 12, 7] },
+        "west": { "texture": "#stand", "uv": [4, 6, 12, 7] },
+        "up": { "texture": "#stand", "uv": [4, 4, 12, 12] },
+        "down": { "texture": "#stand", "uv": [4, 4, 12, 12] }
+      }
+    },
+    {
+      "from": [2, 8, 9],
+      "to": [8, 12, 12],
+      "rotation": { "origin": [8, 9, 9], "axis": "z", "angle": 22.5 },
+      "faces": {
+        "north": { "texture": "#stand", "uv": [0, 0, 6, 4] },
+        "south": { "texture": "#stand", "uv": [0, 0, 6, 4] },
+        "east": { "texture": "#stand", "uv": [0, 0, 3, 4] },
+        "west": { "texture": "#stand", "uv": [0, 0, 3, 4] },
+        "up": { "texture": "#stand", "uv": [0, 0, 6, 3] },
+        "down": { "texture": "#stand", "uv": [0, 0, 6, 3] }
+      }
+    },
+    {
+      "from": [8, 8, 9],
+      "to": [14, 12, 12],
+      "rotation": { "origin": [8, 9, 9], "axis": "z", "angle": -22.5 },
+      "faces": {
+        "north": { "texture": "#stand", "uv": [0, 0, 6, 4] },
+        "south": { "texture": "#stand", "uv": [0, 0, 6, 4] },
+        "east": { "texture": "#stand", "uv": [0, 0, 3, 4] },
+        "west": { "texture": "#stand", "uv": [0, 0, 3, 4] },
+        "up": { "texture": "#stand", "uv": [0, 0, 6, 3] },
+        "down": { "texture": "#stand", "uv": [0, 0, 6, 3] }
+      }
+    }
+  ]
+}

@@ -9,6 +9,7 @@ data class AgeProfile(
     val seed: Long,
     var terrainType: TerrainType,
     val colors: ColorSettings,
+    var cloudHeight: Float = 192.0f,
     val time: TimeSettings,
     val weather: WeatherSettings,
     val biomes: BiomeSet,
@@ -69,13 +70,28 @@ data class AgeProfile(
                 if (!weather.has("thunderTicks")) profile.weather.thunderTicks = 0
             }
 
+            if (!root.has("cloudHeight")) {
+                profile.cloudHeight = 192.0f
+            }
+
+            if (!root.has("colors")) {
+                profile.colors.ambient = profile.colors.fog
+                profile.colors.cloud = profile.colors.fog
+                profile.colors.fireLava = 0xFF6A00
+            } else {
+                val colors = root.getAsJsonObject("colors")
+                if (!colors.has("ambient")) profile.colors.ambient = profile.colors.fog
+                if (!colors.has("cloud")) profile.colors.cloud = profile.colors.fog
+                if (!colors.has("fireLava")) profile.colors.fireLava = 0xFF6A00
+            }
+
             return profile
         }
     }
     fun toJson(): String = GSON.toJson(this)
 }
 
-enum class TerrainType { STANDARD, AMPLIFIED, CAVES, FLOATING_ISLANDS, FLAT, BIOSPHERES, CITIES, VOID }
+enum class TerrainType { STANDARD, BETA, ALPHA, AMPLIFIED, CAVES, FLOATING_ISLANDS, FLAT, BIOSPHERES, CITIES, VOID }
 
 enum class BiomeMode { SINGLE, VANILLA_DISTRIBUTION, CHECKERBOARD, WEIGHTED }
 
@@ -86,7 +102,16 @@ data class BiomeSet(
     var biomes: MutableList<BiomeWeight>
 )
 
-data class ColorSettings(var sky: Int, var fog: Int, var water: Int, var grass: Int, var foliage: Int)
+data class ColorSettings(
+    var sky: Int,
+    var fog: Int,
+    var water: Int,
+    var grass: Int,
+    var foliage: Int,
+    var ambient: Int = fog,
+    var cloud: Int = fog,
+    var fireLava: Int = 0xFF6A00
+)
 
 data class TimeSettings(
     // === NEW: Expanded Celestial Data ===

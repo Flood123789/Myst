@@ -34,15 +34,15 @@ public class BiomeColorMixin {
         if (client.world.getRegistryKey().getValue().getNamespace().equals("mystcraft-reforged")) {
             AgeProfile profile = ClientAgeCache.INSTANCE.getProperties(client.world.getRegistryKey().getValue());
             if (profile != null) {
-                int color = switch (type) {
+                Integer color = switch (type) {
                     case "sky" -> profile.getColors().getSky();
                     case "fog" -> profile.getColors().getFog();
                     case "water" -> profile.getColors().getWater();
                     case "foliage" -> profile.getColors().getFoliage();
                     case "grass" -> profile.getColors().getGrass();
-                    default -> 0;
+                    default -> null;
                 };
-                if (color != 0) cir.setReturnValue(color);
+                if (color != null) cir.setReturnValue(color);
             }
         }
     }

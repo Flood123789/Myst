@@ -25,11 +25,7 @@ public class BackgroundRendererMixin {
     private static float blue;
 
     @Inject(method = "render", at = @At("TAIL"))
-    private static void mystcraft$tintUnderwaterFog(Camera camera, float tickDelta, ClientWorld world, int viewDistance, float skyDarkness, CallbackInfo ci) {
-        if (camera.getSubmersionType() != CameraSubmersionType.WATER) {
-            return;
-        }
-
+    private static void mystcraft$tintAgeFog(Camera camera, float tickDelta, ClientWorld world, int viewDistance, float skyDarkness, CallbackInfo ci) {
         if (!world.getRegistryKey().getValue().getNamespace().equals("mystcraft-reforged")) {
             return;
         }
@@ -39,9 +35,30 @@ public class BackgroundRendererMixin {
             return;
         }
 
-        int color = profile.getColors().getWater();
-        red = ((color >> 16) & 0xFF) / 255.0f;
-        green = ((color >> 8) & 0xFF) / 255.0f;
-        blue = (color & 0xFF) / 255.0f;
+        CameraSubmersionType submersionType = camera.getSubmersionType();
+        if (submersionType == CameraSubmersionType.WATER) {
+            int color = profile.getColors().getWater();
+            red = ((color >> 16) & 0xFF) / 255.0f;
+            green = ((color >> 8) & 0xFF) / 255.0f;
+            blue = (color & 0xFF) / 255.0f;
+            return;
+        }
+
+        if (submersionType == CameraSubmersionType.LAVA) {
+            int color = profile.getColors().getFireLava();
+            red = ((color >> 16) & 0xFF) / 255.0f;
+            green = ((color >> 8) & 0xFF) / 255.0f;
+            blue = (color & 0xFF) / 255.0f;
+            return;
+        }
+
+        int ambient = profile.getColors().getAmbient();
+        float targetRed = ((ambient >> 16) & 0xFF) / 255.0f;
+        float targetGreen = ((ambient >> 8) & 0xFF) / 255.0f;
+        float targetBlue = (ambient & 0xFF) / 255.0f;
+        float blend = 0.28f;
+        red = red * (1.0f - blend) + targetRed * blend;
+        green = green * (1.0f - blend) + targetGreen * blend;
+        blue = blue * (1.0f - blend) + targetBlue * blend;
     }
 }

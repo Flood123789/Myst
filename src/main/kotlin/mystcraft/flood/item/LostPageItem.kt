@@ -60,13 +60,14 @@ class LostPageItem(settings: Settings) : Item(settings) {
         if (Registries.STATUS_EFFECT.containsId(symbol)) return 3
 
         return when (symbol.path) {
+            "terrain_void" -> 1
             "terrain_cities", "terrain_biospheres", "dense_ores", "spawning_no_mobs", "exotic_virus" -> 2
             "ancient_bones" -> 3
             "forgotten_ruins", "collapsed_observatory", "gateway_ruins", "page_storms", "stable_sanctuaries" -> 4
-            "ancient_aqueducts", "memory_blooms" -> 5
-            "terrain_caves", "terrain_floating_islands", "giant_trees", "crystal_formations", "tendrils",
+            "ancient_aqueducts", "memory_blooms", "terrain_alpha" -> 5
+            "terrain_caves", "terrain_floating_islands", "terrain_beta", "terrain_flat", "giant_trees", "crystal_formations", "tendrils",
             "obelisks", "terrain_amplified", "weather_endless_storm", "weather_normal", "stars_dense", "no_stars", "sun_red", "sun_blue", "low_gravity",
-            "biome_checkerboard", "biome_vanilla" -> 5
+            "biome_checkerboard", "biome_vanilla", "cloud_height_low", "cloud_height_normal", "cloud_height_high" -> 5
             else -> if (symbol.path.startsWith("exotic_")) 4 else 14
         }
     }

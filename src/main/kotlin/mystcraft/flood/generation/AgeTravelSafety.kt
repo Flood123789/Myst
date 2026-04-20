@@ -2,6 +2,7 @@ package mystcraft.flood.generation
 
 import mystcraft.flood.MystcraftReforged
 import net.minecraft.block.Blocks
+import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.registry.Registries
 import net.minecraft.server.world.ServerWorld
 import net.minecraft.util.math.BlockPos
@@ -49,6 +50,14 @@ object AgeTravelSafety {
             finalAnchor,
             moved
         )
+    }
+
+    fun resolveBoundRespawn(world: ServerWorld, requestedAnchor: BlockPos): BlockPos? {
+        val resolved = PlayerEntity.findRespawnPosition(world, requestedAnchor, 0.0f, false, false)
+        return resolved
+            .map { BlockPos.ofFloored(it) }
+            .filter { !isDecayState(world.getBlockState(it.down())) && !isDecayState(world.getBlockState(it)) }
+            .orElse(null)
     }
 
     private fun findNearbySafeStand(world: ServerWorld, origin: BlockPos, maxRadius: Int, preferSurface: Boolean): BlockPos? {

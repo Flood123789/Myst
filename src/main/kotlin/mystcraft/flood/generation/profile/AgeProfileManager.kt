@@ -23,12 +23,15 @@ object AgeProfileManager {
     private fun weightedRandomTerrain(rand: Random): TerrainType {
         val pool = buildList {
             repeat(40) { add(TerrainType.STANDARD) }
+            repeat(9) { add(TerrainType.BETA) }
+            repeat(5) { add(TerrainType.ALPHA) }
             repeat(10) { add(TerrainType.AMPLIFIED) }
             repeat(18) { add(TerrainType.FLOATING_ISLANDS) }
             repeat(16) { add(TerrainType.CAVES) }
             repeat(14) { add(TerrainType.FLAT) }
             repeat(3) { add(TerrainType.BIOSPHERES) }
             repeat(2) { add(TerrainType.CITIES) }
+            repeat(1) { add(TerrainType.VOID) }
         }
         return pool.random(rand)
     }
@@ -187,6 +190,8 @@ object AgeProfileManager {
         // 3. MAP TERRAIN & BIOMES
         // ==========================================
         val terrain = when(compiled.terrainType) {
+            "ALPHA" -> TerrainType.ALPHA
+            "BETA" -> TerrainType.BETA
             "AMPLIFIED" -> TerrainType.AMPLIFIED
             "CAVE" -> TerrainType.CAVES
             "FLOATING_ISLANDS" -> TerrainType.FLOATING_ISLANDS
@@ -194,6 +199,7 @@ object AgeProfileManager {
             "CITIES" -> TerrainType.CITIES
             "STANDARD" -> TerrainType.STANDARD
             "FLAT" -> TerrainType.FLAT
+            "VOID" -> TerrainType.VOID
             else -> weightedRandomTerrain(rand)
         }
 
@@ -278,11 +284,14 @@ object AgeProfileManager {
         finalInstability -= basicDefinedCount * 4
 
         if (terrain == TerrainType.FLOATING_ISLANDS) finalInstability += 15
+        if (terrain == TerrainType.BETA) finalInstability += 4
+        if (terrain == TerrainType.ALPHA) finalInstability += 12
         if (terrain == TerrainType.AMPLIFIED) finalInstability += 20
         if (terrain == TerrainType.CITIES) finalInstability += 38
         if (terrain == TerrainType.BIOSPHERES) finalInstability += 32
         if (terrain == TerrainType.FLAT) finalInstability += 6
         if (terrain == TerrainType.CAVES) finalInstability += 10
+        if (terrain == TerrainType.VOID) finalInstability -= 90
 
         if (timeMode == "fixed") finalInstability += 20
         if (timeMode == "fast" || timeMode == "slow") finalInstability += 8
@@ -454,8 +463,17 @@ object AgeProfileManager {
                 fog = compiled.fogColor ?: randomRGB(),
                 water = compiled.waterColor ?: randomRGB(),
                 grass = compiled.grassColor ?: randomRGB(),     
-                foliage = compiled.foliageColor ?: randomRGB()  
+                foliage = compiled.foliageColor ?: randomRGB(),
+                ambient = compiled.ambientColor ?: compiled.fogColor ?: randomRGB(),
+                cloud = compiled.cloudColor ?: compiled.fogColor ?: randomRGB(),
+                fireLava = compiled.fireLavaColor ?: 0xFF6A00
             ),
+            cloudHeight = compiled.cloudHeight ?: when (terrain) {
+                TerrainType.FLOATING_ISLANDS -> 160.0f
+                TerrainType.ALPHA, TerrainType.AMPLIFIED -> 208.0f
+                TerrainType.CAVES, TerrainType.VOID -> 128.0f
+                else -> 192.0f
+            },
             time = TimeSettings(
                 sunNormalCount = sunNormal,
                 sunRedCount = sunRed,

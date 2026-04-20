@@ -17,6 +17,10 @@ data class CompiledAgeData(
     var waterColor: Int? = null,
     var grassColor: Int? = null,
     var foliageColor: Int? = null,
+    var ambientColor: Int? = null,
+    var cloudColor: Int? = null,
+    var fireLavaColor: Int? = null,
+    var cloudHeight: Float? = null,
     var ageEffectId: String? = null,
     var lowGravity: Boolean = false,
     
@@ -45,7 +49,7 @@ object AgeCompiler {
             if (clean == "random") {
                 // Pick a random chaotic feature for the compiler to inject!
                 val wildcards = listOf(
-                    "floating_islands", "amplified", "cave", "flat", "biospheres", "cities",
+                    "floating_islands", "amplified", "alpha", "beta", "cave", "flat", "biospheres", "cities",
                     "time_fast", "time_fixed", 
                     "weather_storm", "weather_rain", "weather_normal",
                     "red", "purple", "black", "green",
@@ -53,7 +57,7 @@ object AgeCompiler {
                     HistoricAgeThemes.COLLAPSED_OBSERVATORY, HistoricAgeThemes.ANCIENT_AQUEDUCTS, HistoricAgeThemes.GATEWAY_RUINS,
                     AmbientAgeThemes.PAGE_STORMS, AmbientAgeThemes.MEMORY_BLOOMS, AmbientAgeThemes.STABLE_SANCTUARIES
                 )
-                clean = wildcards.random()
+                clean = if (kotlin.random.Random.nextFloat() < 0.01f) "void" else wildcards.random()
                 data.conflictInstability += 5 // A small "Chaos Tax" for using wildcard pages
             }
             
@@ -93,6 +97,12 @@ object AgeCompiler {
                 clean.contains("color_water") -> { data.waterColor = pendingColors.lastOrNull(); pendingColors.clear() }
                 clean.contains("color_grass") -> { data.grassColor = pendingColors.lastOrNull(); pendingColors.clear() }
                 clean.contains("color_foliage") -> { data.foliageColor = pendingColors.lastOrNull(); pendingColors.clear() }
+                clean.contains("color_ambient") -> { data.ambientColor = pendingColors.lastOrNull(); pendingColors.clear() }
+                clean.contains("color_cloud") -> { data.cloudColor = pendingColors.lastOrNull(); pendingColors.clear() }
+                clean.contains("color_fire_lava") -> { data.fireLavaColor = pendingColors.lastOrNull(); pendingColors.clear() }
+                clean.contains("cloud_height_low") -> data.cloudHeight = 96.0f
+                clean.contains("cloud_height_normal") -> data.cloudHeight = 192.0f
+                clean.contains("cloud_height_high") -> data.cloudHeight = 256.0f
 
                 // === AGE EFFECTS ===
                 clean == "age_effect" -> {
@@ -100,13 +110,16 @@ object AgeCompiler {
                 }
                 
                 // === TERRAIN TYPES ===
-                clean.contains("floating_islands") -> terrains.add("FLOATING_ISLANDS")
-                clean.contains("amplified") -> terrains.add("AMPLIFIED")
-                clean.contains("cave") -> terrains.add("CAVE")
-                clean.contains("biosphere") -> terrains.add("BIOSPHERES")
-                clean.contains("terrain_cities") || clean == "cities" || clean == "city" || clean.contains("city") -> terrains.add("CITIES")
-                clean.contains("standard") || clean.contains("normal") -> terrains.add("STANDARD")
-                clean.contains("flat") -> terrains.add("FLAT")
+                clean == "terrain_floating_islands" || clean == "floating_islands" -> terrains.add("FLOATING_ISLANDS")
+                clean == "terrain_alpha" || clean == "alpha" -> terrains.add("ALPHA")
+                clean == "terrain_beta" || clean == "beta" -> terrains.add("BETA")
+                clean == "terrain_amplified" || clean == "amplified" -> terrains.add("AMPLIFIED")
+                clean == "terrain_caves" || clean == "cave" || clean == "caves" -> terrains.add("CAVE")
+                clean == "terrain_biospheres" || clean == "biospheres" || clean == "biosphere" -> terrains.add("BIOSPHERES")
+                clean == "terrain_cities" || clean == "cities" || clean == "city" -> terrains.add("CITIES")
+                clean == "terrain_standard" || clean == "standard" -> terrains.add("STANDARD")
+                clean == "terrain_flat" || clean == "flat" -> terrains.add("FLAT")
+                clean == "terrain_void" || clean == "void" -> terrains.add("VOID")
                 
                 // === TIME MODES ===
                 clean.contains("time_fast") -> times.add("fast")

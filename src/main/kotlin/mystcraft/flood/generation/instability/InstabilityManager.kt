@@ -3,6 +3,7 @@ package mystcraft.flood.generation.instability
 import mystcraft.flood.MystcraftReforged
 import mystcraft.flood.block.ModBlocks 
 import mystcraft.flood.generation.AgeLifecycleManager
+import mystcraft.flood.generation.physics.LowGravityPhysics
 import mystcraft.flood.generation.profile.AgeProfile
 import mystcraft.flood.generation.profile.AgeProfileManager
 import net.minecraft.entity.effect.StatusEffect
@@ -156,13 +157,7 @@ object InstabilityManager {
         if (gravityScale >= 0.999f) return
 
         for (player in world.players) {
-            if (player.isCreative || player.isSpectator || player.isOnGround || player.velocity.y >= 0.0) continue
-
-            val currentVelocity = player.velocity
-            val softenedFall = currentVelocity.y * gravityScale
-            player.velocity = Vec3d(currentVelocity.x, softenedFall.coerceAtLeast(-0.28), currentVelocity.z)
-            player.velocityModified = true
-            player.fallDistance *= gravityScale
+            LowGravityPhysics.apply(player, gravityScale)
         }
     }
 

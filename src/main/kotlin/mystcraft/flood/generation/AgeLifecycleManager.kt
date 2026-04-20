@@ -27,7 +27,7 @@ object AgeLifecycleManager {
     private const val DEAD_LINK_TEXT = "The ink on the pages has begun to run and the words are unreadable."
     private const val DEAD_AGE_TEXT = "This Age has been sacrificed. Only a hollow echo remains."
 
-    fun isDeadAge(profile: AgeProfile): Boolean = profile.ageState.isSacrificed || profile.terrainType == TerrainType.VOID
+    fun isDeadAge(profile: AgeProfile): Boolean = profile.ageState.isSacrificed
 
     fun isDeadAge(server: MinecraftServer, ageId: Identifier): Boolean {
         if (ageId.namespace != MystcraftReforged.MOD_ID) return false
@@ -154,6 +154,10 @@ object AgeLifecycleManager {
         profile.colors.water = 0x030303
         profile.colors.grass = 0x141414
         profile.colors.foliage = 0x141414
+        profile.colors.ambient = 0x050505
+        profile.colors.cloud = 0x080808
+        profile.colors.fireLava = 0x1A0800
+        profile.cloudHeight = 96.0f
         profile.time.sunNormalCount = 0
         profile.time.sunRedCount = 0
         profile.time.sunBlueCount = 0

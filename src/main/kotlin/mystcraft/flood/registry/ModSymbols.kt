@@ -25,10 +25,13 @@ object ModSymbols {
 
         // 2. "Baked" Terrain Types
         availableSymbols.add(Identifier("mystcraft-reforged", "terrain_standard"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "terrain_beta"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "terrain_alpha"))
         availableSymbols.add(Identifier("mystcraft-reforged", "terrain_amplified"))
         availableSymbols.add(Identifier("mystcraft-reforged", "terrain_caves"))
         availableSymbols.add(Identifier("mystcraft-reforged", "terrain_floating_islands"))
         availableSymbols.add(Identifier("mystcraft-reforged", "terrain_flat"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "terrain_void"))
         // === NEW TERRAIN PAGES ADDED HERE ===
         availableSymbols.add(Identifier("mystcraft-reforged", "terrain_biospheres"))
         availableSymbols.add(Identifier("mystcraft-reforged", "terrain_cities"))
@@ -49,6 +52,9 @@ object ModSymbols {
         availableSymbols.add(Identifier("mystcraft-reforged", "weather_endless_storm"))
         availableSymbols.add(Identifier("mystcraft-reforged", "weather_no_weather"))
         availableSymbols.add(Identifier("mystcraft-reforged", "low_gravity"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "cloud_height_low"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "cloud_height_normal"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "cloud_height_high"))
 
         // === NEW STUFF: Modifiers ===
         availableSymbols.add(Identifier("mystcraft-reforged", "dense_ores")) 
@@ -83,6 +89,9 @@ object ModSymbols {
         availableSymbols.add(Identifier("mystcraft-reforged", "color_water"))
         availableSymbols.add(Identifier("mystcraft-reforged", "color_grass"))
         availableSymbols.add(Identifier("mystcraft-reforged", "color_foliage"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "color_ambient"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "color_clouds"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "color_fire_lava"))
 
         // Color Modifier Pages
         availableSymbols.add(Identifier("mystcraft-reforged", "color_red"))

@@ -5,6 +5,8 @@ import mystcraft.flood.generation.profile.AgeProfile;
 import net.minecraft.client.particle.BlockLeakParticle;
 import net.minecraft.client.particle.SpriteBillboardParticle;
 import net.minecraft.client.world.ClientWorld;
+import net.minecraft.fluid.Fluid;
+import net.minecraft.fluid.Fluids;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -18,12 +20,8 @@ public abstract class BlockLeakParticleMixin extends SpriteBillboardParticle {
     }
 
     @Inject(method = "tick", at = @At("HEAD"))
-    private void mystcraft$tintWaterDrips(CallbackInfo ci) {
+    private void mystcraft$tintDrips(CallbackInfo ci) {
         if (this.world == null || !this.world.getRegistryKey().getValue().getNamespace().equals("mystcraft-reforged")) {
-            return;
-        }
-
-        if (this.blue < this.red || this.blue < this.green) {
             return;
         }
 
@@ -32,7 +30,16 @@ public abstract class BlockLeakParticleMixin extends SpriteBillboardParticle {
             return;
         }
 
-        int color = profile.getColors().getWater();
+        Fluid fluid = ((BlockLeakParticleAccessor) this).mystcraft$getFluid();
+        int color;
+        if (fluid == Fluids.WATER || fluid == Fluids.FLOWING_WATER) {
+            color = profile.getColors().getWater();
+        } else if (fluid == Fluids.LAVA || fluid == Fluids.FLOWING_LAVA) {
+            color = profile.getColors().getFireLava();
+        } else {
+            return;
+        }
+
         this.setColor(
             ((color >> 16) & 0xFF) / 255.0f,
             ((color >> 8) & 0xFF) / 255.0f,

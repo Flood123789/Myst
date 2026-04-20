@@ -9,6 +9,8 @@ import net.minecraft.client.util.math.MatrixStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(InGameOverlayRenderer.class)
 public class InGameOverlayRendererMixin {
@@ -41,5 +43,36 @@ public class InGameOverlayRendererMixin {
             blue * (1.0f - blend) + targetBlue * blend,
             alpha
         );
+    }
+
+    @Inject(method = "renderFireOverlay", at = @At("HEAD"))
+    private static void mystcraft$beforeFireOverlay(MinecraftClient client, MatrixStack matrices, CallbackInfo ci) {
+        if (client.world == null || !client.world.getRegistryKey().getValue().getNamespace().equals("mystcraft-reforged")) {
+            return;
+        }
+
+        AgeProfile profile = ClientAgeCache.INSTANCE.getProperties(client.world.getRegistryKey().getValue());
+        if (profile == null) {
+            return;
+        }
+
+        int color = profile.getColors().getFireLava();
+        float targetRed = ((color >> 16) & 0xFF) / 255.0f;
+        float targetGreen = ((color >> 8) & 0xFF) / 255.0f;
+        float targetBlue = (color & 0xFF) / 255.0f;
+        float blend = 0.72f;
+        float base = 1.0f - blend;
+
+        RenderSystem.setShaderColor(
+            base + targetRed * blend,
+            base + targetGreen * blend,
+            base + targetBlue * blend,
+            1.0f
+        );
+    }
+
+    @Inject(method = "renderFireOverlay", at = @At("RETURN"))
+    private static void mystcraft$afterFireOverlay(MinecraftClient client, MatrixStack matrices, CallbackInfo ci) {
+        RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
     }
 }

@@ -30,6 +30,12 @@ object ModBlockEntities {
         FabricBlockEntityTypeBuilder.create(::BookReceptacleBlockEntity, ModBlocks.BOOK_RECEPTACLE).build()
     )
 
+    val BOOK_STAND: BlockEntityType<BookStandBlockEntity> = Registry.register(
+        Registries.BLOCK_ENTITY_TYPE,
+        Identifier(MystcraftReforged.MOD_ID, "bookstand_entity"),
+        FabricBlockEntityTypeBuilder.create(::BookStandBlockEntity, ModBlocks.BOOK_STAND).build()
+    )
+
     // 2. Declare the Star Fissure variable completely on its own
     lateinit var STAR_FISSURE: BlockEntityType<StarFissureBlockEntity>
 

@@ -24,6 +24,11 @@ class LinkingBookItem(settings: Settings) : Item(settings) {
         if (world.isClient || user !is ServerPlayerEntity) return TypedActionResult.pass(user.getStackInHand(hand))
 
         val stack = user.getStackInHand(hand)
+        activate(world, user, stack)
+        return TypedActionResult.success(stack)
+    }
+
+    fun activate(world: World, user: ServerPlayerEntity, stack: ItemStack) {
         val nbt = stack.orCreateNbt
 
         if (!nbt.contains("Dimension")) {
@@ -42,7 +47,7 @@ class LinkingBookItem(settings: Settings) : Item(settings) {
 
             if (targetWorld != null) {
                 if (!AgeLifecycleManager.mayEnterAge(user, dimId, linkStyleMessage = true)) {
-                    return TypedActionResult.success(stack)
+                    return
                 }
                 val targetPos = Vec3d(nbt.getDouble("PosX"), nbt.getDouble("PosY"), nbt.getDouble("PosZ"))
                 val teleportTarget = TeleportTarget(targetPos, Vec3d.ZERO, nbt.getFloat("Yaw"), nbt.getFloat("Pitch"))
@@ -57,7 +62,6 @@ class LinkingBookItem(settings: Settings) : Item(settings) {
                 user.sendMessage(Text.literal("Target dimension is unavailable."), true)
             }
         }
-        return TypedActionResult.success(stack)
     }
 
     // === NEW: Adds the hover text ===

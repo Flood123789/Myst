@@ -27,6 +27,7 @@ object ModItemGroups {
                 entries.add(ModItems.GUIDE_BOOK)
                 entries.add(ModItems.DESCRIPTIVE_BOOK)
                 entries.add(ModItems.LINKING_BOOK)
+                entries.add(ModItems.NOTEBOOK)
                 entries.add(ModBlocks.BLACK_DECAY)
                 entries.add(ModBlocks.WHITE_DECAY)
                 entries.add(ModBlocks.STAR_FISSURE) // ADDED: Show the Star Fissure block in the main tab for easy access

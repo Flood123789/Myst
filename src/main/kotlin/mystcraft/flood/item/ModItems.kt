@@ -22,6 +22,7 @@ object ModItems {
     val GUIDE_BOOK = register("guide_book", GuideBookItem(Item.Settings().maxCount(1)))
     val DESCRIPTIVE_BOOK = register("agebook", DescriptiveBookItem(Item.Settings().maxCount(1)))
     val LINKING_BOOK = register("linkingbook", LinkingBookItem(Item.Settings().maxCount(1)))
+    val NOTEBOOK = register("notebook", NotebookItem(Item.Settings()))
 
     private fun <T : Item> register(name: String, item: T): T {
         return Registry.register(Registries.ITEM, Identifier(MystcraftReforged.MOD_ID, name), item)
@@ -45,6 +46,7 @@ object ModItems {
             entries.add(GUIDE_BOOK)
             entries.add(DESCRIPTIVE_BOOK)
             entries.add(LINKING_BOOK)
+            entries.add(NOTEBOOK)
         }
     }
 }

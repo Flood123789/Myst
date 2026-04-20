@@ -1,6 +1,7 @@
 package mystcraft.flood.gui
 
 import mystcraft.flood.item.ModItems
+import mystcraft.flood.item.NotebookItem
 import mystcraft.flood.item.SymbolPageItem
 import mystcraft.flood.mixin.SlotAccessor
 import net.minecraft.entity.player.PlayerEntity
@@ -99,7 +100,8 @@ class BookBinderScreenHandler(
         // === Slots 2-57: HIDDEN PAGES ===
         for (i in 1 until 57) {
             val slot = object : Slot(input, i, -2000, -2000) {
-                override fun canInsert(stack: ItemStack): Boolean = stack.item is SymbolPageItem || stack.isOf(ModItems.PAGE)
+                override fun canInsert(stack: ItemStack): Boolean =
+                    stack.item is SymbolPageItem || stack.isOf(ModItems.PAGE) || stack.isOf(ModItems.NOTEBOOK)
                 override fun getMaxItemCount(): Int = 1
                 // CRITICAL FIX: Trigger logic when any page changes!
                 override fun markDirty() {
@@ -147,34 +149,11 @@ class BookBinderScreenHandler(
                 BookMode.DESCRIPTIVE -> {
                     val bookStack = ItemStack(ModItems.DESCRIPTIVE_BOOK)
                     val bookNbt = bookStack.orCreateNbt
-                    val pageList = NbtList()
-                    var symbolCount = 0
+                    val draftSymbols = collectDraftSymbols()
 
-                    for (i in 1 until 57) {
-                        val pageStack = input.getStack(i)
-                        if (!pageStack.isEmpty && pageStack.item is SymbolPageItem) {
-                            var symbolId = "unknown"
-                            if (pageStack.hasNbt() && pageStack.nbt!!.contains("Symbol")) {
-                                symbolId = pageStack.nbt!!.getString("Symbol")
-                            } else {
-                                symbolId = Registries.ITEM.getId(pageStack.item).toString()
-                            }
-
-                            if (symbolId == "mystcraft-reforged:color_custom" || symbolId == "color_custom") {
-                                val customName = pageStack.name.string
-                                symbolId = if (customName.startsWith("#")) {
-                                    "color_custom:$customName"
-                                } else {
-                                    "color_custom"
-                                }
-                            }
-
-                            pageList.add(NbtString.of(symbolId))
-                            symbolCount++
-                        }
-                    }
-
-                    if (symbolCount > 0) {
+                    if (draftSymbols.isNotEmpty()) {
+                        val pageList = NbtList()
+                        draftSymbols.forEach { pageList.add(NbtString.of(it)) }
                         bookNbt.put("Pages", pageList)
                         applyDraftName(bookStack)
                         output.setStack(0, bookStack)
@@ -228,7 +207,7 @@ class BookBinderScreenHandler(
                 if (originalStack.isOf(Items.LEATHER)) {
                     if (!this.insertItem(originalStack, 0, 1, false)) return ItemStack.EMPTY
                 }
-                else if (originalStack.item is SymbolPageItem || originalStack.isOf(ModItems.PAGE)) {
+                else if (originalStack.item is SymbolPageItem || originalStack.isOf(ModItems.PAGE) || originalStack.isOf(ModItems.NOTEBOOK)) {
                     for (i in 2 until 58) {
                         val pageSlot = slots[i]
                         if (!pageSlot.hasStack()) {
@@ -269,12 +248,13 @@ class BookBinderScreenHandler(
             when {
                 pageStack.isOf(ModItems.PAGE) -> hasBlankPage = true
                 pageStack.item is SymbolPageItem -> hasSymbolPages = true
+                pageStack.isOf(ModItems.NOTEBOOK) && NotebookItem.getSymbols(pageStack).isNotEmpty() -> hasSymbolPages = true
             }
         }
 
         return when {
-            hasBlankPage -> BookMode.LINKING
             hasSymbolPages -> BookMode.DESCRIPTIVE
+            hasBlankPage -> BookMode.LINKING
             input.getStack(0).isOf(Items.LEATHER) -> BookMode.BLANK_DESCRIPTIVE
             else -> null
         }
@@ -304,5 +284,37 @@ class BookBinderScreenHandler(
         } else {
             nbt.remove("Age_Name")
         }
+    }
+
+    private fun collectDraftSymbols(): List<String> {
+        val symbols = mutableListOf<String>()
+        for (i in 1 until 57) {
+            val pageStack = input.getStack(i)
+            if (pageStack.isEmpty) continue
+
+            when {
+                pageStack.item is SymbolPageItem -> symbols += extractSymbol(pageStack)
+                pageStack.isOf(ModItems.NOTEBOOK) -> symbols += NotebookItem.getSymbols(pageStack)
+            }
+        }
+        return symbols
+    }
+
+    private fun extractSymbol(pageStack: ItemStack): String {
+        var symbolId = if (pageStack.hasNbt() && pageStack.nbt!!.contains("Symbol")) {
+            pageStack.nbt!!.getString("Symbol")
+        } else {
+            Registries.ITEM.getId(pageStack.item).toString()
+        }
+
+        if (symbolId == "mystcraft-reforged:color_custom" || symbolId == "color_custom") {
+            val customName = pageStack.name.string
+            symbolId = if (customName.startsWith("#")) {
+                "color_custom:$customName"
+            } else {
+                "color_custom"
+            }
+        }
+        return symbolId
     }
 }

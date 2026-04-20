@@ -18,6 +18,7 @@ import net.minecraft.util.Identifier
 
 object ModBlocks {
     val BOOK_BINDER = registerBlock("book_binder", BookBinderBlock(FabricBlockSettings.copyOf(Blocks.OAK_PLANKS)))
+    val BOOK_STAND = registerBlock("bookstand", BookStandBlock(FabricBlockSettings.copyOf(Blocks.OAK_PLANKS).nonOpaque()))
 
     val CRYSTAL_BLOCK = registerBlock("crystal_block", GlassBlock(
         AbstractBlock.Settings.create()
@@ -157,6 +158,7 @@ object ModBlocks {
 
         ItemGroupEvents.modifyEntriesEvent(ItemGroups.FUNCTIONAL).register { entries ->
             entries.add(BOOK_BINDER)
+            entries.add(BOOK_STAND)
             entries.add(CRYSTAL_BLOCK)
             entries.add(BOOK_RECEPTACLE)
         }

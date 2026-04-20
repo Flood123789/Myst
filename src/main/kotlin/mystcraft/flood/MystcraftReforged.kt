@@ -244,21 +244,43 @@ object MystcraftReforged : ModInitializer {
                 val targetWorld = newPlayer.server.getWorld(configuredSpawnDimension)
                 if (targetWorld != null && !AgeLifecycleManager.isDeadAge(newPlayer.server, configuredSpawnDimension.value)) {
                     val profile = AgeProfileManager.getOrGenerateProfile(newPlayer.server, configuredSpawnDimension.value)
-                    val preferredPos = oldPlayer.spawnPointPosition?.let { pos ->
-                        Vec3d(pos.x + 0.5, pos.y.toDouble(), pos.z + 0.5)
-                    } ?: oldPlayer.pos.add(0.0, 1.0, 0.0)
-                    val resolved = AgeTravelSafety.resolveAgeSpawn(targetWorld, profile, preferredPos)
-                    persistAgeSpawn(targetWorld, configuredSpawnDimension.value, profile, resolved.anchor)
+                    val configuredSpawnPos = oldPlayer.spawnPointPosition
+                    val resolvedPosition: Vec3d
+                    val overwriteSpawn: Boolean
+
+                    if (configuredSpawnPos != null) {
+                        val bedAnchor = AgeTravelSafety.resolveBoundRespawn(targetWorld, configuredSpawnPos)
+                        if (bedAnchor != null) {
+                            resolvedPosition = Vec3d(bedAnchor.x + 0.5, bedAnchor.y.toDouble(), bedAnchor.z + 0.5)
+                            overwriteSpawn = false
+                        } else {
+                            val resolved = AgeTravelSafety.resolveAgeSpawn(
+                                targetWorld,
+                                profile,
+                                Vec3d(configuredSpawnPos.x + 0.5, configuredSpawnPos.y.toDouble(), configuredSpawnPos.z + 0.5)
+                            )
+                            persistAgeSpawn(targetWorld, configuredSpawnDimension.value, profile, resolved.anchor)
+                            resolvedPosition = resolved.position
+                            overwriteSpawn = true
+                        }
+                    } else {
+                        val resolved = AgeTravelSafety.resolveAgeSpawn(targetWorld, profile, oldPlayer.pos.add(0.0, 1.0, 0.0))
+                        persistAgeSpawn(targetWorld, configuredSpawnDimension.value, profile, resolved.anchor)
+                        resolvedPosition = resolved.position
+                        overwriteSpawn = true
+                    }
 
                     val teleportTarget = net.minecraft.world.TeleportTarget(
-                        resolved.position,
+                        resolvedPosition,
                         net.minecraft.util.math.Vec3d.ZERO,
                         oldPlayer.yaw,
                         oldPlayer.pitch
                     )
 
                     net.fabricmc.fabric.api.dimension.v1.FabricDimensions.teleport(newPlayer, targetWorld, teleportTarget)
-                    newPlayer.setSpawnPoint(targetWorld.registryKey, resolved.anchor, newPlayer.yaw, true, true)
+                    if (overwriteSpawn) {
+                        newPlayer.setSpawnPoint(targetWorld.registryKey, BlockPos.ofFloored(resolvedPosition), newPlayer.yaw, true, true)
+                    }
                     return@AfterRespawn
                 }
             }
