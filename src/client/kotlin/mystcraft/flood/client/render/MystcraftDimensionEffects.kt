@@ -14,7 +14,9 @@ class MystcraftDimensionEffects : DimensionEffects(
 ) {
     /**
      * Required implementation for 1.20.1. 
-     * Simply returns the input color without modification.
+     * Keep this neutral. Driving ambient tint through DimensionEffects can make
+     * distant renderers and vanilla chunk-edge fog disagree, which shows up as a
+     * dark wall at the edge of the render distance in some Age palettes.
      */
     override fun adjustFogColor(color: Vec3d, sunHeight: Float): Vec3d {
         return color
@@ -33,6 +35,8 @@ class MystcraftDimensionEffects : DimensionEffects(
     }
 
     override fun getCloudsHeight(): Float {
+        if (!ClientRenderCompatibility.canUseCustomCloudHeight()) return super.getCloudsHeight()
+
         val world = MinecraftClient.getInstance().world ?: return super.getCloudsHeight()
         if (world.registryKey.value.namespace != "mystcraft-reforged") return super.getCloudsHeight()
         return ClientAgeCache.getProperties(world.registryKey.value)?.cloudHeight ?: super.getCloudsHeight()

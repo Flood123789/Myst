@@ -2,6 +2,7 @@ package mystcraft.flood.mixin.client;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import mystcraft.flood.client.cache.ClientAgeCache;
+import mystcraft.flood.client.render.ClientRenderCompatibility;
 import mystcraft.flood.client.render.CustomSkyPainter;
 import mystcraft.flood.generation.profile.AgeProfile;
 import net.minecraft.client.MinecraftClient;
@@ -19,6 +20,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class WorldRendererMixin {
     @Inject(method = "renderWeather", at = @At("HEAD"))
     private void mystcraft$tintAgeRain(LightmapTextureManager manager, float tickDelta, double x, double y, double z, CallbackInfo ci) {
+        if (!ClientRenderCompatibility.canUseRenderSystemWeatherTint()) return;
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.world == null) return;
         if (!client.world.getRegistryKey().getValue().getNamespace().equals("mystcraft-reforged")) return;
@@ -40,6 +42,7 @@ public class WorldRendererMixin {
 
     @Inject(method = "renderClouds", at = @At("HEAD"))
     private void mystcraft$tintAgeClouds(MatrixStack matrices, Matrix4f projectionMatrix, float tickDelta, double x, double y, double z, CallbackInfo ci) {
+        if (!ClientRenderCompatibility.canUseRenderSystemWeatherTint()) return;
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.world == null) return;
         if (!client.world.getRegistryKey().getValue().getNamespace().equals("mystcraft-reforged")) return;
@@ -62,8 +65,9 @@ public class WorldRendererMixin {
     @Inject(method = "renderSky(Lnet/minecraft/client/util/math/MatrixStack;Lorg/joml/Matrix4f;FLnet/minecraft/client/render/Camera;ZLjava/lang/Runnable;)V", 
             at = @At("TAIL"))
     private void mystcraft$renderExtraCelestialBodies(MatrixStack matrices, Matrix4f projectionMatrix, float tickDelta, Camera camera, boolean thickFog, Runnable fogCallback, CallbackInfo ci) {
-        
-        // We still receive 'camera' from Minecraft, but we no longer need to pass it to our Painter
+        if (!ClientRenderCompatibility.canUseCustomSkyOverlay()) return;
+
+        CustomSkyPainter.INSTANCE.paintSkyTint(matrices, projectionMatrix);
         CustomSkyPainter.INSTANCE.paintExtraSky(matrices, projectionMatrix, tickDelta);
         
     }

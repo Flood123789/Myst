@@ -61,6 +61,49 @@ object CustomSkyPainter {
         VertexBuffer.unbind()
     }
 
+    fun paintSkyTint(matrices: MatrixStack, projectionMatrix: Matrix4f) {
+        val client = MinecraftClient.getInstance()
+        val world = client.world ?: return
+        val ageId = world.registryKey.value
+        if (ageId.namespace != "mystcraft-reforged") return
+
+        val profile = ClientAgeCache.getProperties(ageId) ?: return
+        val sky = profile.colors.sky
+        val red = ((sky shr 16) and 0xFF) / 255.0f
+        val green = ((sky shr 8) and 0xFF) / 255.0f
+        val blue = (sky and 0xFF) / 255.0f
+        val alpha = 0.72f
+
+        RenderSystem.enableBlend()
+        RenderSystem.defaultBlendFunc()
+        RenderSystem.disableCull()
+        RenderSystem.disableDepthTest()
+        RenderSystem.depthMask(false)
+        RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f)
+        RenderSystem.setShader(GameRenderer::getPositionColorProgram)
+
+        val tessellator = Tessellator.getInstance()
+        val buffer = tessellator.buffer
+        val matrix = matrices.peek().positionMatrix
+        val size = 100.0f
+        val bottom = -100.0f
+        val top = 100.0f
+
+        buffer.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR)
+        tintQuad(buffer, matrix, -size, top, -size, size, top, -size, size, top, size, -size, top, size, red, green, blue, alpha)
+        tintQuad(buffer, matrix, -size, bottom, -size, -size, top, -size, -size, top, size, -size, bottom, size, red, green, blue, alpha)
+        tintQuad(buffer, matrix, size, bottom, size, size, top, size, size, top, -size, size, bottom, -size, red, green, blue, alpha)
+        tintQuad(buffer, matrix, -size, bottom, size, -size, top, size, size, top, size, size, bottom, size, red, green, blue, alpha)
+        tintQuad(buffer, matrix, size, bottom, -size, size, top, -size, -size, top, -size, -size, bottom, -size, red, green, blue, alpha)
+        tessellator.draw()
+
+        RenderSystem.depthMask(true)
+        RenderSystem.enableDepthTest()
+        RenderSystem.enableCull()
+        RenderSystem.disableBlend()
+        RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f)
+    }
+
     fun paintExtraSky(matrices: MatrixStack, projectionMatrix: Matrix4f, tickDelta: Float) {
         val client = MinecraftClient.getInstance()
         val world = client.world ?: return
@@ -135,6 +178,32 @@ object CustomSkyPainter {
         RenderSystem.depthMask(true)
         RenderSystem.defaultBlendFunc()
         RenderSystem.disableBlend()
+    }
+
+    private fun tintQuad(
+        buffer: BufferBuilder,
+        matrix: Matrix4f,
+        x1: Float,
+        y1: Float,
+        z1: Float,
+        x2: Float,
+        y2: Float,
+        z2: Float,
+        x3: Float,
+        y3: Float,
+        z3: Float,
+        x4: Float,
+        y4: Float,
+        z4: Float,
+        red: Float,
+        green: Float,
+        blue: Float,
+        alpha: Float
+    ) {
+        buffer.vertex(matrix, x1, y1, z1).color(red, green, blue, alpha).next()
+        buffer.vertex(matrix, x2, y2, z2).color(red, green, blue, alpha).next()
+        buffer.vertex(matrix, x3, y3, z3).color(red, green, blue, alpha).next()
+        buffer.vertex(matrix, x4, y4, z4).color(red, green, blue, alpha).next()
     }
 
     private fun drawCelestialBody(

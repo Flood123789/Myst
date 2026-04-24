@@ -6,15 +6,15 @@
   "pages": [
     {
       "type": "text",
-      "text": "Random and unstable Ages have a high chance to pick up exotic surface themes: hex plates, wire cells, separators, cables, fractal cubes, light fissures, and virus growths. These are not just decoration. They reshape the silhouette and mood of the world."
+      "text": "Random and unstable Ages often grow skins no sane world should wear: hex plates, wire cells, separators, cables, fractal cubes, light fissures, and creeping virus growths. These are not ornaments. They are the Age showing its bones."
     },
     {
       "type": "text",
-      "text": "Explicit feature pages make a world more deliberate. Random Ages can still generate exotic landmarks on their own, but the more authored feature pages an Age carries, the rarer the extra random landmark rolls become. Dense ores are the main exception."
+      "text": "A landmark written by name feels less like an intrusion and more like a promise. Chance may still add wonders of its own, but an Age already rich with chosen features is less eager to improvise further. Dense ores, greedy things, follow their own habit."
     },
     {
       "type": "text",
-      "text": "$(item)Lost Pages$() identify into weighted random symbols. Standard utility pages are common, while extreme pages like cities, biospheres, dense ores, and $(thing)Age Effect$() are intentionally rare."
+      "text": "$(item)Lost Pages$() reveal symbols by old fortune. Humble tools appear often. Fiercer signs, such as cities, biospheres, dense ores, and $(thing)Age Effect$(), hide like gemstones in river silt."
     }
   ]
 }

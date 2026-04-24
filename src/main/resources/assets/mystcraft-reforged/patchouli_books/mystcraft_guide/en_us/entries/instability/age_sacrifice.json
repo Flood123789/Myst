@@ -7,19 +7,19 @@
     {
       "type": "text",
       "title": "Burning Worlds",
-      "text": "It is possible to stabilize a dangerous Age, but the price is total erasure. You must feed the unstable world the life of another, calmer one. Only $(item)Descriptive Books$() can be sacrificed. Linking books are not enough."
+      "text": "There is a rite I record with shame. A dangerous Age may be quieted by feeding it the life of a calmer one. Only $(item)Descriptive Books$() hold enough of a world's soul for this. A linking book is only a road, and roads do not bleed enough."
     },
     {
       "type": "text",
-      "text": "Hold the $(c)Target Book$() in your main hand and the $(c)Sacrificial Book$() in your offhand. While sneaking, use the target book. The sacrifice only works if the offhand Age is more stable than the target."
+      "text": "Hold the $(c)Target Book$() in your main hand and the $(c)Sacrificial Book$() in your offhand. Crouch, then use the target. The rite answers only if the offered Age is steadier than the one you mean to save."
     },
     {
       "type": "text",
-      "text": "The target does not inherit the raw score difference directly. Mystcraft converts the stability gap into a percentage reduction, then removes that percentage from the target Age's current instability. Bigger stability gaps produce stronger purification."
+      "text": "The steadier the offering, the deeper the cleansing. Do not expect tidy arithmetic from hungry ink; it takes a measure of the gap between the worlds and shaves the target's fever by that proportion."
     },
     {
       "type": "text",
-      "text": "A sacrificed Age becomes a dead world: void terrain, no sky bodies, no weather, no ordinary travel, no meaningful generation, and unreadable links. Players found there are expelled unless they are in creative or spectator."
+      "text": "The offered Age becomes a corpse: void land, empty heavens, no weather, no common road, no living generation, and books whose words run like tears. Ordinary travelers are expelled from such remains."
     }
   ]
 }

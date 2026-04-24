@@ -6,19 +6,19 @@
   "pages": [
     {
       "type": "text",
-      "text": "A $(item)Descriptive Book$() creates and links to an Age the first time you use it. A $(item)Linking Book$() records the exact place where it was written. Descriptive books define worlds. Linking books define destinations."
+      "text": "A $(item)Descriptive Book$() is a door that dreams of a world. The first time it opens, the Age answers. A $(item)Linking Book$() is humbler and wiser: it remembers one exact place and begs the path to return there."
     },
     {
       "type": "text",
-      "text": "On first use, a descriptive book reads its pages, claims its chosen name, creates the dimension, and places you at a sanitized arrival point. Mystcraft now checks that arrival so you are far less likely to appear inside solid terrain."
+      "text": "When first awakened, a descriptive book reads its pages, takes its chosen name, and sets you at an arrival ground it believes survivable. Still, trust boots before faith. Stone has swallowed better travelers than I."
     },
     {
       "type": "text",
-      "text": "If you die in an Age without a personal spawn set, you respawn back into that Age. Unsafe Ages can still strand you, so a prepared explorer keeps a spare linking book or a crystal portal route home."
+      "text": "Should you die in an Age with no safer bed sworn to you, the Age may call you back to itself. Therefore the wise carry a spare linking book, or build a crystal road home before pride begins making decisions."
     },
     {
       "type": "text",
-      "text": "Sacrificed Ages are different. Survival and adventure players are expelled from them. Linking books fail with unreadable, running ink. Creative and spectator players can still inspect the hollow remains, but for ordinary travel that world is dead."
+      "text": "A sacrificed Age is not merely distant. It is dead. Ordinary travelers are cast out, and its links weep unreadable ink. Only those who walk as ghosts or makers may inspect the hollow that remains."
     }
   ]
 }

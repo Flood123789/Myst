@@ -7,22 +7,22 @@
     {
       "type": "text",
       "title": "What Raises It",
-      "text": "Instability comes from omission, contradiction, and ambition. Sparse books, random pages, conflicting pages, strange terrain, harsh weather, too many biomes, and powerful feature pages all push the score upward."
+      "text": "Instability is born of three old sins: silence, contradiction, and greed. Sparse books, random vows, clashing commands, strange terrain, cruel weather, crowded biomes, and mighty landmarks all make an Age restless."
     },
     {
       "type": "text",
       "title": "What Lowers It",
-      "text": "Defined Ages are calmer. Explicit terrain, biomes, time, sun, moon, stars, and weather all help. Single-biome Ages are safer. Overworld-like Ages are safer. Even explicit instability-feature pages can reduce the final score compared to letting the same chaos appear randomly."
+      "text": "A named thing is calmer than an unnamed one. Give the Age land, biomes, time, sun, moon, stars, and weather. A single biome is a lullaby. A familiar world-shape is another. Even danger behaves better when invited by name instead of arriving through accident."
     },
     {
       "type": "text",
       "title": "Effects",
-      "text": "Every Mystcraft Age stores an instability score, even if effects are disabled. Higher scores escalate from debuffs into lightning, explosions, and spreading decay. Natural decay color is chosen by the Age itself and may emerge as black or white."
+      "text": "Every Age keeps a hidden fever. When it rises, the first signs are weakness and ill luck. Then come lightning, blasts, and decay creeping like mold through reality. The rot may bloom black or white, for each Age chooses its own pallor."
     },
     {
       "type": "text",
       "title": "Control",
-      "text": "Use $(thing)/mystcraft instability toggle$() while standing inside an Age to pause or resume instability effects for that one Age. The stored score remains in the profile, so you are muting the symptoms rather than rewriting the world."
+      "text": "Those with steward's authority may speak $(thing)/mystcraft instability toggle$() while standing in an Age. This stills or wakes the symptoms, not the sickness. The fever remains beneath the skin."
     }
   ]
 }

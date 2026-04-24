@@ -6,15 +6,15 @@
   "pages": [
     {
       "type": "text",
-      "text": "$(thing)City Ages$() generate roads, towers, apartment blocks, transit structures, bridges, and dense built space. They are among the heaviest terrain definitions in the system and naturally carry a higher instability burden than a standard world."
+      "text": "$(thing)City Ages$() rise as if a civilization dreamed itself complete: roads, towers, stacked homes, bridges, and strange transit bones. They are magnificent, heavy things, and the ink groans under their weight."
     },
     {
       "type": "text",
-      "text": "$(thing)Biosphere Ages$() are void worlds filled with linked domes. Each sphere can carry a real biome, including modded biomes, so native mobs and atmosphere can appear inside a dome if that biome supports them."
+      "text": "$(thing)Biosphere Ages$() are black emptiness strung with glassy gardens. Each sphere may hold a true biome, even one born from distant mods, and with it may come the creatures, air, and habits of that place."
     },
     {
       "type": "text",
-      "text": "Both terrain types are intentionally rare in random Ages. If they appear without being authored, expect the Age to be stranger, riskier, and harder to classify at a glance."
+      "text": "Neither city nor biosphere appears by accident very often. If one blooms from an unwritten chance, assume the Age is proud, strange, and not especially interested in your continued health."
     }
   ]
 }

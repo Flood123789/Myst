@@ -86,6 +86,15 @@ jar {
 	}
 }
 
+tasks.named("sourcesJar", Jar).configure {
+	// Source jars are useful for devs, but Fabric will try to load them as mods if
+	// they contain mod metadata. That creates "mixin class not found" crashes
+	// because sources jars contain .java/.kt files instead of compiled classes.
+	exclude("fabric.mod.json")
+	exclude("*.mixins.json")
+	exclude("*.accesswidener")
+}
+
 // configure the maven publication
 publishing {
 	publications {

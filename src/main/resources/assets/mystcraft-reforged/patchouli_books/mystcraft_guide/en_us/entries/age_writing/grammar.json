@@ -6,27 +6,27 @@
     {
       "type": "text",
       "title": "The Art of Writing",
-      "text": "Writing a stable Age requires strict grammar. The golden rule is simple: $(c)modifiers must precede the thing they modify.$() $(br)$(br)Examples: color pages go before the color target, and a rare $(thing)Age Effect$() page goes before the chosen potion effect page."
+      "text": "An Age is not a chest to be filled, but a sentence to be spoken. Remember this law above all: $(c)the omen must come before the thing it changes.$() $(br)$(br)Place a color before the thing to be colored. Place the rare $(thing)Age Effect$() sign before the affliction it names."
     },
     {
       "type": "text",
       "title": "Grammar Leaks",
-      "text": "A grammar leak happens when a modifier is written without a destination. A custom color with no color target, or an Age Effect page with no effect page after it, leaves the compiler guessing. That guess is never good for stability."
+      "text": "A loose omen is a leak in the binding. A color with nothing to stain, or an Age Effect with no malady following it, leaves the ink searching for meaning. Ink that must guess is ink that bites."
     },
     {
       "type": "text",
       "title": "Contradictions",
-      "text": "Conflicting absolutes tear the fabric of an Age apart. Writing $(c)Fast Time$() and $(c)Slow Time$() together, or multiple terrain identities that fight each other, stacks heavy instability even if the book still compiles."
+      "text": "Do not command the same river to run both east and west. $(c)Fast Time$() beside $(c)Slow Time$(), or rival shapes of land in one breath, will not always stop the Age from forming. It will merely teach the Age to suffer."
     },
     {
       "type": "text",
       "title": "Stable Basics",
-      "text": "If you want a calmer Age, define the basics: $(li)terrain$(li)biomes$(li)time$(li)sun$(li)moon$(li)stars$(li)weather$() $(br)Simple, explicit Ages are safer than sparse ones, and a clearly authored single-biome Age is especially stable."
+      "text": "For a gentle road, name the common pillars: $(li)land$(li)biomes$(li)time$(li)sun$(li)moon$(li)stars$(li)weather$() $(br)A plain truth is safer than a grand silence. A single well-named biome is often kinder than a dozen half-remembered wishes."
     },
     {
       "type": "text",
       "title": "The Wildcard",
-      "text": "Including a $(c)Random$() page forces the universe to fill in blanks with chaos. Random Ages are far more likely to roll exotic landmarks, historic remains, rare oddities, and higher instability."
+      "text": "The $(c)Random$() page is a dare written in ink. It invites the void to complete your thought. Sometimes it grants marvels: strange monuments, old bones, impossible surfaces. Sometimes it grants the sort of marvel that follows you home."
     }
   ]
 }

@@ -5,6 +5,7 @@ import mystcraft.flood.access.DimensionInjector;
 import mystcraft.flood.generation.AgeBuilder;
 import mystcraft.flood.generation.profile.AgeProfile;
 import mystcraft.flood.network.ModMessages;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents;
 import net.minecraft.registry.DynamicRegistryManager;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKey;
@@ -87,6 +88,7 @@ public abstract class MinecraftServerMixin implements DimensionInjector {
                 ServerWorld oldWorld = this.worlds.remove(worldKey);
                 if (oldWorld != null) {
                     try {
+                        ServerWorldEvents.UNLOAD.invoker().onWorldUnload(server, oldWorld);
                         oldWorld.close();
                     } catch (Throwable ignored) {
                     }
@@ -127,6 +129,7 @@ public abstract class MinecraftServerMixin implements DimensionInjector {
 
             server.getOverworld().getWorldBorder().addListener(new WorldBorderListener.WorldBorderSyncer(newWorld.getWorldBorder()));
             this.worlds.put(worldKey, newWorld);
+            ServerWorldEvents.LOAD.invoker().onWorldLoad(server, newWorld);
 
             if (server.getPlayerManager() != null) {
                 for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {

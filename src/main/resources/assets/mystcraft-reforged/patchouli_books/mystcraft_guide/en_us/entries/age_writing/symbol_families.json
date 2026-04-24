@@ -6,19 +6,19 @@
   "pages": [
     {
       "type": "text",
-      "text": "Mystcraft pages fall into a few broad families: $(li)terrain$(li)biomes and biome controllers$(li)time and weather$(li)celestial pages$(li)spawn rules$(li)feature pages$(li)color modifiers and color targets$(li)special pages like $(thing)Random$(), $(thing)Age Effect$(), and $(thing)Low Gravity$()."
+      "text": "The pages keep to old houses: $(li)land-shaping$(li)biomes and their rulers$(li)time and weather$(li)suns, moons, and stars$(li)creature laws$(li)landmarks$(li)colors and the things they stain$(li)stranger marks such as $(thing)Random$(), $(thing)Age Effect$(), and $(thing)Low Gravity$()."
     },
     {
       "type": "text",
-      "text": "$(thing)Color pages$() are a two-part sentence. Write a color first, then write the target it should tint. Example: $(c)Blue$() followed by $(c)Water$() makes blue water. The same pattern applies to sky, fog, grass, and foliage."
+      "text": "$(thing)Color pages$() speak in pairs. First the hue, then the vessel. $(c)Blue$() before $(c)Water$() stains the waters blue. The same order binds sky, fog, grass, foliage, clouds, and other willing things."
     },
     {
       "type": "text",
-      "text": "$(thing)Biome pages$() can define a single-biome Age, a weighted list, or work beside a controller page like checkerboard or vanilla-style distribution. A clearly authored single-biome Age is one of the easiest ways to keep instability low."
+      "text": "$(thing)Biome pages$() may name one country, a favored list, or a pattern by which many countries take turns. The calmest Ages I have walked were often the plainest: one biome, clearly chosen, with no argument left for the ink."
     },
     {
       "type": "text",
-      "text": "$(thing)Low Gravity$() is a direct page, not a modifier pair. It softens falls and changes how players move through the Age. It is unusual enough to raise instability, but it is still much lighter than writing a full Age Effect."
+      "text": "$(thing)Low Gravity$() stands alone. It loosens the world's grip on your bones, softening falls and making every leap suspiciously heroic. The Age notices such tampering, though it complains less than it does for a true Age Effect."
     }
   ]
 }

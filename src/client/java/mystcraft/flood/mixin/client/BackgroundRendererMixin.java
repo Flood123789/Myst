@@ -1,6 +1,7 @@
 package mystcraft.flood.mixin.client;
 
 import mystcraft.flood.client.cache.ClientAgeCache;
+import mystcraft.flood.client.render.ClientRenderCompatibility;
 import mystcraft.flood.generation.profile.AgeProfile;
 import net.minecraft.client.render.BackgroundRenderer;
 import net.minecraft.client.render.Camera;
@@ -52,11 +53,15 @@ public class BackgroundRendererMixin {
             return;
         }
 
+        if (!ClientRenderCompatibility.canUseLateAmbientFogTint()) {
+            return;
+        }
+
         int ambient = profile.getColors().getAmbient();
         float targetRed = ((ambient >> 16) & 0xFF) / 255.0f;
         float targetGreen = ((ambient >> 8) & 0xFF) / 255.0f;
         float targetBlue = (ambient & 0xFF) / 255.0f;
-        float blend = 0.28f;
+        float blend = 0.18f;
         red = red * (1.0f - blend) + targetRed * blend;
         green = green * (1.0f - blend) + targetGreen * blend;
         blue = blue * (1.0f - blend) + targetBlue * blend;

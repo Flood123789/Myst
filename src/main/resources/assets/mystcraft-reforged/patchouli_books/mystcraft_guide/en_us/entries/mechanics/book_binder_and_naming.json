@@ -6,15 +6,15 @@
   "pages": [
     {
       "type": "text",
-      "text": "The $(thing)Book Binder$() is both a crafting station and a drafting interface. It creates guide books, descriptive books, and linking books, and it gives you a place to stage symbol pages before first use."
+      "text": "The $(thing)Book Binder$() is altar, desk, and patient accomplice. In it are made guide books, descriptive books, and linking books. In it, too, you may lay symbols in order before the first dangerous reading."
     },
     {
       "type": "text",
-      "text": "The black panels in the binder are presentation, but the blue field matters. Typing there sets the draft name of the Age. That text becomes the registered dimension path when the descriptive book is first used."
+      "text": "Do not be distracted by the dark panels. The blue field is the name-place. Whatever you write there becomes the Age's first true name when the descriptive book is opened."
     },
     {
       "type": "text",
-      "text": "Mystcraft sanitizes the name into a valid identifier. Spaces become underscores, invalid characters are replaced, and duplicate names gain a numeric suffix. This keeps Ages readable without risking collisions or broken dimension ids."
+      "text": "The binder is fussy in the way old magic is fussy. Spaces are bound into underscores, unclean marks are replaced, and a repeated name gains a number. Thus one door does not steal the threshold of another."
     }
   ]
 }

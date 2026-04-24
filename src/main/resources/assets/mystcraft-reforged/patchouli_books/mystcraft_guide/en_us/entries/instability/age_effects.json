@@ -6,15 +6,15 @@
   "pages": [
     {
       "type": "text",
-      "text": "$(thing)Effect Pages$() live in their own creative tab. To bind one to an Age, write the rare $(thing)Age Effect$() page before the chosen potion effect page. The selected effect is then applied randomly, without potion particles, to survival players in that Age."
+      "text": "$(thing)Effect Pages$() are curses and blessings kept apart from ordinary symbols. To bind one, place the rare $(thing)Age Effect$() sign before the chosen potion effect. Thereafter the Age may touch living travelers with that power, unseen and without the usual shimmer."
     },
     {
       "type": "text",
-      "text": "Age effects are separate from instability. Even a stable Age can keep its age effect. They are expensive to write on purpose, and random Ages can only roll them very rarely."
+      "text": "An Age Effect is not the same as instability. A calm Age may still carry one deliberate enchantment, just as a peaceful lake may hide a deep current. Such pages are costly to seek, and chance uncovers them only rarely."
     },
     {
       "type": "text",
-      "text": "Use $(thing)/mystcraft age_effect toggle$() in the current Age to pause or resume the effect. If the Age has no bound effect, the command reports that and does nothing."
+      "text": "A steward may speak $(thing)/mystcraft age_effect toggle$() within the Age to silence or restore the bound effect. If no such mark was written, the Age has nothing to answer."
     }
   ]
 }

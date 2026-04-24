@@ -6,19 +6,19 @@
   "pages": [
     {
       "type": "text",
-      "text": "$(item)Empty Pages$() are blank stock. $(item)Symbol Pages$() are the actual words of an Age. $(item)Lost Pages$() identify into weighted random symbols, with practical pages appearing often and dangerous or valuable pages appearing rarely."
+      "text": "$(item)Empty Pages$() are clean vellum awaiting a command. $(item)Symbol Pages$() are words with teeth: terrain, weather, color, sun, hunger, mercy. $(item)Lost Pages$() are sealed scraps from older hands, and they reveal themselves only when studied."
     },
     {
       "type": "text",
-      "text": "$(item)Leather$() by itself in the $(thing)Book Binder$() creates a blank $(item)Descriptive Book$(). This is your drafting vessel. Add symbol pages to it over time until the grammar says what you want."
+      "text": "$(item)Leather$() alone in the $(thing)Book Binder$() yields a blank $(item)Descriptive Book$(). Treat it as an unwoken door. Feed it symbols one by one until its sentence resembles the world you dare to visit."
     },
     {
       "type": "text",
-      "text": "$(item)Leather$() plus an $(item)Empty Page$() in the binder creates a $(item)Linking Book$(). If symbol pages are in the binder too, they are left behind instead of being consumed, so you can write a link without destroying your grammar pages."
+      "text": "$(item)Leather$() with an $(item)Empty Page$() makes a $(item)Linking Book$(). It remembers the place where it was written. Loose symbols nearby are spared, for a return path should not devour the map that made the journey."
     },
     {
       "type": "text",
-      "text": "The blue field in the binder names the Age before first use. That draft name becomes the dimension id, cleaned into a valid path. If the name already exists, Mystcraft keeps it readable and adds a suffix instead of overwriting another world."
+      "text": "The blue field in the binder is no ornament. There you name the sleeping Age. The craft trims ugly marks and repeated names, not from vanity, but to keep one world's door from opening into another's bones."
     }
   ]
 }

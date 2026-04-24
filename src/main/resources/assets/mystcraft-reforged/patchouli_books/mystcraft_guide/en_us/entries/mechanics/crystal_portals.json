@@ -7,16 +7,16 @@
     {
       "type": "text",
       "title": "Permanent Links",
-      "text": "While books can be used from the hand, establishing a permanent gateway requires a Crystal Portal. $(br)$(br)Build an enclosed frame out of $(c)Crystal Blocks$(). The frame can be vertical or horizontal and can use a range of shapes as long as the structure closes properly."
+      "text": "A book is a door you carry. A $(thing)Crystal Portal$() is a door that agrees to stay put. $(br)$(br)Build a closed frame of $(c)Crystal Blocks$(). It may stand upright or lie flat, and it need not be a perfect rectangle, but the crystal must complete its ring."
     },
     {
       "type": "text",
       "title": "Ignition",
-      "text": "One block of the frame must be a $(c)Book Receptacle$(). Once the frame is sealed, place a valid Linking Book or Descriptive Book into the receptacle. If the frame is valid, the portal ignites instantly and inherits the linked Age's visual identity."
+      "text": "One stone of the frame must be a $(c)Book Receptacle$(). When the frame is sealed, place a proper Linking Book or Descriptive Book within it. If the frame approves, the passage wakes at once and takes on the hue of its destination."
     },
     {
       "type": "text",
-      "text": "Removing the book from the receptacle, or breaking any crystal block in the frame, severs the connection immediately."
+      "text": "Take away the book, or break the crystal ring, and the road collapses without ceremony. I have seen pursuers vanish mid-step this way. I have also seen friends do the same, so be certain before meddling."
     }
   ]
 }

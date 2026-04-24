@@ -12,6 +12,7 @@ import mystcraft.flood.client.network.ClientMessages
 import mystcraft.flood.client.render.AgePlantTintHelper
 import mystcraft.flood.client.render.BookStandBlockEntityRenderer
 import mystcraft.flood.client.render.BookReceptacleBlockEntityRenderer
+import mystcraft.flood.client.render.ClientRenderCompatibility
 import mystcraft.flood.client.render.MystcraftDimensionEffects
 import mystcraft.flood.client.render.PageIconItemRenderer
 import mystcraft.flood.gui.ModScreens
@@ -118,6 +119,6 @@ class MystcraftReforgedClient : ClientModInitializer {
             Blocks.PINK_PETALS
         )
         
-        MystcraftReforged.LOGGER.info("Client initialized cleanly.")
+        MystcraftReforged.LOGGER.info("Client initialized cleanly. Render compatibility mode: ${ClientRenderCompatibility.describe()}")
     }
 }

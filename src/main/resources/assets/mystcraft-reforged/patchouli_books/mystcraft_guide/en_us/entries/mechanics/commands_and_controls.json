@@ -6,11 +6,11 @@
   "pages": [
     {
       "type": "text",
-      "text": "Mystcraft includes several admin-facing commands under $(thing)/mystcraft$(). The most important are $(li)/mystcraft time set ...$(li)/mystcraft weather ...$(li)/mystcraft instability toggle$(li)/mystcraft age_effect toggle$(li)/mystcraft sacrifice <age>$()."
+      "text": "Realm stewards possess sterner words under $(thing)/mystcraft$(). The chief ones are $(li)/mystcraft time set ...$(li)/mystcraft weather ...$(li)/mystcraft instability toggle$(li)/mystcraft age_effect toggle$(li)/mystcraft sacrifice <age>$()."
     },
     {
       "type": "text",
-      "text": "These commands act on the current Age unless a specific age argument is provided. They are meant for debugging, curation, server management, and recovering or testing a written Age without hand-editing profile files."
+      "text": "Most such words act upon the Age beneath your boots, unless another Age is named outright. Use them for stewardship, rescue, testing, or careful curation. Do not mistake them for ordinary traveler's tools."
     }
   ]
 }
