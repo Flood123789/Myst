@@ -12,6 +12,8 @@ import mystcraft.flood.generation.profile.AgeProfile
 import mystcraft.flood.generation.profile.TerrainType
 
 object AgeTravelSafety {
+    private const val INTERIOR_CEILING_LIMIT = 40
+
     data class AgeSpawnResult(val position: Vec3d, val anchor: BlockPos, val movedAnchor: Boolean)
 
     fun sanitizeArrival(world: ServerWorld, requestedPos: Vec3d): Vec3d {
@@ -36,10 +38,15 @@ object AgeTravelSafety {
 
         val preferred = currentAnchor ?: BlockPos.ofFloored(preferredPos)
         val resolved = when (profile.terrainType) {
-            TerrainType.CAVES -> findNearbySafeStand(world, preferred, maxRadius = 24, preferSurface = false)
+            TerrainType.CAVES -> findNearbyInteriorStand(world, preferred, maxRadius = 48)
+                ?: findNearbySafeStand(world, preferred, maxRadius = 24, preferSurface = false)
                 ?: findNearbySurfaceStand(world, preferred, maxRadius = 48)
             else -> findNearbySurfaceStand(world, preferred, maxRadius = 48)
                 ?: findNearbySafeStand(world, preferred, maxRadius = 24, preferSurface = false)
+        } ?: if (profile.terrainType == TerrainType.CAVES) {
+            findNearbyInteriorStand(world, BlockPos(0, preferred.y, 0), maxRadius = 160)
+        } else {
+            null
         } ?: findNearbySurfaceStand(world, BlockPos(0, preferred.y, 0), maxRadius = 160)
             ?: findNearbySafeStand(world, BlockPos(0, preferred.y, 0), maxRadius = 96, preferSurface = false)
 
@@ -58,6 +65,35 @@ object AgeTravelSafety {
             .map { BlockPos.ofFloored(it) }
             .filter { !isDecayState(world.getBlockState(it.down())) && !isDecayState(world.getBlockState(it)) }
             .orElse(null)
+    }
+
+    fun resolveCustomBoundRespawn(world: ServerWorld, requestedAnchor: BlockPos, angle: Float): BlockPos {
+        val vanillaResolved = PlayerEntity.findRespawnPosition(world, requestedAnchor, angle, true, false)
+            .map { BlockPos.ofFloored(it) }
+            .filter { !isDecayState(world.getBlockState(it.down())) && !isDecayState(world.getBlockState(it)) }
+            .orElse(null)
+        if (vanillaResolved != null) {
+            return vanillaResolved
+        }
+
+        val requestedStand = requestedAnchor.up()
+        if (isSafeStand(world, requestedStand)) {
+            return requestedStand
+        }
+
+        return findNearbySafeStand(world, requestedStand, maxRadius = 4, preferSurface = false)
+            ?: findNearbySurfaceStand(world, requestedStand, maxRadius = 8)
+            ?: BlockPos.ofFloored(buildEmergencyStand(world, requestedStand))
+    }
+
+    fun resolveForcedStandRespawn(world: ServerWorld, feetPos: BlockPos): BlockPos {
+        if (isSafeStand(world, feetPos)) {
+            return feetPos
+        }
+
+        return findNearbySafeStand(world, feetPos, maxRadius = 4, preferSurface = false)
+            ?: findNearbySurfaceStand(world, feetPos, maxRadius = 8)
+            ?: BlockPos.ofFloored(buildEmergencyStand(world, feetPos))
     }
 
     private fun findNearbySafeStand(world: ServerWorld, origin: BlockPos, maxRadius: Int, preferSurface: Boolean): BlockPos? {
@@ -88,6 +124,21 @@ object AgeTravelSafety {
         return null
     }
 
+    private fun findNearbyInteriorStand(world: ServerWorld, origin: BlockPos, maxRadius: Int): BlockPos? {
+        for (radius in 0..maxRadius) {
+            for (dx in -radius..radius) {
+                for (dz in -radius..radius) {
+                    if (radius > 0 && kotlin.math.abs(dx) != radius && kotlin.math.abs(dz) != radius) continue
+
+                    val x = origin.x + dx
+                    val z = origin.z + dz
+                    findInteriorStandInColumn(world, x, z)?.let { return it }
+                }
+            }
+        }
+        return null
+    }
+
     private fun findNearbySurfaceStand(world: ServerWorld, origin: BlockPos, maxRadius: Int): BlockPos? {
         for (radius in 0..maxRadius) {
             for (dx in -radius..radius) {
@@ -102,6 +153,20 @@ object AgeTravelSafety {
                         return topPos
                     }
                 }
+            }
+        }
+        return null
+    }
+
+    private fun findInteriorStandInColumn(world: ServerWorld, x: Int, z: Int): BlockPos? {
+        val highestFeet = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z)
+            .coerceAtMost(world.topY - 3)
+        if (highestFeet <= world.bottomY + 1) return null
+
+        for (y in highestFeet downTo world.bottomY + 2) {
+            val candidate = BlockPos(x, y, z)
+            if (isSafeStand(world, candidate) && hasNearbyCeiling(world, candidate, INTERIOR_CEILING_LIMIT)) {
+                return candidate
             }
         }
         return null
@@ -126,6 +191,17 @@ object AgeTravelSafety {
     private fun isPassableForArrival(world: ServerWorld, pos: BlockPos): Boolean {
         val state = world.getBlockState(pos)
         return state.fluidState.isEmpty && (state.isAir || state.getCollisionShape(world, pos).isEmpty)
+    }
+
+    private fun hasNearbyCeiling(world: ServerWorld, feetPos: BlockPos, maxHeight: Int): Boolean {
+        for (offset in 3..maxHeight) {
+            val sample = feetPos.up(offset)
+            if (sample.y >= world.topY) break
+            if (!isPassableForArrival(world, sample)) {
+                return true
+            }
+        }
+        return false
     }
 
     private fun isDecayState(state: net.minecraft.block.BlockState): Boolean {

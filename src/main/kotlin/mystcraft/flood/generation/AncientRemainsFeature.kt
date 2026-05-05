@@ -10,7 +10,6 @@ import net.minecraft.state.property.Properties
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.ChunkPos
 import net.minecraft.util.math.Direction
-import net.minecraft.world.Heightmap
 import net.minecraft.world.StructureWorldAccess
 import net.minecraft.world.gen.feature.DefaultFeatureConfig
 import net.minecraft.world.gen.feature.Feature
@@ -31,7 +30,7 @@ class AncientRemainsFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defaul
         val serverWorld = world.toServerWorld()
         val ageId = serverWorld.registryKey.value
 
-        if (ageId.namespace != MystcraftReforged.MOD_ID) return false
+        if (!AgeSubdimensionManager.isPrimaryAgeRealm(ageId)) return false
 
         val profile = AgeProfileManager.getOrGenerateProfile(serverWorld.server, ageId)
         if (AgeLifecycleManager.isDeadAge(profile)) return false
@@ -62,6 +61,7 @@ class AncientRemainsFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defaul
         val ownerChunkX = regionX * regionSize + 1 + rand.nextInt((regionSize - 2).coerceAtLeast(1))
         val ownerChunkZ = regionZ * regionSize + 1 + rand.nextInt((regionSize - 2).coerceAtLeast(1))
         if (chunkPos.x != ownerChunkX || chunkPos.z != ownerChunkZ) return false
+        if (!AgeFeatureTuning.canPlaceMajorFeature(profile, ChunkPos(ownerChunkX, ownerChunkZ), HistoricAgeThemes.ANCIENT_BONES, 10)) return false
 
         val centerX = ownerChunkX * 16 + 8 + rand.nextInt(7) - 3
         val centerZ = ownerChunkZ * 16 + 8 + rand.nextInt(7) - 3
@@ -367,21 +367,7 @@ class AncientRemainsFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defaul
         if (axis == Direction.Axis.X) Direction.Axis.Z else Direction.Axis.X
 
     private fun getGround(world: StructureWorldAccess, x: Int, z: Int): BlockPos? {
-        val topY = world.getTopY(Heightmap.Type.WORLD_SURFACE_WG, x, z)
-        if (topY <= world.bottomY + 1 || topY >= world.topY - 4) return null
-        var y = topY - 1
-        val minY = world.bottomY + 1
-        var attempts = 0
-        while (y >= minY && attempts < 48) {
-            val candidate = BlockPos(x, y, z)
-            val state = world.getBlockState(candidate)
-            if (isSolidGround(state) && hasStableMass(world, candidate)) {
-                return candidate
-            }
-            y--
-            attempts++
-        }
-        return null
+        return FeatureBuildHelper.findGround(world, x, z)
     }
 
     private fun hasStableMass(world: StructureWorldAccess, pos: BlockPos): Boolean {

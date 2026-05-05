@@ -1,6 +1,6 @@
 {
   "parent": "item/generated",
   "textures": {
-    "layer0": "mystcraft-reforged:item/agebook"
+    "layer0": "mystcraft-reforged:item/guide_book"
   }
 }

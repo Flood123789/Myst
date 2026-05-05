@@ -7,7 +7,7 @@
     {
       "type": "text",
       "title": "What Raises It",
-      "text": "Instability is born of three old sins: silence, contradiction, and greed. Sparse books, random vows, clashing commands, strange terrain, cruel weather, crowded biomes, and mighty landmarks all make an Age restless."
+      "text": "Instability is born of three old sins: silence, contradiction, and greed. Sparse books, random vows, clashing commands, strange terrain, cruel weather, crowded biomes, and mighty landmarks all make an Age restless. Worst of all is losing the descriptive book itself. When the bound volume is truly destroyed or allowed to vanish, the Age suffers a savage wound of two hundred instability."
     },
     {
       "type": "text",
@@ -21,8 +21,18 @@
     },
     {
       "type": "text",
+      "title": "Curses",
+      "text": "Some wounds are not the fever itself, but one cruel phrase still caught in the script: endless storm, harmful enchantment, thin gravity, hostile surges, lifeless silence, locked time, or a starless sky. A linked descriptive book will name these on its survey once the Age is known."
+    },
+    {
+      "type": "text",
+      "title": "Cleansing",
+      "text": "Set the linked descriptive book in the $(thing)Editing Table$() with a $(item)Curse Cleansing$() symbol page, one ink vial, four lapis, and an amethyst shard. The table lifts the strongest legible curse first and eases a little instability, but sacrifices and careful writing still do the heavier healing."
+    },
+    {
+      "type": "text",
       "title": "Control",
-      "text": "Those with steward's authority may speak $(thing)/mystcraft instability toggle$() while standing in an Age. This stills or wakes the symptoms, not the sickness. The fever remains beneath the skin."
+      "text": "Those with steward's authority may speak $(thing)/mystcraft instability toggle$() while standing in an Age. This stills or wakes the symptoms for the whole family of that Age, lesser Nether and End included, but it does not lower the raw fever. The sickness remains beneath the skin."
     }
   ]
 }

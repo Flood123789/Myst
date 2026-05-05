@@ -21,7 +21,7 @@ class StableSanctuaryFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defau
         val world = context.world
         val serverWorld = world.toServerWorld()
         val ageId = serverWorld.registryKey.value
-        if (ageId.namespace != MystcraftReforged.MOD_ID) return false
+        if (!AgeSubdimensionManager.isPrimaryAgeRealm(ageId)) return false
 
         val profile = AgeProfileManager.getOrGenerateProfile(serverWorld.server, ageId)
         if (AgeLifecycleManager.isDeadAge(profile)) return false
@@ -47,6 +47,7 @@ class StableSanctuaryFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defau
         val ownerChunkX = regionX * regionSize + rand.nextInt(regionSize)
         val ownerChunkZ = regionZ * regionSize + rand.nextInt(regionSize)
         if (chunkPos.x != ownerChunkX || chunkPos.z != ownerChunkZ) return false
+        if (!AgeFeatureTuning.canPlaceMajorFeature(profile, ChunkPos(ownerChunkX, ownerChunkZ), AmbientAgeThemes.STABLE_SANCTUARIES, 9)) return false
 
         val centerX = ownerChunkX * 16 + 8
         val centerZ = ownerChunkZ * 16 + 8

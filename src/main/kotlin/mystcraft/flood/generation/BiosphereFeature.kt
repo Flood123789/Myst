@@ -330,7 +330,7 @@ class BiosphereFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeat
         val world = context.world
         val origin = context.origin
         val serverWorld = world.toServerWorld()
-        if (serverWorld.registryKey.value.namespace != MystcraftReforged.MOD_ID) return false
+        if (!AgeSubdimensionManager.isPrimaryAgeRealm(serverWorld.registryKey.value)) return false
         val profile = AgeProfileManager.getOrGenerateProfile(serverWorld.server, serverWorld.registryKey.value)
         if (profile.terrainType != TerrainType.BIOSPHERES) return false
         val layout = buildLayout(serverWorld, origin.x - 4, origin.x + 19, origin.z - 4, origin.z + 19)

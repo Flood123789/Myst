@@ -14,6 +14,7 @@ object AgePlantTintHelper {
     private const val DEFAULT_BIRCH = 0x80A755
     private const val DEFAULT_SPRUCE = 0x619961
     private const val DEFAULT_GRASS = 0x91BD59
+    private const val DEFAULT_WATER = 0x3F76E4
 
     fun getTintFor(block: Block, world: BlockRenderView?, pos: BlockPos?): Int {
         val clientWorld = MinecraftClient.getInstance().world
@@ -26,10 +27,16 @@ object AgePlantTintHelper {
         val profile = ClientAgeCache.getProperties(registryKey.value) ?: return vanillaTint(block, world, pos)
         val foliage = profile.colors.foliage and 0xFFFFFF
         val grass = profile.colors.grass and 0xFFFFFF
+        val water = profile.colors.water and 0xFFFFFF
 
         return when (block) {
+            Blocks.OAK_LEAVES,
+            Blocks.JUNGLE_LEAVES,
+            Blocks.ACACIA_LEAVES,
+            Blocks.DARK_OAK_LEAVES -> shift(foliage, hueShift = 0.00f, saturationScale = 1.0f, valueScale = 1.0f, minSaturation = 0.12f, maxSaturation = 1.0f, minValue = 0.16f, maxValue = 1.0f)
             Blocks.BIRCH_LEAVES -> shift(foliage, hueShift = -0.03f, saturationScale = 0.82f, valueScale = 1.16f, minSaturation = 0.18f, maxSaturation = 0.88f, minValue = 0.28f, maxValue = 1.0f)
             Blocks.SPRUCE_LEAVES -> shift(foliage, hueShift = 0.04f, saturationScale = 1.08f, valueScale = 0.66f, minSaturation = 0.20f, maxSaturation = 1.0f, minValue = 0.12f, maxValue = 0.78f)
+            Blocks.CHERRY_LEAVES -> -1
             Blocks.MANGROVE_LEAVES -> shift(foliage, hueShift = -0.015f, saturationScale = 1.04f, valueScale = 0.90f, minSaturation = 0.22f, maxSaturation = 1.0f, minValue = 0.18f, maxValue = 0.92f)
             Blocks.AZALEA_LEAVES -> shift(foliage, hueShift = 0.02f, saturationScale = 0.92f, valueScale = 1.04f, minSaturation = 0.18f, maxSaturation = 0.92f, minValue = 0.20f, maxValue = 0.98f)
             Blocks.FLOWERING_AZALEA_LEAVES -> shift(foliage, hueShift = -0.02f, saturationScale = 0.86f, valueScale = 1.08f, minSaturation = 0.16f, maxSaturation = 0.88f, minValue = 0.24f, maxValue = 1.0f)
@@ -48,12 +55,17 @@ object AgePlantTintHelper {
             Blocks.SMALL_DRIPLEAF, Blocks.BIG_DRIPLEAF, Blocks.BIG_DRIPLEAF_STEM -> shift(foliage, hueShift = 0.05f, saturationScale = 0.88f, valueScale = 0.84f, minSaturation = 0.16f, maxSaturation = 0.90f, minValue = 0.12f, maxValue = 0.88f)
             Blocks.MOSS_BLOCK, Blocks.MOSS_CARPET -> shift(grass, hueShift = 0.03f, saturationScale = 0.70f, valueScale = 0.72f, minSaturation = 0.08f, maxSaturation = 0.80f, minValue = 0.10f, maxValue = 0.80f)
             Blocks.PINK_PETALS -> shift(grass, hueShift = -0.08f, saturationScale = 0.78f, valueScale = 1.12f, minSaturation = 0.10f, maxSaturation = 0.82f, minValue = 0.30f, maxValue = 1.0f)
+            Blocks.WATER -> water
             else -> vanillaTint(block, world, pos)
         }
     }
 
     private fun vanillaTint(block: Block, world: BlockRenderView?, pos: BlockPos?): Int {
         return when (block) {
+            Blocks.OAK_LEAVES,
+            Blocks.JUNGLE_LEAVES,
+            Blocks.ACACIA_LEAVES,
+            Blocks.DARK_OAK_LEAVES -> if (world != null && pos != null) BiomeColors.getFoliageColor(world, pos) else DEFAULT_FOLIAGE
             Blocks.BIRCH_LEAVES -> DEFAULT_BIRCH
             Blocks.SPRUCE_LEAVES -> DEFAULT_SPRUCE
             Blocks.MANGROVE_LEAVES,
@@ -81,6 +93,7 @@ object AgePlantTintHelper {
             Blocks.MOSS_BLOCK,
             Blocks.MOSS_CARPET,
             Blocks.PINK_PETALS -> if (world != null && pos != null) BiomeColors.getGrassColor(world, pos) else DEFAULT_GRASS
+            Blocks.WATER -> if (world != null && pos != null) BiomeColors.getWaterColor(world, pos) else DEFAULT_WATER
 
             else -> -1
         }

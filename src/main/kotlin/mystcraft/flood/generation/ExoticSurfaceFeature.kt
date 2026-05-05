@@ -14,7 +14,6 @@ import net.minecraft.state.property.Properties
 import net.minecraft.util.math.Direction
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.ChunkPos
-import net.minecraft.world.Heightmap
 import net.minecraft.world.StructureWorldAccess
 import net.minecraft.world.gen.feature.DefaultFeatureConfig
 import net.minecraft.world.gen.feature.Feature
@@ -34,7 +33,7 @@ class ExoticSurfaceFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Default
         val serverWorld = world.toServerWorld()
         val ageId = serverWorld.registryKey.value
 
-        if (ageId.namespace != MystcraftReforged.MOD_ID) return false
+        if (!AgeSubdimensionManager.isPrimaryAgeRealm(ageId)) return false
 
         val profile = AgeProfileManager.getOrGenerateProfile(serverWorld.server, ageId)
         if (AgeLifecycleManager.isDeadAge(profile)) return false
@@ -670,13 +669,7 @@ class ExoticSurfaceFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Default
     }
 
     private fun getGround(world: StructureWorldAccess, x: Int, z: Int): BlockPos? {
-        val topY = world.getTopY(Heightmap.Type.WORLD_SURFACE_WG, x, z)
-        if (topY <= world.bottomY + 1 || topY >= world.topY - 4) return null
-
-        val ground = BlockPos(x, topY - 1, z)
-        val state = world.getBlockState(ground)
-        if (state.isAir || state.isOf(Blocks.WATER) || state.isOf(Blocks.LAVA)) return null
-        return ground
+        return FeatureBuildHelper.findGround(world, x, z)
     }
 
     private fun setBlock(world: StructureWorldAccess, chunkPos: ChunkPos, pos: BlockPos, block: Block) {

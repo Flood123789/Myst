@@ -3,12 +3,15 @@ package mystcraft.flood.item
 
 import mystcraft.flood.MystcraftReforged
 import mystcraft.flood.access.DimensionInjector
+import mystcraft.flood.entity.DescriptiveBookEntity
 import mystcraft.flood.generation.AgeLifecycleManager
 import mystcraft.flood.generation.AgeTravelEffects
 import mystcraft.flood.generation.AgeTravelSafety
 import mystcraft.flood.generation.BiosphereFeature
 import mystcraft.flood.generation.profile.AgeProfileManager
 import mystcraft.flood.generation.profile.TerrainType
+import mystcraft.flood.network.ModMessages
+import mystcraft.flood.player.PlayerSpawnMemory
 import net.fabricmc.fabric.api.dimension.v1.FabricDimensions
 import net.minecraft.client.item.TooltipContext
 import net.minecraft.entity.effect.StatusEffectInstance
@@ -34,16 +37,23 @@ import java.nio.file.Files
 
 class DescriptiveBookItem(settings: Settings) : Item(settings) {
     override fun use(world: World, user: PlayerEntity, hand: Hand): TypedActionResult<ItemStack> {
-        if (world.isClient || user !is ServerPlayerEntity) return TypedActionResult.pass(user.getStackInHand(hand))
-
         val stack = user.getStackInHand(hand)
-        activate(world, user, stack)
+        if (world.isClient) return TypedActionResult.success(stack)
+        if (user !is ServerPlayerEntity) return TypedActionResult.pass(stack)
+
+        if (shouldUseDirectSacrificeFlow(user, hand, stack)) {
+            activate(world, user, stack)
+        } else {
+            ModMessages.sendOpenDescriptiveBook(user, stack, hand = hand)
+        }
+
         return TypedActionResult.success(stack)
     }
 
     fun activate(world: World, user: ServerPlayerEntity, stack: ItemStack) {
         val nbt = stack.orCreateNbt
         val server = world.server ?: return
+        val heldHand = resolveHeldHand(user, stack)
 
         if (user.mainHandStack === stack && user.isSneaking) {
             val offhand = user.offHandStack
@@ -57,6 +67,7 @@ class DescriptiveBookItem(settings: Settings) : Item(settings) {
         if (!nbt.contains("Age_ID")) {
             val requestedName = if (nbt.contains("Age_Name")) nbt.getString("Age_Name") else ""
             val ageId = resolveAgeIdentifier(server, requestedName)
+            AgeProfileManager.registerPendingTerrainTuning(ageId, TerrainTuningBookData.get(stack))
             
             // Extract the symbols from the book's NBT
             val symbols = mutableListOf<String>()
@@ -71,16 +82,24 @@ class DescriptiveBookItem(settings: Settings) : Item(settings) {
             (server as DimensionInjector).`mystcraft$injectDimension`(ageId, symbols)
             
             nbt.putString("Age_ID", ageId.toString())
+            AgeBookIntegrity.ensureTrackedLinkedBook(stack)
+            if (requestedName.isNotBlank()) {
+                DisplayedBookHelper.applyAgeBookName(stack, requestedName)
+                val profile = AgeProfileManager.getOrGenerateProfile(server, ageId)
+                profile.ageState.displayName = requestedName.trim().take(64)
+                ModMessages.syncAgeFamily(server, ageId)
+            }
             user.sendMessage(Text.literal("Descriptive Book linked to ${ageId.path}.").formatted(Formatting.GREEN), true)
             
-            teleportToAge(user, ageId)
+            teleportToAge(user, ageId, heldHand, stack)
         } else {
+            AgeBookIntegrity.ensureTrackedLinkedBook(stack)
             val ageId = Identifier(nbt.getString("Age_ID"))
-            teleportToAge(user, ageId)
+            teleportToAge(user, ageId, heldHand, stack)
         }
     }
 
-    private fun teleportToAge(player: ServerPlayerEntity, ageId: Identifier) {
+    private fun teleportToAge(player: ServerPlayerEntity, ageId: Identifier, heldHand: Hand?, stack: ItemStack) {
         val server = player.server ?: return
         val dimKey = RegistryKey.of(RegistryKeys.WORLD, ageId)
         var targetWorld = server.getWorld(dimKey)
@@ -116,9 +135,20 @@ class DescriptiveBookItem(settings: Settings) : Item(settings) {
             player.addStatusEffect(StatusEffectInstance(StatusEffects.SLOW_FALLING, 300, 0, false, false))
             player.addStatusEffect(StatusEffectInstance(StatusEffects.RESISTANCE, 400, 4, false, false))
 
+            BookPreviewData.refreshForStack(server, stack)
+
+            val droppedBook = if (!player.isCreative && heldHand != null) {
+                player.getStackInHand(heldHand).copy()
+            } else {
+                ItemStack.EMPTY
+            }
+            val sourceWorld = player.serverWorld
+            val sourcePos = player.pos.add(0.0, 0.15, 0.0)
+
             AgeTravelEffects.playDeparture(player.serverWorld, player)
             val result = FabricDimensions.teleport(player, targetWorld, teleportTarget)
             if (result != null) {
+                leaveAnchoredBookIfNeeded(player, heldHand, droppedBook, sourceWorld, sourcePos)
                 bindPlayerRespawn(player, targetWorld, ageId, targetPos)
                 AgeTravelEffects.playArrival(targetWorld, teleportTarget.position)
             }
@@ -167,7 +197,31 @@ class DescriptiveBookItem(settings: Settings) : Item(settings) {
             profile.ageState.surfaceSpawnZ = anchor.z
             AgeProfileManager.save(player.server, ageId)
         }
-        player.setSpawnPoint(targetWorld.registryKey, anchor, player.yaw, true, true)
+        PlayerSpawnMemory.rememberAgeDefaultSpawnIfAbsent(player, targetWorld, anchor, player.yaw)
+    }
+
+    private fun resolveHeldHand(player: ServerPlayerEntity, stack: ItemStack): Hand? = when {
+        player.mainHandStack === stack -> Hand.MAIN_HAND
+        player.offHandStack === stack -> Hand.OFF_HAND
+        else -> null
+    }
+
+    private fun leaveAnchoredBookIfNeeded(
+        player: ServerPlayerEntity,
+        heldHand: Hand?,
+        droppedBook: ItemStack,
+        sourceWorld: net.minecraft.server.world.ServerWorld,
+        sourcePos: Vec3d
+    ) {
+        if (heldHand == null || droppedBook.isEmpty || player.isCreative) return
+
+        player.setStackInHand(heldHand, ItemStack.EMPTY)
+        val anchoredBook = DescriptiveBookEntity(sourceWorld, sourcePos, droppedBook)
+        if (!sourceWorld.spawnEntity(anchoredBook)) {
+            val fallbackDrop = net.minecraft.entity.ItemEntity(sourceWorld, sourcePos.x, sourcePos.y, sourcePos.z, droppedBook)
+            fallbackDrop.setPickupDelay(20)
+            sourceWorld.spawnEntity(fallbackDrop)
+        }
     }
 
     override fun appendTooltip(stack: ItemStack, world: World?, tooltip: MutableList<Text>, context: TooltipContext) {
@@ -175,10 +229,17 @@ class DescriptiveBookItem(settings: Settings) : Item(settings) {
         val draftName = nbt?.getString("Age_Name")?.takeIf { it.isNotBlank() }
         
         if (nbt != null) {
+            val tuningSummary = TerrainTuningBookData.summarize(TerrainTuningBookData.get(stack))
             if (nbt.contains("Age_ID")) {
                 val ageName = Identifier(nbt.getString("Age_ID")).path
                 tooltip.add(Text.literal("Linked Dimension").formatted(Formatting.GOLD))
                 tooltip.add(Text.literal(ageName).formatted(Formatting.DARK_GRAY))
+                if (tuningSummary.isNotEmpty()) {
+                    tooltip.add(Text.literal("Hand-Tuned Script").formatted(Formatting.AQUA))
+                    tuningSummary.take(4).forEach { line ->
+                        tooltip.add(Text.literal(line).formatted(Formatting.GRAY))
+                    }
+                }
                 val id = Identifier.tryParse(nbt.getString("Age_ID"))
                 val server = world?.server
                 if (id != null && server != null && AgeLifecycleManager.isDeadAge(server, id)) {
@@ -199,6 +260,12 @@ class DescriptiveBookItem(settings: Settings) : Item(settings) {
                     if (draftName != null) {
                         tooltip.add(Text.literal("Draft Name: $draftName").formatted(Formatting.AQUA))
                     }
+                    if (tuningSummary.isNotEmpty()) {
+                        tooltip.add(Text.literal("Hand-Tuned Script").formatted(Formatting.AQUA))
+                        tuningSummary.take(4).forEach { line ->
+                            tooltip.add(Text.literal(line).formatted(Formatting.GRAY))
+                        }
+                    }
                     tooltip.add(Text.literal("Symbols Written: ${pages.size}").formatted(Formatting.GRAY))
                     return
                 }
@@ -208,12 +275,25 @@ class DescriptiveBookItem(settings: Settings) : Item(settings) {
         if (draftName != null) {
             tooltip.add(Text.literal("Draft Name: $draftName").formatted(Formatting.AQUA))
         }
+        val blankTuning = TerrainTuningBookData.summarize(TerrainTuningBookData.get(stack))
+        if (blankTuning.isNotEmpty()) {
+            tooltip.add(Text.literal("Hand-Tuned Script").formatted(Formatting.AQUA))
+            blankTuning.take(4).forEach { line ->
+                tooltip.add(Text.literal(line).formatted(Formatting.GRAY))
+            }
+        }
         
         tooltip.add(Text.literal("Unlinked (Empty)").formatted(Formatting.DARK_RED))
     }
 
     override fun hasGlint(stack: ItemStack): Boolean {
         return stack.nbt?.contains("Age_ID") == true
+    }
+
+    private fun shouldUseDirectSacrificeFlow(user: ServerPlayerEntity, hand: Hand, stack: ItemStack): Boolean {
+        if (hand != Hand.MAIN_HAND || !user.isSneaking) return false
+        val offhand = user.offHandStack
+        return offhand.item === ModItems.DESCRIPTIVE_BOOK && offhand !== stack
     }
 
     private fun resolveAgeIdentifier(server: net.minecraft.server.MinecraftServer, requestedName: String): Identifier {

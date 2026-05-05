@@ -3,6 +3,7 @@ package mystcraft.flood.gui
 import mystcraft.flood.item.ModItems
 import mystcraft.flood.item.NotebookItem
 import mystcraft.flood.item.SymbolPageItem
+import mystcraft.flood.item.DisplayedBookHelper
 import mystcraft.flood.mixin.SlotAccessor
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.entity.player.PlayerInventory
@@ -278,12 +279,7 @@ class BookBinderScreenHandler(
     }
 
     private fun applyDraftName(bookStack: ItemStack) {
-        val nbt = bookStack.orCreateNbt
-        if (draftAgeName.isNotBlank()) {
-            nbt.putString("Age_Name", draftAgeName)
-        } else {
-            nbt.remove("Age_Name")
-        }
+        DisplayedBookHelper.applyAgeBookName(bookStack, draftAgeName)
     }
 
     private fun collectDraftSymbols(): List<String> {

@@ -7,7 +7,7 @@ import mystcraft.flood.generation.profile.TerrainType
 import net.minecraft.block.BlockState
 import net.minecraft.block.Blocks
 import net.minecraft.util.math.BlockPos
-import net.minecraft.world.Heightmap
+import net.minecraft.util.math.ChunkPos
 import net.minecraft.world.gen.feature.DefaultFeatureConfig
 import net.minecraft.world.gen.feature.Feature
 import net.minecraft.world.gen.feature.util.FeatureContext
@@ -23,23 +23,37 @@ class StarFissureFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFe
         val serverWorld = world.toServerWorld()
 
         // 1. Only spawn in Mystcraft Ages
-        if (serverWorld.registryKey.value.namespace != MystcraftReforged.MOD_ID) return false
+        if (!AgeSubdimensionManager.isPrimaryAgeRealm(serverWorld.registryKey.value)) return false
         val profile = AgeProfileManager.getOrGenerateProfile(serverWorld.server, serverWorld.registryKey.value)
         if (AgeLifecycleManager.isDeadAge(profile)) return false
         if (profile.terrainType == TerrainType.BIOSPHERES) return false
 
-        // 2. Rarity Check: 1 in 200 chunks
-        if (random.nextInt(200) != 0) return false
+        val chunkPos = ChunkPos(origin)
+        val regionSize = 24
+        val regionX = Math.floorDiv(chunkPos.x, regionSize)
+        val regionZ = Math.floorDiv(chunkPos.z, regionSize)
+        val seed = profile.seed + regionX * 7_721_533L + regionZ * 3_911_141L + 0x57A7F155L
+        val regionRand = java.util.Random(seed)
+        val chance = when {
+            profile.stability.instabilityScore >= 80 -> 0.34f
+            profile.stability.instabilityScore >= 45 -> 0.24f
+            else -> 0.12f
+        }
+        if (regionRand.nextFloat() > chance) return false
+
+        val ownerChunkX = regionX * regionSize + 3 + regionRand.nextInt(regionSize - 6)
+        val ownerChunkZ = regionZ * regionSize + 3 + regionRand.nextInt(regionSize - 6)
+        if (chunkPos.x != ownerChunkX || chunkPos.z != ownerChunkZ) return false
+        if (!AgeFeatureTuning.canPlaceMajorFeature(profile, chunkPos, AgeFeatureTuning.STAR_FISSURE, 10)) return false
 
         // 3. Find the absolute surface of the terrain
-        val topY = if (profile.terrainType == TerrainType.CAVES) {
-            serverWorld.topY - 1
-        } else {
-            world.getTopY(Heightmap.Type.WORLD_SURFACE_WG, origin.x, origin.z)
-        }
-        if (topY < 20) return false 
-        
-        val centerPos = BlockPos(origin.x, topY, origin.z)
+        val centerX = ownerChunkX * 16 + 8 + regionRand.nextInt(7) - 3
+        val centerZ = ownerChunkZ * 16 + 8 + regionRand.nextInt(7) - 3
+        val ground = FeatureBuildHelper.findGround(world, centerX, centerZ) ?: return false
+        if (ground.y < 19) return false
+
+        val centerPos = ground.up()
+        val topY = centerPos.y
 
         // ==========================================
         // PHASE 1: THE FLOATING DEBRIS (Anti-Gravity)
@@ -48,7 +62,7 @@ class StarFissureFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFe
         for (x in -debrisRadius..debrisRadius) {
             for (y in 3..15) { 
                 for (z in -debrisRadius..debrisRadius) {
-                    val distance = sqrt((x * x + y * y / 4.0 + z * z).toDouble())
+                    val distance = sqrt(x * x + y * y / 4.0 + z * z)
                     
                     if (distance <= debrisRadius && random.nextFloat() < 0.02f) {
                         val currentPos = centerPos.add(x, y, z)

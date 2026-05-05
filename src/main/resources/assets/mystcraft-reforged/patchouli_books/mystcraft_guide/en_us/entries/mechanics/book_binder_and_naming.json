@@ -1,5 +1,5 @@
 {
-  "name": "Book Binder",
+  "name": "Binder, Desk, And Table",
   "category": "mystcraft-reforged:mechanics",
   "icon": "mystcraft-reforged:book_binder",
   "sortnum": 0,
@@ -15,6 +15,30 @@
     {
       "type": "text",
       "text": "The binder is fussy in the way old magic is fussy. Spaces are bound into underscores, unclean marks are replaced, and a repeated name gains a number. Thus one door does not steal the threshold of another."
+    },
+    {
+      "type": "text",
+      "text": "The $(thing)Writing Desk$() is the quieter place for proper authorship. Set a descriptive book to the left and a notebook to the right, and the desk will copy the notebook's ordered leaves into the book without disturbing the notebook itself. The same desk also lets you rename a linked Age in calm, visible script."
+    },
+    {
+      "type": "text",
+      "text": "The $(thing)Editing Table$() is stranger work. Lay an unlinked descriptive book in its cradle and surround it with chosen materials. Diamonds press turbulence, gold fixes the waters, iron deepens or loosens the caverns, copper broadens regions, and coal alters the world's reach. Pearl, sponge, spawner, and golden shovel write harsher instructions still."
+    },
+    {
+      "type": "text",
+      "text": "Only an unlinked descriptive book may be terrain-tuned at the table. A linked descriptive book invites sterner work: with a $(item)Curse Cleansing$() symbol page, ink, lapis, and amethyst, the table can lift one named curse from the Age without replacing sacrifice as the deeper healing art."
+    },
+    {
+      "type": "text",
+      "text": "The $(thing)Printing Table$() is for finished work. Set a notebook with an empty page and the press will publish the chosen leaf as a loose symbol page. Set a descriptive book or linking book with leather and it will make a careful duplicate, preserving the written name and all bound marks."
+    },
+    {
+      "type": "text",
+      "text": "The table takes its due only when you lift the result away. Until then it is a proof and not a commitment. If a notebook holds many leaves, use the arrows to choose which page shall be drawn forth into the world."
+    },
+    {
+      "type": "text",
+      "text": "Take care with copied descriptive books. They are not new Ages, but additional bindings of the same one. So long as even one true binding survives, the world endures. When the last surviving descriptive book is destroyed, the Age suffers a wound of $(thing)200 instability$()."
     }
   ]
 }

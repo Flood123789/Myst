@@ -18,6 +18,24 @@ object ModBlockEntities {
         FabricBlockEntityTypeBuilder.create(::BookBinderBlockEntity, ModBlocks.BOOK_BINDER).build()
     )
 
+    val WRITING_DESK: BlockEntityType<WritingDeskBlockEntity> = Registry.register(
+        Registries.BLOCK_ENTITY_TYPE,
+        Identifier(MystcraftReforged.MOD_ID, "writingdesk_entity"),
+        FabricBlockEntityTypeBuilder.create(::WritingDeskBlockEntity, ModBlocks.WRITING_DESK).build()
+    )
+
+    val EDITING_TABLE: BlockEntityType<EditingTableBlockEntity> = Registry.register(
+        Registries.BLOCK_ENTITY_TYPE,
+        Identifier(MystcraftReforged.MOD_ID, "editing_table_entity"),
+        FabricBlockEntityTypeBuilder.create(::EditingTableBlockEntity, ModBlocks.EDITING_TABLE).build()
+    )
+
+    val PRINTING_TABLE: BlockEntityType<PrintingTableBlockEntity> = Registry.register(
+        Registries.BLOCK_ENTITY_TYPE,
+        Identifier(MystcraftReforged.MOD_ID, "printing_table_entity"),
+        FabricBlockEntityTypeBuilder.create(::PrintingTableBlockEntity, ModBlocks.PRINTING_TABLE).build()
+    )
+
     val CRYSTAL_PORTAL: BlockEntityType<CrystalPortalBlockEntity> = Registry.register(
         Registries.BLOCK_ENTITY_TYPE,
         Identifier(MystcraftReforged.MOD_ID, "crystal_portal_entity"),

@@ -14,6 +14,7 @@ object ModSymbols {
     // Using a MutableSet instead of a List prevents duplicates when you reload worlds!
     val availableSymbols = mutableSetOf<Identifier>()
     val AGE_EFFECT_SYMBOL: Identifier = Identifier("mystcraft-reforged", "age_effect")
+    val CURSE_CLEANSING_SYMBOL: Identifier = Identifier("mystcraft-reforged", "curse_cleansing")
 
     private fun isPotionPageSymbol(symbolId: Identifier): Boolean = symbolId == AGE_EFFECT_SYMBOL || Registries.STATUS_EFFECT.containsId(symbolId)
 
@@ -77,6 +78,19 @@ object ModSymbols {
         availableSymbols.add(Identifier("mystcraft-reforged", "page_storms"))
         availableSymbols.add(Identifier("mystcraft-reforged", "memory_blooms"))
         availableSymbols.add(Identifier("mystcraft-reforged", "stable_sanctuaries"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "sky_rainbows"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "sky_auroras"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "shooting_stars"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "comets"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "sky_rifts"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "bright_sky"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "dark_sky"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "meteor_showers"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "sky_spheres"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "particle_motes"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "particle_ash"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "particle_spores"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "particle_void"))
 
         // === NEW STUFF: Biome Controllers ===
         availableSymbols.add(Identifier("mystcraft-reforged", "biome_checkerboard"))
@@ -121,6 +135,7 @@ object ModSymbols {
         availableSymbols.add(Identifier("mystcraft-reforged", "spawning_extra_hostile"))
         availableSymbols.add(Identifier("mystcraft-reforged", "spawning_extra_passive"))
         availableSymbols.add(AGE_EFFECT_SYMBOL)
+        availableSymbols.add(CURSE_CLEANSING_SYMBOL)
 
         // The Wildcard Page
         availableSymbols.add(Identifier("mystcraft-reforged", "random"))

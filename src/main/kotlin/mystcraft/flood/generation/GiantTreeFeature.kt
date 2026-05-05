@@ -25,22 +25,22 @@ class GiantTreeFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeat
         val serverWorld = world.toServerWorld()
 
         val ageId = serverWorld.registryKey.value
-        if (ageId.namespace != MystcraftReforged.MOD_ID) return false
+        if (!AgeSubdimensionManager.isPrimaryAgeRealm(ageId)) return false
 
         val profile = AgeProfileManager.getOrGenerateProfile(serverWorld.server, ageId)
         if (AgeLifecycleManager.isDeadAge(profile)) return false
         if (!profile.modifiers.contains("giant_trees")) return false
 
         // 1 in 15 chunks
-        if (random.nextInt(AgeFeatureTuning.rarityRollDivisor(profile, 15, "giant_trees")) != 0) return false
+        if (random.nextInt(15) != 0) return false
 
-        val topY = world.getTopY(Heightmap.Type.WORLD_SURFACE_WG, origin.x, origin.z)
-        if (topY < 40 || topY > 150) return false 
-        
-        val centerPos = BlockPos(origin.x, topY, origin.z)
+        val ground = FeatureBuildHelper.findGround(world, origin.x, origin.z) ?: return false
+        if (ground.y < 39 || ground.y > 149) return false
+
+        val centerPos = ground.up()
 
         // Jesus check: No trees on water
-        if (world.getBlockState(centerPos.down()).isOf(Blocks.WATER)) return false
+        if (world.getBlockState(ground).isOf(Blocks.WATER)) return false
 
         // ==========================================
         // 1. FILTERED REGISTRY SCRAPER

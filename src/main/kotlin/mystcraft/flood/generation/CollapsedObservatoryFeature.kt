@@ -26,7 +26,7 @@ class CollapsedObservatoryFeature(codec: Codec<DefaultFeatureConfig>) : Feature<
         val world = context.world
         val serverWorld = world.toServerWorld()
         val ageId = serverWorld.registryKey.value
-        if (ageId.namespace != MystcraftReforged.MOD_ID) return false
+        if (!AgeSubdimensionManager.isPrimaryAgeRealm(ageId)) return false
 
         val profile = AgeProfileManager.getOrGenerateProfile(serverWorld.server, ageId)
         if (AgeLifecycleManager.isDeadAge(profile)) return false
@@ -52,6 +52,7 @@ class CollapsedObservatoryFeature(codec: Codec<DefaultFeatureConfig>) : Feature<
         val ownerChunkX = regionX * regionSize + rand.nextInt(regionSize)
         val ownerChunkZ = regionZ * regionSize + rand.nextInt(regionSize)
         if (chunkPos.x != ownerChunkX || chunkPos.z != ownerChunkZ) return false
+        if (!AgeFeatureTuning.canPlaceMajorFeature(profile, ChunkPos(ownerChunkX, ownerChunkZ), HistoricAgeThemes.COLLAPSED_OBSERVATORY, 11)) return false
 
         val centerX = ownerChunkX * 16 + 8 + rand.nextInt(7) - 3
         val centerZ = ownerChunkZ * 16 + 8 + rand.nextInt(7) - 3
@@ -61,14 +62,47 @@ class CollapsedObservatoryFeature(codec: Codec<DefaultFeatureConfig>) : Feature<
         val wallHeight = 5 + rand.nextInt(3)
         val chunk = ChunkPos(center)
 
+        prepareObservatorySite(world, chunk, center, radius, wallHeight)
         buildStoneRing(world, chunk, center, radius)
+        buildEntranceApproach(world, chunk, center, radius, rand)
         buildBrokenWall(world, chunk, center, radius, wallHeight)
+        buildOuterButtresses(world, chunk, center, radius, wallHeight)
         buildCollapsedDome(world, chunk, center, radius, wallHeight, rand)
         buildTelescope(world, chunk, center, rand)
         placeInteriorDetails(world, chunk, center, radius, rand)
         placeLoot(world, chunk, center, radius, rand)
         scatterDebris(world, chunk, center, radius + 3, rand)
         return true
+    }
+
+    private fun prepareObservatorySite(
+        world: StructureWorldAccess,
+        chunkPos: ChunkPos,
+        center: BlockPos,
+        radius: Int,
+        wallHeight: Int
+    ) {
+        val clearRadius = radius + 5
+        val clearHeight = wallHeight + radius + 8
+        val foundationRadius = radius + 2
+
+        for (dx in -clearRadius..clearRadius) {
+            for (dz in -clearRadius..clearRadius) {
+                val distanceSq = dx * dx + dz * dz
+                if (distanceSq > clearRadius * clearRadius) continue
+
+                for (y in 0..clearHeight) {
+                    FeatureBuildHelper.setBlockState(world, chunkPos, center.add(dx, y, dz), Blocks.AIR.defaultState, true)
+                }
+
+                if (distanceSq <= foundationRadius * foundationRadius) {
+                    for (y in -3..-1) {
+                        val block = if (y == -1) Blocks.POLISHED_ANDESITE else Blocks.STONE_BRICKS
+                        FeatureBuildHelper.setBlock(world, chunkPos, center.add(dx, y, dz), block, true)
+                    }
+                }
+            }
+        }
     }
 
     private fun buildStoneRing(world: StructureWorldAccess, chunkPos: ChunkPos, center: BlockPos, radius: Int) {
@@ -83,6 +117,31 @@ class CollapsedObservatoryFeature(codec: Codec<DefaultFeatureConfig>) : Feature<
                     else -> Blocks.SMOOTH_STONE
                 }
                 FeatureBuildHelper.setBlock(world, chunkPos, pos, block, true)
+            }
+        }
+    }
+
+    private fun buildEntranceApproach(
+        world: StructureWorldAccess,
+        chunkPos: ChunkPos,
+        center: BlockPos,
+        radius: Int,
+        rand: java.util.Random
+    ) {
+        for (step in 0..9) {
+            val width = if (step < 3) 3 else 2
+            for (x in -width..width) {
+                val pos = center.add(x, -1, radius + step)
+                val block = when {
+                    abs(x) == width && step % 2 == 0 -> Blocks.STONE_BRICKS
+                    rand.nextFloat() < 0.18f -> Blocks.CRACKED_STONE_BRICKS
+                    else -> Blocks.SMOOTH_STONE
+                }
+                FeatureBuildHelper.setBlock(world, chunkPos, pos, block, true)
+                if (step < 4) {
+                    FeatureBuildHelper.setBlockState(world, chunkPos, pos.up(), Blocks.AIR.defaultState, true)
+                    FeatureBuildHelper.setBlockState(world, chunkPos, pos.up(2), Blocks.AIR.defaultState, true)
+                }
             }
         }
     }
@@ -113,6 +172,24 @@ class CollapsedObservatoryFeature(codec: Codec<DefaultFeatureConfig>) : Feature<
                     }
                     FeatureBuildHelper.setBlock(world, chunkPos, center.add(dx, y, dz), block, true)
                 }
+            }
+        }
+    }
+
+    private fun buildOuterButtresses(
+        world: StructureWorldAccess,
+        chunkPos: ChunkPos,
+        center: BlockPos,
+        radius: Int,
+        wallHeight: Int
+    ) {
+        for (direction in listOf(Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST)) {
+            val side = if (direction.axis == Direction.Axis.X) Direction.SOUTH else Direction.EAST
+            for (offset in -1..1) {
+                val base = center.offset(direction, radius + 1).offset(side, offset)
+                val height = if (offset == 0) wallHeight + 2 else wallHeight
+                FeatureBuildHelper.fillColumn(world, chunkPos, base, height, Blocks.POLISHED_DEEPSLATE.defaultState, true)
+                FeatureBuildHelper.setBlock(world, chunkPos, base.up(height), Blocks.DEEPSLATE_BRICK_SLAB, true)
             }
         }
     }

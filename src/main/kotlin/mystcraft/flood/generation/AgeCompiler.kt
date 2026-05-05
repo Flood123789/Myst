@@ -55,7 +55,11 @@ object AgeCompiler {
                     "red", "purple", "black", "green",
                     "biome_checkerboard", "biome_vanilla", "low_gravity",
                     HistoricAgeThemes.COLLAPSED_OBSERVATORY, HistoricAgeThemes.ANCIENT_AQUEDUCTS, HistoricAgeThemes.GATEWAY_RUINS,
-                    AmbientAgeThemes.PAGE_STORMS, AmbientAgeThemes.MEMORY_BLOOMS, AmbientAgeThemes.STABLE_SANCTUARIES
+                    AmbientAgeThemes.PAGE_STORMS, AmbientAgeThemes.MEMORY_BLOOMS, AmbientAgeThemes.STABLE_SANCTUARIES,
+                    ChaosAgeThemes.SKY_RAINBOWS, ChaosAgeThemes.SKY_AURORAS, ChaosAgeThemes.SHOOTING_STARS,
+                    ChaosAgeThemes.COMETS, ChaosAgeThemes.SKY_RIFTS, ChaosAgeThemes.BRIGHT_SKY, ChaosAgeThemes.DARK_SKY,
+                    ChaosAgeThemes.METEOR_SHOWERS, ChaosAgeThemes.SKY_SPHERES,
+                    ChaosAgeThemes.PARTICLE_MOTES, ChaosAgeThemes.PARTICLE_ASH, ChaosAgeThemes.PARTICLE_SPORES, ChaosAgeThemes.PARTICLE_VOID
                 )
                 clean = if (kotlin.random.Random.nextFloat() < 0.01f) "void" else wildcards.random()
                 data.conflictInstability += 5 // A small "Chaos Tax" for using wildcard pages

@@ -3,6 +3,7 @@ package mystcraft.flood.generation.profile
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonParser
+import java.util.concurrent.CopyOnWriteArrayList
 
 data class AgeProfile(
     val id: String,
@@ -17,14 +18,20 @@ data class AgeProfile(
     val ageEffect: AgeEffectProfile = AgeEffectProfile(),
     val physics: PhysicsSettings = PhysicsSettings(),
     val ageState: AgeState = AgeState(),
+    var curses: AgeCurseProfile = AgeCurseProfile(),
     val stability: StabilityProfile,
-    val modifiers: MutableList<String> = mutableListOf() 
+    val terrainTuning: TerrainTuningProfile = TerrainTuningProfile(),
+    var modifiers: MutableList<String> = CopyOnWriteArrayList()
 ) {
     companion object {
         val GSON: Gson = GsonBuilder().setPrettyPrinting().serializeNulls().create()
         fun fromJson(json: String): AgeProfile {
             val root = JsonParser.parseString(json).asJsonObject
-            val profile = GSON.fromJson(root, AgeProfile::class.java)
+            var profile = GSON.fromJson(root, AgeProfile::class.java)
+            if (!root.has("terrainTuning") || root.get("terrainTuning").isJsonNull) {
+                profile = profile.copy(terrainTuning = TerrainTuningProfile())
+            }
+            profile.modifiers = CopyOnWriteArrayList(profile.modifiers)
 
             if (!root.has("ageEffect")) {
                 profile.ageEffect.effectId = null
@@ -41,6 +48,18 @@ data class AgeProfile(
                 profile.physics.gravityScale = 1.0f
             }
 
+            if (!root.has("terrainTuning") || root.get("terrainTuning").isJsonNull) {
+                profile.terrainTuning.terrainTurbulence = null
+                profile.terrainTuning.seaLevel = null
+                profile.terrainTuning.caveDensity = null
+                profile.terrainTuning.biomeSize = null
+                profile.terrainTuning.verticalRange = null
+                profile.terrainTuning.superFlat = false
+                profile.terrainTuning.noMobs = false
+                profile.terrainTuning.caveWorld = false
+                profile.terrainTuning.noAquifers = false
+            }
+
             if (!root.has("ageState")) {
                 profile.ageState.isSacrificed = false
                 profile.ageState.sacrificedAt = null
@@ -48,11 +67,28 @@ data class AgeProfile(
                 profile.ageState.surfaceSpawnX = null
                 profile.ageState.surfaceSpawnY = null
                 profile.ageState.surfaceSpawnZ = null
+                profile.ageState.displayName = null
+                profile.ageState.parentAgeId = null
+                profile.ageState.dimensionRole = AgeDimensionRole.OVERWORLD.name
             } else {
                 val ageState = root.getAsJsonObject("ageState")
                 if (!ageState.has("surfaceSpawnX")) profile.ageState.surfaceSpawnX = null
                 if (!ageState.has("surfaceSpawnY")) profile.ageState.surfaceSpawnY = null
                 if (!ageState.has("surfaceSpawnZ")) profile.ageState.surfaceSpawnZ = null
+                if (!ageState.has("displayName")) profile.ageState.displayName = null
+                if (!ageState.has("parentAgeId")) profile.ageState.parentAgeId = null
+                if (!ageState.has("dimensionRole")) profile.ageState.dimensionRole = AgeDimensionRole.OVERWORLD.name
+            }
+
+            if (!root.has("curses") || root.get("curses").isJsonNull) {
+                profile = profile.copy(curses = AgeCurseProfile())
+            } else {
+                val curses = root.getAsJsonObject("curses")
+                profile.curses = AgeCurseProfile(
+                    activeCurses = CopyOnWriteArrayList(readStringList(curses, "activeCurses")),
+                    diagnosedCurses = CopyOnWriteArrayList(readStringList(curses, "diagnosedCurses")),
+                    cleansedCurses = CopyOnWriteArrayList(readStringList(curses, "cleansedCurses"))
+                )
             }
 
             if (!root.has("weather")) {
@@ -86,6 +122,12 @@ data class AgeProfile(
             }
 
             return profile
+        }
+
+        private fun readStringList(root: com.google.gson.JsonObject, key: String): List<String> {
+            if (!root.has(key) || !root.get(key).isJsonArray) return emptyList()
+            return root.getAsJsonArray(key)
+                .mapNotNull { element -> element.takeIf { it.isJsonPrimitive }?.asString?.takeIf(String::isNotBlank) }
         }
     }
     fun toJson(): String = GSON.toJson(this)
@@ -173,7 +215,16 @@ data class AgeState(
     var sacrificedBy: String? = null,
     var surfaceSpawnX: Int? = null,
     var surfaceSpawnY: Int? = null,
-    var surfaceSpawnZ: Int? = null
+    var surfaceSpawnZ: Int? = null,
+    var displayName: String? = null,
+    var parentAgeId: String? = null,
+    var dimensionRole: String = AgeDimensionRole.OVERWORLD.name
+)
+
+data class AgeCurseProfile(
+    var activeCurses: MutableList<String> = CopyOnWriteArrayList(),
+    var diagnosedCurses: MutableList<String> = CopyOnWriteArrayList(),
+    var cleansedCurses: MutableList<String> = CopyOnWriteArrayList()
 )
 
 data class StabilityProfile(
@@ -188,3 +239,34 @@ data class SpawnSettings(
     var hostileMultiplier: Float = 1.0f, 
     var passiveMultiplier: Float = 1.0f
 )
+
+data class TerrainTuningProfile(
+    var terrainTurbulence: Int? = null,
+    var seaLevel: Int? = null,
+    var caveDensity: Int? = null,
+    var biomeSize: Int? = null,
+    var verticalRange: Int? = null,
+    var superFlat: Boolean = false,
+    var noMobs: Boolean = false,
+    var caveWorld: Boolean = false,
+    var noAquifers: Boolean = false
+) {
+    fun normalized(): TerrainTuningProfile = copy(
+        terrainTurbulence = terrainTurbulence?.coerceIn(1, 16),
+        seaLevel = seaLevel?.coerceIn(1, 16),
+        caveDensity = caveDensity?.coerceIn(1, 16),
+        biomeSize = biomeSize?.coerceIn(1, 16),
+        verticalRange = verticalRange?.coerceIn(1, 16)
+    )
+
+    fun isEdited(): Boolean =
+        terrainTurbulence != null ||
+            seaLevel != null ||
+            caveDensity != null ||
+            biomeSize != null ||
+            verticalRange != null ||
+            superFlat ||
+            noMobs ||
+            caveWorld ||
+            noAquifers
+}

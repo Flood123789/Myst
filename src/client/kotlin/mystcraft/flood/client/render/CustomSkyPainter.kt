@@ -3,6 +3,7 @@ package mystcraft.flood.client.render
 import com.mojang.blaze3d.platform.GlStateManager
 import com.mojang.blaze3d.systems.RenderSystem
 import mystcraft.flood.client.cache.ClientAgeCache
+import mystcraft.flood.generation.ChaosAgeThemes
 import net.minecraft.client.MinecraftClient
 import net.minecraft.client.gl.VertexBuffer
 import net.minecraft.client.render.*
@@ -175,9 +176,141 @@ object CustomSkyPainter {
         }
 
         matrices.pop()
+
+        drawChaosSky(matrices, buffer, tessellator, profile.modifiers, profile.seed, world.getSkyAngle(tickDelta), tickDelta)
         RenderSystem.depthMask(true)
         RenderSystem.defaultBlendFunc()
         RenderSystem.disableBlend()
+    }
+
+    private fun drawChaosSky(
+        matrices: MatrixStack,
+        buffer: BufferBuilder,
+        tessellator: Tessellator,
+        modifiers: List<String>,
+        seed: Long,
+        skyAngle: Float,
+        tickDelta: Float
+    ) {
+        if (modifiers.contains(ChaosAgeThemes.BRIGHT_SKY)) {
+            drawSkyBand(matrices, buffer, tessellator, 0f, 95f, 72f, 0xFFF9B8, 0.15f)
+        }
+        if (modifiers.contains(ChaosAgeThemes.DARK_SKY)) {
+            drawSkyBand(matrices, buffer, tessellator, 0f, 96f, 88f, 0x050713, 0.36f)
+        }
+        if (modifiers.contains(ChaosAgeThemes.SKY_RAINBOWS)) {
+            repeat(2) { index ->
+                val offset = ((seed shr (index * 8)).toInt() and 255).toFloat()
+                drawRainbowArc(matrices, buffer, tessellator, offset + index * 76f)
+            }
+        }
+        if (modifiers.contains(ChaosAgeThemes.SKY_AURORAS)) {
+            repeat(4) { index ->
+                val hue = ((seed shr (index * 10)).toInt() and 255) / 255.0f
+                val color = java.awt.Color.HSBtoRGB(hue, 0.72f, 1.0f) and 0xFFFFFF
+                drawSkyRibbon(matrices, buffer, tessellator, index * 54f + hue * 80f, 0xFF000000.toInt() or color, 0.24f)
+            }
+        }
+        if (modifiers.contains(ChaosAgeThemes.SKY_RIFTS)) {
+            repeat(2) { index ->
+                drawSkySlash(matrices, buffer, tessellator, 45f + index * 130f + (seed % 37).toFloat(), 0xB287FF, 0.44f, 34f + index * 9f)
+            }
+        }
+        if (modifiers.contains(ChaosAgeThemes.SHOOTING_STARS)) {
+            repeat(7) { index ->
+                val phase = ((skyAngle * 24000f + tickDelta * 20f + index * 137f) % 900f) / 900f
+                drawSkySlash(matrices, buffer, tessellator, index * 48f + phase * 60f, 0xF9FFFF, 0.22f * (1.0f - phase), 8f + index % 3)
+            }
+        }
+        if (modifiers.contains(ChaosAgeThemes.COMETS)) {
+            repeat(2) { index ->
+                val phase = ((skyAngle * 24000f + index * 311f) % 2400f) / 2400f
+                drawComet(matrices, buffer, tessellator, 25f + index * 160f + phase * 70f, 0.62f - phase * 0.22f)
+            }
+        }
+    }
+
+    private fun drawSkyBand(
+        matrices: MatrixStack,
+        buffer: BufferBuilder,
+        tessellator: Tessellator,
+        yaw: Float,
+        height: Float,
+        width: Float,
+        color: Int,
+        alpha: Float
+    ) {
+        matrices.push()
+        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(yaw))
+        RenderSystem.setShader(GameRenderer::getPositionColorProgram)
+        val matrix = matrices.peek().positionMatrix
+        val red = ((color shr 16) and 0xFF) / 255.0f
+        val green = ((color shr 8) and 0xFF) / 255.0f
+        val blue = (color and 0xFF) / 255.0f
+        buffer.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR)
+        buffer.vertex(matrix, -width, height, -82f).color(red, green, blue, alpha).next()
+        buffer.vertex(matrix, width, height, -82f).color(red, green, blue, alpha).next()
+        buffer.vertex(matrix, width, height - 54f, -92f).color(red, green, blue, 0f).next()
+        buffer.vertex(matrix, -width, height - 54f, -92f).color(red, green, blue, 0f).next()
+        tessellator.draw()
+        matrices.pop()
+    }
+
+    private fun drawRainbowArc(matrices: MatrixStack, buffer: BufferBuilder, tessellator: Tessellator, yaw: Float) {
+        val colors = intArrayOf(0xFF5E5E, 0xFFB84A, 0xFFE96A, 0x62D66B, 0x56A8FF, 0x9A78FF)
+        colors.forEachIndexed { index, color ->
+            drawSkyBand(matrices, buffer, tessellator, yaw + index * 1.5f, 70f - index * 2.8f, 44f + index * 5f, color, 0.18f)
+        }
+    }
+
+    private fun drawSkyRibbon(matrices: MatrixStack, buffer: BufferBuilder, tessellator: Tessellator, yaw: Float, color: Int, alpha: Float) {
+        matrices.push()
+        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(yaw))
+        matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(8f))
+        RenderSystem.setShader(GameRenderer::getPositionColorProgram)
+        val matrix = matrices.peek().positionMatrix
+        val red = ((color shr 16) and 0xFF) / 255.0f
+        val green = ((color shr 8) and 0xFF) / 255.0f
+        val blue = (color and 0xFF) / 255.0f
+        buffer.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR)
+        buffer.vertex(matrix, -30f, 96f, -92f).color(red, green, blue, 0f).next()
+        buffer.vertex(matrix, 36f, 86f, -95f).color(red, green, blue, alpha).next()
+        buffer.vertex(matrix, 42f, 70f, -94f).color(red, green, blue, 0f).next()
+        buffer.vertex(matrix, -36f, 78f, -92f).color(red, green, blue, alpha * 0.6f).next()
+        tessellator.draw()
+        matrices.pop()
+    }
+
+    private fun drawSkySlash(
+        matrices: MatrixStack,
+        buffer: BufferBuilder,
+        tessellator: Tessellator,
+        yaw: Float,
+        color: Int,
+        alpha: Float,
+        length: Float
+    ) {
+        if (alpha <= 0.01f) return
+        matrices.push()
+        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(yaw))
+        matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-24f))
+        RenderSystem.setShader(GameRenderer::getPositionColorProgram)
+        val matrix = matrices.peek().positionMatrix
+        val red = ((color shr 16) and 0xFF) / 255.0f
+        val green = ((color shr 8) and 0xFF) / 255.0f
+        val blue = (color and 0xFF) / 255.0f
+        buffer.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR)
+        buffer.vertex(matrix, -length, 86f, -96f).color(red, green, blue, 0f).next()
+        buffer.vertex(matrix, length * 0.35f, 88f, -96f).color(red, green, blue, alpha).next()
+        buffer.vertex(matrix, length, 84f, -96f).color(red, green, blue, 0f).next()
+        buffer.vertex(matrix, -length * 0.2f, 82f, -96f).color(red, green, blue, alpha * 0.5f).next()
+        tessellator.draw()
+        matrices.pop()
+    }
+
+    private fun drawComet(matrices: MatrixStack, buffer: BufferBuilder, tessellator: Tessellator, yaw: Float, alpha: Float) {
+        drawSkySlash(matrices, buffer, tessellator, yaw, 0xBDEBFF, alpha * 0.45f, 42f)
+        drawSkyBand(matrices, buffer, tessellator, yaw + 2f, 88f, 5f, 0xEFFFFF, alpha * 0.28f)
     }
 
     private fun tintQuad(

@@ -6,7 +6,15 @@
   "pages": [
     {
       "type": "text",
-      "text": "$(thing)City Ages$() rise as if a civilization dreamed itself complete: roads, towers, stacked homes, bridges, and strange transit bones. They are magnificent, heavy things, and the ink groans under their weight."
+      "text": "$(thing)City Ages$() no longer grow as one dead square repeated to the horizon. They gather around many hearts: old civic crowns, brick wards, garden quarters, industrial scars, and pale marina fronts, all crowding and leaning into one another."
+    },
+    {
+      "type": "text",
+      "text": "Where two city-hearts draw near, roads fatten into avenues, and beyond them the long raised ways begin their crawl from district to district. Some routes dive below the stone as rail cuts and station halls. Others bridge water, ravine, or ruin rather than yield."
+    },
+    {
+      "type": "text",
+      "text": "Because of this, a City Age should feel less like a board laid flat and more like a realm lived in badly for centuries. Expect tower clusters, apartment belts, trimmed parks, sudden courtyards, and quieter suburbs between the louder wounds."
     },
     {
       "type": "text",

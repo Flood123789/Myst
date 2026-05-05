@@ -20,7 +20,7 @@ class TendrilsFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatu
         val serverWorld = world.toServerWorld()
 
         val ageId = serverWorld.registryKey.value
-        if (ageId.namespace != MystcraftReforged.MOD_ID) return false
+        if (!AgeSubdimensionManager.isPrimaryAgeRealm(ageId)) return false
 
         // Grab the profile so we can check modifiers AND get the seed
         val profile = AgeProfileManager.getOrGenerateProfile(serverWorld.server, ageId)
@@ -28,7 +28,7 @@ class TendrilsFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatu
         if (!profile.modifiers.contains("tendrils")) return false
 
         // Rarity: 1 in 20 chunks
-        if (random.nextInt(AgeFeatureTuning.rarityRollDivisor(profile, 20, "tendrils")) != 0) return false
+        if (random.nextInt(20) != 0) return false
 
         // Use the Age's seed so the material is consistent across the entire dimension!
         val ageRand = kotlin.random.Random(profile.seed)

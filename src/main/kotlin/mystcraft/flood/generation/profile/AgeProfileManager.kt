@@ -2,7 +2,10 @@ package mystcraft.flood.generation.profile
 
 import mystcraft.flood.MystcraftReforged
 import mystcraft.flood.generation.AgeCompiler
+import mystcraft.flood.generation.AgeCurseManager
+import mystcraft.flood.generation.AgeSubdimensionManager
 import mystcraft.flood.generation.AmbientAgeThemes
+import mystcraft.flood.generation.ChaosAgeThemes
 import mystcraft.flood.generation.ExoticAgeThemes
 import mystcraft.flood.generation.HistoricAgeThemes
 import net.minecraft.registry.Registries
@@ -11,11 +14,13 @@ import net.minecraft.server.MinecraftServer
 import net.minecraft.util.Identifier
 import net.minecraft.util.WorldSavePath
 import java.nio.file.Files
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.random.Random
 
 object AgeProfileManager {
     private val profileCache = ConcurrentHashMap<Identifier, AgeProfile>()
+    private val pendingTerrainTuning = ConcurrentHashMap<Identifier, TerrainTuningProfile>()
 
     private fun normalizeSymbol(symbol: String): String =
         symbol.lowercase().replace("mystcraft-reforged:", "")
@@ -46,12 +51,20 @@ object AgeProfileManager {
 
     @JvmOverloads
     fun getOrGenerateProfile(server: MinecraftServer, ageId: Identifier, symbols: List<String> = emptyList()): AgeProfile {
-        profileCache[ageId]?.let { return it }
+        val role = AgeSubdimensionManager.roleOf(ageId)
+        val rootAgeId = AgeSubdimensionManager.rootIdOf(ageId)
+        profileCache[ageId]?.let { cached ->
+            if (role != AgeDimensionRole.OVERWORLD && rootAgeId != ageId) {
+                val rootProfile = getOrGenerateProfile(server, rootAgeId)
+                refreshDerivedProfile(ageId, role, rootAgeId, rootProfile, cached)
+            }
+            return cached
+        }
 
         val dir = server.getSavePath(WorldSavePath.ROOT).resolve("mystcraft_profiles")
         if (!Files.exists(dir)) Files.createDirectories(dir)
 
-        val file = dir.resolve("${ageId.path}.json")
+        val file = profileFile(server, ageId)
         val profile = if (Files.exists(file)) {
             AgeProfile.fromJson(Files.readString(file))
         } else {
@@ -62,12 +75,38 @@ object AgeProfileManager {
             }
         }
 
+        AgeCurseManager.refresh(profile)
+
+        if (role != AgeDimensionRole.OVERWORLD && rootAgeId != ageId) {
+            val rootProfile = getOrGenerateProfile(server, rootAgeId)
+            if (refreshDerivedProfile(ageId, role, rootAgeId, rootProfile, profile)) {
+                Files.writeString(file, profile.toJson())
+            }
+        }
+
         profile.time.liveTimeOfDay = profile.time.savedTime ?: 6000L
         profileCache[ageId] = profile
         return profile
     }
 
+    fun registerPendingTerrainTuning(ageId: Identifier, tuning: TerrainTuningProfile) {
+        val normalized = tuning.normalized()
+        if (!normalized.isEdited()) {
+            pendingTerrainTuning.remove(ageId)
+            return
+        }
+        pendingTerrainTuning[ageId] = normalized
+    }
+
     private fun generateNewProfile(server: MinecraftServer, ageId: Identifier, symbols: List<String>): AgeProfile {
+        val role = AgeSubdimensionManager.roleOf(ageId)
+        val rootAgeId = AgeSubdimensionManager.rootIdOf(ageId)
+        if (role != AgeDimensionRole.OVERWORLD && rootAgeId != ageId) {
+            val rootProfile = getOrGenerateProfile(server, rootAgeId)
+            return buildDerivedProfile(ageId, role, rootAgeId, rootProfile, null)
+        }
+
+        val terrainTuning = pendingTerrainTuning.remove(ageId)?.normalized() ?: TerrainTuningProfile()
         val compiled = AgeCompiler.compile(symbols)
         val rand = Random(ageId.toString().hashCode().toLong())
         val normalizedSymbols = symbols.map(::normalizeSymbol)
@@ -110,6 +149,10 @@ object AgeProfileManager {
                     HistoricAgeThemes.ANCIENT_BONES, HistoricAgeThemes.FORGOTTEN_RUINS,
                     HistoricAgeThemes.COLLAPSED_OBSERVATORY, HistoricAgeThemes.ANCIENT_AQUEDUCTS, HistoricAgeThemes.GATEWAY_RUINS,
                     AmbientAgeThemes.PAGE_STORMS, AmbientAgeThemes.MEMORY_BLOOMS, AmbientAgeThemes.STABLE_SANCTUARIES,
+                    ChaosAgeThemes.SKY_RAINBOWS, ChaosAgeThemes.SKY_AURORAS, ChaosAgeThemes.SHOOTING_STARS,
+                    ChaosAgeThemes.COMETS, ChaosAgeThemes.SKY_RIFTS, ChaosAgeThemes.BRIGHT_SKY, ChaosAgeThemes.DARK_SKY,
+                    ChaosAgeThemes.METEOR_SHOWERS, ChaosAgeThemes.SKY_SPHERES,
+                    ChaosAgeThemes.PARTICLE_MOTES, ChaosAgeThemes.PARTICLE_ASH, ChaosAgeThemes.PARTICLE_SPORES, ChaosAgeThemes.PARTICLE_VOID,
                     "spawning_no_mobs", "spawning_extra_hostile", "sun_red", "moon_extra"
                 )
                 cleanSymbol = wildcards.random(rand)
@@ -138,6 +181,19 @@ object AgeProfileManager {
                 AmbientAgeThemes.PAGE_STORMS -> if (!activeModifiers.contains(AmbientAgeThemes.PAGE_STORMS)) { activeModifiers.add(AmbientAgeThemes.PAGE_STORMS); modifierInstability += 18; if (originalSymbol != "random") explicitInstabilityFeaturePages.add(AmbientAgeThemes.PAGE_STORMS) }
                 AmbientAgeThemes.MEMORY_BLOOMS -> if (!activeModifiers.contains(AmbientAgeThemes.MEMORY_BLOOMS)) { activeModifiers.add(AmbientAgeThemes.MEMORY_BLOOMS); modifierInstability += 10; if (originalSymbol != "random") explicitInstabilityFeaturePages.add(AmbientAgeThemes.MEMORY_BLOOMS) }
                 AmbientAgeThemes.STABLE_SANCTUARIES -> if (!activeModifiers.contains(AmbientAgeThemes.STABLE_SANCTUARIES)) { activeModifiers.add(AmbientAgeThemes.STABLE_SANCTUARIES); modifierInstability += 8; if (originalSymbol != "random") explicitInstabilityFeaturePages.add(AmbientAgeThemes.STABLE_SANCTUARIES) }
+                ChaosAgeThemes.SKY_RAINBOWS -> if (!activeModifiers.contains(ChaosAgeThemes.SKY_RAINBOWS)) { activeModifiers.add(ChaosAgeThemes.SKY_RAINBOWS); modifierInstability += 6 }
+                ChaosAgeThemes.SKY_AURORAS -> if (!activeModifiers.contains(ChaosAgeThemes.SKY_AURORAS)) { activeModifiers.add(ChaosAgeThemes.SKY_AURORAS); modifierInstability += 8 }
+                ChaosAgeThemes.SHOOTING_STARS -> if (!activeModifiers.contains(ChaosAgeThemes.SHOOTING_STARS)) { activeModifiers.add(ChaosAgeThemes.SHOOTING_STARS); modifierInstability += 8; starDensity = starDensity.coerceAtLeast(2); hasStarPages = true }
+                ChaosAgeThemes.COMETS -> if (!activeModifiers.contains(ChaosAgeThemes.COMETS)) { activeModifiers.add(ChaosAgeThemes.COMETS); modifierInstability += 10; starDensity = starDensity.coerceAtLeast(2); hasStarPages = true }
+                ChaosAgeThemes.SKY_RIFTS -> if (!activeModifiers.contains(ChaosAgeThemes.SKY_RIFTS)) { activeModifiers.add(ChaosAgeThemes.SKY_RIFTS); modifierInstability += 18 }
+                ChaosAgeThemes.BRIGHT_SKY -> if (!activeModifiers.contains(ChaosAgeThemes.BRIGHT_SKY)) { activeModifiers.add(ChaosAgeThemes.BRIGHT_SKY); modifierInstability += 6; if (!hasSunPages) sunNormal = sunNormal.coerceAtLeast(1) }
+                ChaosAgeThemes.DARK_SKY -> if (!activeModifiers.contains(ChaosAgeThemes.DARK_SKY)) { activeModifiers.add(ChaosAgeThemes.DARK_SKY); modifierInstability += 10; if (!hasStarPages) starDensity = starDensity.coerceAtLeast(3) }
+                ChaosAgeThemes.METEOR_SHOWERS -> if (!activeModifiers.contains(ChaosAgeThemes.METEOR_SHOWERS)) { activeModifiers.add(ChaosAgeThemes.METEOR_SHOWERS); modifierInstability += 18 }
+                ChaosAgeThemes.SKY_SPHERES -> if (!activeModifiers.contains(ChaosAgeThemes.SKY_SPHERES)) { activeModifiers.add(ChaosAgeThemes.SKY_SPHERES); modifierInstability += 14 }
+                ChaosAgeThemes.PARTICLE_MOTES -> if (!activeModifiers.contains(ChaosAgeThemes.PARTICLE_MOTES)) { activeModifiers.add(ChaosAgeThemes.PARTICLE_MOTES); modifierInstability += 4 }
+                ChaosAgeThemes.PARTICLE_ASH -> if (!activeModifiers.contains(ChaosAgeThemes.PARTICLE_ASH)) { activeModifiers.add(ChaosAgeThemes.PARTICLE_ASH); modifierInstability += 6 }
+                ChaosAgeThemes.PARTICLE_SPORES -> if (!activeModifiers.contains(ChaosAgeThemes.PARTICLE_SPORES)) { activeModifiers.add(ChaosAgeThemes.PARTICLE_SPORES); modifierInstability += 5 }
+                ChaosAgeThemes.PARTICLE_VOID -> if (!activeModifiers.contains(ChaosAgeThemes.PARTICLE_VOID)) { activeModifiers.add(ChaosAgeThemes.PARTICLE_VOID); modifierInstability += 8 }
                 
                 // === CELESTIAL ===
                 "sun_normal" -> { sunNormal++; hasSunPages = true }
@@ -189,7 +245,7 @@ object AgeProfileManager {
         // ==========================================
         // 3. MAP TERRAIN & BIOMES
         // ==========================================
-        val terrain = when(compiled.terrainType) {
+        var terrain = when(compiled.terrainType) {
             "ALPHA" -> TerrainType.ALPHA
             "BETA" -> TerrainType.BETA
             "AMPLIFIED" -> TerrainType.AMPLIFIED
@@ -201,6 +257,12 @@ object AgeProfileManager {
             "FLAT" -> TerrainType.FLAT
             "VOID" -> TerrainType.VOID
             else -> weightedRandomTerrain(rand)
+        }
+
+        terrain = when {
+            terrainTuning.superFlat -> TerrainType.FLAT
+            terrainTuning.caveWorld -> TerrainType.CAVES
+            else -> terrain
         }
 
         val finalBiomeMode = when (compiled.biomeController) {
@@ -297,6 +359,7 @@ object AgeProfileManager {
         if (timeMode == "fast" || timeMode == "slow") finalInstability += 8
         if (weatherMode == "endless_storm") finalInstability += 15
         if (weatherMode == "endless_rain") finalInstability += 6
+        if (activeModifiers.contains(ChaosAgeThemes.BRIGHT_SKY) && activeModifiers.contains(ChaosAgeThemes.DARK_SKY)) finalInstability += 20
         if (biomesList.size > 3) finalInstability += (biomesList.size - 3) * 10
         finalInstability -= explicitInstabilityFeaturePages.size * 24
 
@@ -449,23 +512,89 @@ object AgeProfileManager {
             }
         }
 
+        if (activeModifiers.none { it in ChaosAgeThemes.SKY }) {
+            val skyPersonalityChance = when {
+                usedRandomPage -> 0.78f
+                sparseAge -> 0.46f
+                partiallyDefinedAge -> 0.26f
+                finalInstability >= 65 -> 0.38f
+                finalInstability >= 30 -> 0.18f
+                else -> 0.08f
+            }
+            if (rand.nextFloat() < skyPersonalityChance) {
+                activeModifiers.add(ChaosAgeThemes.randomSky(rand))
+            }
+        }
+
+        if (activeModifiers.none { it in ChaosAgeThemes.TERRAIN } && terrain != TerrainType.BIOSPHERES && terrain != TerrainType.CITIES) {
+            val terrainPersonalityChance = when {
+                usedRandomPage -> 0.36f
+                sparseAge -> 0.20f
+                finalInstability >= 60 -> 0.24f
+                finalInstability >= 30 -> 0.10f
+                else -> 0.03f
+            }
+            if (rand.nextFloat() < terrainPersonalityChance) {
+                activeModifiers.add(ChaosAgeThemes.randomTerrain(rand))
+            }
+        }
+
+        if (activeModifiers.none { it in ChaosAgeThemes.PARTICLES }) {
+            val particlePersonalityChance = when {
+                usedRandomPage -> 0.48f
+                sparseAge -> 0.28f
+                partiallyDefinedAge -> 0.18f
+                finalInstability >= 45 -> 0.22f
+                else -> 0.06f
+            }
+            if (rand.nextFloat() < particlePersonalityChance) {
+                activeModifiers.add(ChaosAgeThemes.randomParticles(rand))
+            }
+        }
+
         fun randomRGB(): Int {
             val argb = java.awt.Color.HSBtoRGB(rand.nextFloat(), 0.5f + rand.nextFloat() * 0.5f, 0.7f + rand.nextFloat() * 0.3f)
             return argb and 0x00FFFFFF
         }
+
+        fun blendChannel(value: Int, target: Int, amount: Float): Int =
+            (value + (target - value) * amount).toInt().coerceIn(0, 255)
+
+        fun blendColor(color: Int, target: Int, amount: Float): Int {
+            val red = blendChannel((color shr 16) and 0xFF, (target shr 16) and 0xFF, amount)
+            val green = blendChannel((color shr 8) and 0xFF, (target shr 8) and 0xFF, amount)
+            val blue = blendChannel(color and 0xFF, target and 0xFF, amount)
+            return (red shl 16) or (green shl 8) or blue
+        }
+
+        fun atmosphereColor(color: Int): Int {
+            var result = color
+            if (activeModifiers.contains(ChaosAgeThemes.BRIGHT_SKY)) {
+                result = blendColor(result, 0xFFF7CC, 0.34f)
+            }
+            if (activeModifiers.contains(ChaosAgeThemes.DARK_SKY)) {
+                result = blendColor(result, 0x050713, 0.52f)
+            }
+            return result
+        }
+
+        val skyColor = atmosphereColor(compiled.skyColor ?: randomRGB())
+        val fogColor = atmosphereColor(compiled.fogColor ?: randomRGB())
+        val ambientColor = atmosphereColor(compiled.ambientColor ?: compiled.fogColor ?: randomRGB())
+        val cloudColor = atmosphereColor(compiled.cloudColor ?: compiled.fogColor ?: randomRGB())
 
         return AgeProfile(
             id = ageId.toString(),
             seed = rand.nextLong(),
             terrainType = terrain,
             colors = ColorSettings(
-                sky = compiled.skyColor ?: randomRGB(),
-                fog = compiled.fogColor ?: randomRGB(),
+                sky = skyColor,
+                fog = fogColor,
                 water = compiled.waterColor ?: randomRGB(),
                 grass = compiled.grassColor ?: randomRGB(),     
                 foliage = compiled.foliageColor ?: randomRGB(),
-                ambient = compiled.ambientColor ?: compiled.fogColor ?: randomRGB(),
-                cloud = compiled.cloudColor ?: compiled.fogColor ?: randomRGB(),
+                ambient = ambientColor,
+                cloud = cloudColor,
                 fireLava = compiled.fireLavaColor ?: 0xFF6A00
             ),
             cloudHeight = compiled.cloudHeight ?: when (terrain) {
@@ -503,13 +632,17 @@ object AgeProfileManager {
                 mode = finalBiomeMode,
                 biomes = biomesList
             ),
-            spawning = SpawnSettings(noMobs, hostileMult, passiveMult),
+            spawning = SpawnSettings(noMobs || terrainTuning.noMobs, hostileMult, passiveMult),
             ageEffect = AgeEffectProfile(selectedAgeEffectId, true),
             physics = PhysicsSettings(gravityScale),
             stability = StabilityProfile(finalInstability <= 0, finalInstability),
-            modifiers = activeModifiers 
-        )
+            terrainTuning = terrainTuning,
+            modifiers = CopyOnWriteArrayList(activeModifiers)
+        ).also(AgeCurseManager::refresh)
     }
+
+    fun profileExists(server: MinecraftServer, ageId: Identifier): Boolean =
+        Files.exists(profileFile(server, ageId))
 
     fun saveAndUnload(server: MinecraftServer, ageId: Identifier) {
         val profile = profileCache.remove(ageId) ?: return
@@ -527,6 +660,167 @@ object AgeProfileManager {
     private fun writeProfile(server: MinecraftServer, ageId: Identifier, profile: AgeProfile) {
         val dir = server.getSavePath(WorldSavePath.ROOT).resolve("mystcraft_profiles")
         if (!Files.exists(dir)) Files.createDirectories(dir)
-        Files.writeString(dir.resolve("${ageId.path}.json"), profile.toJson())
+        Files.writeString(profileFile(server, ageId), profile.toJson())
+    }
+
+    private fun profileFile(server: MinecraftServer, ageId: Identifier) =
+        server.getSavePath(WorldSavePath.ROOT)
+            .resolve("mystcraft_profiles")
+            .resolve("${ageId.path}.json")
+
+    private fun refreshDerivedProfile(
+        ageId: Identifier,
+        role: AgeDimensionRole,
+        rootAgeId: Identifier,
+        rootProfile: AgeProfile,
+        target: AgeProfile
+    ): Boolean {
+        val refreshed = buildDerivedProfile(ageId, role, rootAgeId, rootProfile, target)
+        if (refreshed == target) {
+            return false
+        }
+
+        target.terrainType = refreshed.terrainType
+        target.cloudHeight = refreshed.cloudHeight
+        target.colors.sky = refreshed.colors.sky
+        target.colors.fog = refreshed.colors.fog
+        target.colors.water = refreshed.colors.water
+        target.colors.grass = refreshed.colors.grass
+        target.colors.foliage = refreshed.colors.foliage
+        target.colors.ambient = refreshed.colors.ambient
+        target.colors.cloud = refreshed.colors.cloud
+        target.colors.fireLava = refreshed.colors.fireLava
+        target.time.sunNormalCount = refreshed.time.sunNormalCount
+        target.time.sunRedCount = refreshed.time.sunRedCount
+        target.time.sunBlueCount = refreshed.time.sunBlueCount
+        target.time.sunSize = refreshed.time.sunSize
+        target.time.moonCount = refreshed.time.moonCount
+        target.time.moonSize = refreshed.time.moonSize
+        target.time.starDensity = refreshed.time.starDensity
+        target.time.fixedTime = refreshed.time.fixedTime
+        target.time.timeScale = refreshed.time.timeScale
+        target.time.savedTime = refreshed.time.savedTime
+        target.time.liveTimeOfDay = refreshed.time.liveTimeOfDay
+        target.time.timeAccumulator = refreshed.time.timeAccumulator
+        target.weather.isEndlessRain = refreshed.weather.isEndlessRain
+        target.weather.isEndlessStorm = refreshed.weather.isEndlessStorm
+        target.weather.noWeather = refreshed.weather.noWeather
+        target.weather.currentRaining = refreshed.weather.currentRaining
+        target.weather.currentThundering = refreshed.weather.currentThundering
+        target.weather.clearTicks = refreshed.weather.clearTicks
+        target.weather.rainTicks = refreshed.weather.rainTicks
+        target.weather.thunderTicks = refreshed.weather.thunderTicks
+        target.biomes.mode = refreshed.biomes.mode
+        target.biomes.biomes = refreshed.biomes.biomes.map { it.copy() }.toMutableList()
+        target.spawning.noMobs = refreshed.spawning.noMobs
+        target.spawning.hostileMultiplier = refreshed.spawning.hostileMultiplier
+        target.spawning.passiveMultiplier = refreshed.spawning.passiveMultiplier
+        target.ageEffect.effectId = refreshed.ageEffect.effectId
+        target.ageEffect.enabled = refreshed.ageEffect.enabled
+        target.physics.gravityScale = refreshed.physics.gravityScale
+        target.ageState.isSacrificed = refreshed.ageState.isSacrificed
+        target.ageState.sacrificedAt = refreshed.ageState.sacrificedAt
+        target.ageState.sacrificedBy = refreshed.ageState.sacrificedBy
+        target.ageState.displayName = refreshed.ageState.displayName
+        target.ageState.parentAgeId = refreshed.ageState.parentAgeId
+        target.ageState.dimensionRole = refreshed.ageState.dimensionRole
+        target.curses = refreshed.curses.copy(
+            activeCurses = CopyOnWriteArrayList(refreshed.curses.activeCurses),
+            diagnosedCurses = CopyOnWriteArrayList(refreshed.curses.diagnosedCurses),
+            cleansedCurses = CopyOnWriteArrayList(refreshed.curses.cleansedCurses)
+        )
+        target.stability.isStable = refreshed.stability.isStable
+        target.stability.instabilityScore = refreshed.stability.instabilityScore
+        target.stability.effectsEnabled = refreshed.stability.effectsEnabled
+        target.terrainTuning.terrainTurbulence = refreshed.terrainTuning.terrainTurbulence
+        target.terrainTuning.seaLevel = refreshed.terrainTuning.seaLevel
+        target.terrainTuning.caveDensity = refreshed.terrainTuning.caveDensity
+        target.terrainTuning.biomeSize = refreshed.terrainTuning.biomeSize
+        target.terrainTuning.verticalRange = refreshed.terrainTuning.verticalRange
+        target.terrainTuning.superFlat = refreshed.terrainTuning.superFlat
+        target.terrainTuning.noMobs = refreshed.terrainTuning.noMobs
+        target.terrainTuning.caveWorld = refreshed.terrainTuning.caveWorld
+        target.terrainTuning.noAquifers = refreshed.terrainTuning.noAquifers
+        target.modifiers = CopyOnWriteArrayList(refreshed.modifiers)
+        return true
+    }
+
+    private fun buildDerivedProfile(
+        ageId: Identifier,
+        role: AgeDimensionRole,
+        rootAgeId: Identifier,
+        rootProfile: AgeProfile,
+        existing: AgeProfile?
+    ): AgeProfile {
+        val displayName = derivedDisplayName(rootProfile, rootAgeId, role)
+        val roleBiomes = when (role) {
+            AgeDimensionRole.NETHER -> mutableListOf(
+                BiomeWeight("minecraft:nether_wastes", 34),
+                BiomeWeight("minecraft:crimson_forest", 22),
+                BiomeWeight("minecraft:warped_forest", 18),
+                BiomeWeight("minecraft:basalt_deltas", 13),
+                BiomeWeight("minecraft:soul_sand_valley", 13)
+            )
+            AgeDimensionRole.END -> mutableListOf(
+                BiomeWeight("minecraft:the_end", 45),
+                BiomeWeight("minecraft:end_highlands", 25),
+                BiomeWeight("minecraft:end_midlands", 15),
+                BiomeWeight("minecraft:small_end_islands", 10),
+                BiomeWeight("minecraft:end_barrens", 5)
+            )
+            AgeDimensionRole.OVERWORLD -> rootProfile.biomes.biomes.map { it.copy() }.toMutableList()
+        }
+
+        return AgeProfile(
+            id = ageId.toString(),
+            seed = rootProfile.seed,
+            terrainType = rootProfile.terrainType,
+            colors = rootProfile.colors.copy(),
+            cloudHeight = rootProfile.cloudHeight,
+            time = rootProfile.time.copy(
+                liveTimeOfDay = rootProfile.time.savedTime ?: rootProfile.time.liveTimeOfDay,
+                timeAccumulator = 0f
+            ),
+            weather = rootProfile.weather.copy(),
+            biomes = BiomeSet(
+                mode = when (role) {
+                    AgeDimensionRole.NETHER, AgeDimensionRole.END -> BiomeMode.WEIGHTED
+                    AgeDimensionRole.OVERWORLD -> rootProfile.biomes.mode
+                },
+                biomes = roleBiomes
+            ),
+            spawning = rootProfile.spawning.copy(),
+            ageEffect = rootProfile.ageEffect.copy(),
+            physics = rootProfile.physics.copy(),
+            ageState = AgeState(
+                isSacrificed = rootProfile.ageState.isSacrificed,
+                sacrificedAt = rootProfile.ageState.sacrificedAt,
+                sacrificedBy = rootProfile.ageState.sacrificedBy,
+                surfaceSpawnX = existing?.ageState?.surfaceSpawnX,
+                surfaceSpawnY = existing?.ageState?.surfaceSpawnY,
+                surfaceSpawnZ = existing?.ageState?.surfaceSpawnZ,
+                displayName = displayName,
+                parentAgeId = rootAgeId.toString(),
+                dimensionRole = role.name
+            ),
+            curses = rootProfile.curses.copy(
+                activeCurses = CopyOnWriteArrayList(rootProfile.curses.activeCurses),
+                diagnosedCurses = CopyOnWriteArrayList(rootProfile.curses.diagnosedCurses),
+                cleansedCurses = CopyOnWriteArrayList(rootProfile.curses.cleansedCurses)
+            ),
+            stability = rootProfile.stability.copy(),
+            terrainTuning = rootProfile.terrainTuning.copy(),
+            modifiers = CopyOnWriteArrayList(rootProfile.modifiers)
+        ).also(AgeCurseManager::refresh)
+    }
+
+    private fun derivedDisplayName(rootProfile: AgeProfile, rootAgeId: Identifier, role: AgeDimensionRole): String {
+        val rootName = rootProfile.ageState.displayName
+            ?.takeIf { it.isNotBlank() }
+            ?: rootAgeId.path
+                .replace('_', ' ')
+                .replace('-', ' ')
+                .replaceFirstChar { it.uppercase() }
+        return "$rootName ${role.label}"
     }
 }

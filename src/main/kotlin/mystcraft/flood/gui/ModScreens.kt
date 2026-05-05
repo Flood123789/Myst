@@ -15,6 +15,24 @@ object ModScreens {
         ScreenHandlerType(::BookBinderScreenHandler, FeatureFlags.VANILLA_FEATURES)
     )
 
+    val WRITING_DESK_HANDLER: ScreenHandlerType<WritingDeskScreenHandler> = Registry.register(
+        Registries.SCREEN_HANDLER,
+        Identifier(MystcraftReforged.MOD_ID, "writing_desk"),
+        ScreenHandlerType(::WritingDeskScreenHandler, FeatureFlags.VANILLA_FEATURES)
+    )
+
+    val EDITING_TABLE_HANDLER: ScreenHandlerType<EditingTableScreenHandler> = Registry.register(
+        Registries.SCREEN_HANDLER,
+        Identifier(MystcraftReforged.MOD_ID, "editing_table"),
+        ScreenHandlerType(::EditingTableScreenHandler, FeatureFlags.VANILLA_FEATURES)
+    )
+
+    val PRINTING_TABLE_HANDLER: ScreenHandlerType<PrintingTableScreenHandler> = Registry.register(
+        Registries.SCREEN_HANDLER,
+        Identifier(MystcraftReforged.MOD_ID, "printing_table"),
+        ScreenHandlerType(::PrintingTableScreenHandler, FeatureFlags.VANILLA_FEATURES)
+    )
+
     val NOTEBOOK_HANDLER: ScreenHandlerType<NotebookScreenHandler> = Registry.register(
         Registries.SCREEN_HANDLER,
         Identifier(MystcraftReforged.MOD_ID, "notebook"),

@@ -92,6 +92,11 @@ object PageIconItemRenderer : BuiltinItemRendererRegistry.DynamicItemRenderer {
             clean == "page_storms" -> drawPageStorm(matrices, providers, light, overlay)
             clean == "memory_blooms" -> drawMemoryBloom(matrices, providers, light, overlay)
             clean == "stable_sanctuaries" -> drawSanctuary(matrices, providers, light, overlay)
+            clean in setOf("sky_rainbows", "sky_auroras", "shooting_stars", "comets", "sky_rifts", "bright_sky", "dark_sky") ->
+                drawChaosSkySymbol(clean, matrices, providers, light, overlay)
+            clean == "meteor_showers" -> drawMeteor(matrices, providers, light, overlay)
+            clean == "sky_spheres" -> drawSkySphere(matrices, providers, light, overlay)
+            clean.startsWith("particle_") -> drawParticleSymbol(clean, matrices, providers, light, overlay)
             clean == "crystal_formations" -> drawCrystals(matrices, providers, light, overlay)
             clean == "tendrils" -> drawTendrils(matrices, providers, light, overlay)
             clean == "obelisks" || clean == "giant_obelisks" -> drawObelisk(matrices, providers, light, overlay)
@@ -243,7 +248,7 @@ object PageIconItemRenderer : BuiltinItemRendererRegistry.DynamicItemRenderer {
         star(matrices, providers, 5.3f, 5.2f, 0.55f, GOLD, light, overlay)
         star(matrices, providers, 10.9f, 6.0f, 0.45f, SILVER, light, overlay)
         rect(matrices, providers, 4.4f, 8.0f, 11.6f, 10.6f, 0x88A48CFF.toInt(), light, overlay)
-        rect(matrices, providers, 5.3f, 6.7f, 10.7f, 8.4f, 0x6678C8FF.toInt(), light, overlay)
+        rect(matrices, providers, 5.3f, 6.7f, 10.7f, 8.4f, 0x6678C8FF, light, overlay)
     }
 
     private fun drawCloudTarget(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
@@ -396,6 +401,79 @@ object PageIconItemRenderer : BuiltinItemRendererRegistry.DynamicItemRenderer {
         rect(matrices, providers, 7.2f, 8.8f, 8.8f, 10.5f, BLUE, light, overlay)
         star(matrices, providers, 5.4f, 6.5f, 0.45f, GOLD, light, overlay)
         star(matrices, providers, 10.6f, 6.5f, 0.45f, GOLD, light, overlay)
+    }
+
+    private fun drawChaosSkySymbol(clean: String, matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
+        when (clean) {
+            "bright_sky" -> {
+                rect(matrices, providers, 3.8f, 3.8f, 12.2f, 12.2f, 0xAAFFF4A8.toInt(), light, overlay)
+                sunCore(matrices, providers, 8f, 8f, 2.2f, GOLD, light, overlay)
+                star(matrices, providers, 4.7f, 4.9f, 0.55f, PAPER, light, overlay)
+                star(matrices, providers, 11.3f, 10.8f, 0.55f, PAPER, light, overlay)
+            }
+            "dark_sky" -> {
+                rect(matrices, providers, 3.8f, 3.8f, 12.2f, 12.2f, 0xDD16182A.toInt(), light, overlay)
+                star(matrices, providers, 5.5f, 5.4f, 0.65f, SILVER, light, overlay)
+                star(matrices, providers, 10.6f, 6.7f, 0.45f, GOLD, light, overlay)
+                star(matrices, providers, 8.0f, 10.8f, 0.55f, SILVER, light, overlay)
+            }
+            "sky_rainbows" -> {
+                line(matrices, providers, 3.8f, 10.8f, 7.8f, 4.0f, 0.65f, RED, light, overlay)
+                line(matrices, providers, 5.0f, 11.0f, 8.0f, 5.0f, 0.65f, GOLD, light, overlay)
+                line(matrices, providers, 6.2f, 11.0f, 8.2f, 6.0f, 0.65f, GREEN, light, overlay)
+                line(matrices, providers, 7.4f, 11.0f, 8.6f, 7.0f, 0.65f, BLUE, light, overlay)
+                drawCloud(matrices, providers, light, overlay)
+            }
+            "sky_auroras" -> {
+                line(matrices, providers, 4.2f, 5.0f, 6.4f, 10.8f, 0.9f, 0x9968FFD0.toInt(), light, overlay)
+                line(matrices, providers, 7.2f, 4.3f, 8.1f, 11.4f, 0.9f, 0x998DC7FF.toInt(), light, overlay)
+                line(matrices, providers, 10.4f, 5.2f, 9.2f, 11.2f, 0.9f, 0x99B58DFF.toInt(), light, overlay)
+                star(matrices, providers, 5.1f, 4.1f, 0.45f, SILVER, light, overlay)
+            }
+            "shooting_stars" -> {
+                line(matrices, providers, 4.2f, 5.0f, 11.8f, 8.4f, 0.55f, SILVER, light, overlay)
+                line(matrices, providers, 5.7f, 9.2f, 11.0f, 11.6f, 0.45f, GOLD, light, overlay)
+                star(matrices, providers, 11.9f, 8.5f, 0.65f, PAPER, light, overlay)
+                star(matrices, providers, 11.1f, 11.6f, 0.45f, PAPER, light, overlay)
+            }
+            "comets" -> {
+                line(matrices, providers, 4.0f, 11.6f, 10.8f, 5.2f, 0.85f, 0xFFBDEBFF.toInt(), light, overlay)
+                sunCore(matrices, providers, 11.3f, 4.8f, 1.1f, PAPER, light, overlay)
+            }
+            else -> {
+                line(matrices, providers, 4.4f, 11.5f, 11.6f, 4.3f, 1.0f, PURPLE, light, overlay)
+                line(matrices, providers, 5.2f, 11.8f, 12.4f, 4.6f, 0.45f, BLUE, light, overlay)
+                star(matrices, providers, 10.5f, 5.2f, 0.55f, GOLD, light, overlay)
+            }
+        }
+    }
+
+    private fun drawMeteor(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
+        line(matrices, providers, 4.2f, 4.3f, 9.6f, 9.6f, 1.0f, RED, light, overlay)
+        line(matrices, providers, 5.4f, 4.0f, 10.2f, 8.8f, 0.55f, GOLD, light, overlay)
+        sunCore(matrices, providers, 10.3f, 10.2f, 1.4f, 0xFF222222.toInt(), light, overlay)
+        rect(matrices, providers, 4.4f, 12.0f, 11.6f, 12.7f, GRAY, light, overlay)
+    }
+
+    private fun drawSkySphere(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
+        sunCore(matrices, providers, 8f, 7.4f, 3.1f, 0xFF7FCB7A.toInt(), light, overlay)
+        rect(matrices, providers, 5.2f, 7.6f, 10.8f, 10.1f, 0xFF805F3A.toInt(), light, overlay)
+        line(matrices, providers, 8f, 10.5f, 8f, 12.7f, 0.45f, SILVER, light, overlay)
+        star(matrices, providers, 10.8f, 4.7f, 0.45f, GOLD, light, overlay)
+    }
+
+    private fun drawParticleSymbol(clean: String, matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
+        val color = when (clean) {
+            "particle_ash" -> GRAY
+            "particle_spores" -> GREEN
+            "particle_void" -> PURPLE
+            else -> GOLD
+        }
+        star(matrices, providers, 5.2f, 5.5f, 0.55f, color, light, overlay)
+        star(matrices, providers, 8.8f, 4.4f, 0.45f, color, light, overlay)
+        star(matrices, providers, 10.8f, 7.2f, 0.65f, color, light, overlay)
+        star(matrices, providers, 6.9f, 10.3f, 0.5f, color, light, overlay)
+        line(matrices, providers, 4.6f, 11.8f, 11.3f, 3.8f, 0.28f, 0x66FFFFFF, light, overlay)
     }
 
     private fun drawCrystals(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {

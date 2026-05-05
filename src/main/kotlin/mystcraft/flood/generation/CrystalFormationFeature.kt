@@ -7,7 +7,6 @@ import mystcraft.flood.generation.profile.AgeProfileManager
 import net.minecraft.block.BlockState
 import net.minecraft.block.Blocks
 import net.minecraft.util.math.BlockPos
-import net.minecraft.world.Heightmap
 import net.minecraft.world.gen.feature.DefaultFeatureConfig
 import net.minecraft.world.gen.feature.Feature
 import net.minecraft.world.gen.feature.util.FeatureContext
@@ -24,20 +23,20 @@ class CrystalFormationFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defa
         val serverWorld = world.toServerWorld()
 
         val ageId = serverWorld.registryKey.value
-        if (ageId.namespace != MystcraftReforged.MOD_ID) return false
+        if (!AgeSubdimensionManager.isPrimaryAgeRealm(ageId)) return false
 
         val profile = AgeProfileManager.getOrGenerateProfile(serverWorld.server, ageId)
         if (AgeLifecycleManager.isDeadAge(profile)) return false
         if (!profile.modifiers.contains("crystal_formations")) return false
 
-        // Rarity: Spawn fairly often if the page is used (1 in 4 chunks)
-        if (random.nextInt(AgeFeatureTuning.rarityRollDivisor(profile, 1000, "crystal_formations")) != 0) return false
+        // Rarity: crystals should feel like rare discoveries even when the page is present.
+        if (random.nextInt(1000) != 0) return false
 
-        val topY = world.getTopY(Heightmap.Type.WORLD_SURFACE_WG, origin.x, origin.z)
-        if (topY < 20 || topY > 150) return false 
-        
-        val centerPos = BlockPos(origin.x, topY, origin.z)
-        val floorBlock = world.getBlockState(centerPos.down())
+        val ground = FeatureBuildHelper.findGround(world, origin.x, origin.z) ?: return false
+        if (ground.y < 19 || ground.y > 149) return false
+
+        val centerPos = ground.up()
+        val floorBlock = world.getBlockState(ground)
 
         // Don't spawn on water or mid-air
         if (floorBlock.isOf(Blocks.WATER) || floorBlock.isAir) return false

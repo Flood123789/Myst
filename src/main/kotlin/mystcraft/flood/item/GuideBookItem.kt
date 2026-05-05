@@ -34,7 +34,7 @@ class GuideBookItem(settings: Settings) : Item(settings) {
     }
 
     override fun appendTooltip(stack: ItemStack, world: World?, tooltip: MutableList<Text>, context: TooltipContext) {
-        tooltip.add(Text.literal("A primer on pages, Ages, and instability.").formatted(Formatting.GRAY))
+        tooltip.add(Text.literal("A red-bound primer on pages, Ages, and instability.").formatted(Formatting.GRAY))
         if (!PatchouliCompat.isAvailable()) {
             tooltip.add(Text.literal("Install Patchouli to read it in-game.").formatted(Formatting.YELLOW))
         }

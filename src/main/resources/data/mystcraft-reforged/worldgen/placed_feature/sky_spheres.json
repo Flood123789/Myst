@@ -1,0 +1,8 @@
+{
+  "feature": "mystcraft-reforged:sky_spheres",
+  "placement": [
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

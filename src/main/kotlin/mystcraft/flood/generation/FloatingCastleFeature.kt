@@ -31,7 +31,7 @@ class FloatingCastleFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defaul
         val origin = context.origin // The specific block being looked at
         val serverWorld = world.toServerWorld()
 
-        if (serverWorld.registryKey.value.namespace != MystcraftReforged.MOD_ID) return false
+        if (!AgeSubdimensionManager.isPrimaryAgeRealm(serverWorld.registryKey.value)) return false
         val profile = AgeProfileManager.getOrGenerateProfile(serverWorld.server, serverWorld.registryKey.value)
         if (AgeLifecycleManager.isDeadAge(profile)) return false
         if (profile.terrainType == TerrainType.BIOSPHERES) return false

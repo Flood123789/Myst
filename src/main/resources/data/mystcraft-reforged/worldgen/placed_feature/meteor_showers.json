@@ -1,0 +1,8 @@
+{
+  "feature": "mystcraft-reforged:meteor_showers",
+  "placement": [
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

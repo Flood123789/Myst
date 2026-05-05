@@ -48,6 +48,10 @@ class BookStandBlockEntity(pos: BlockPos, state: BlockState) : BlockEntity(ModBl
         return stack
     }
 
+    fun markBookDirty() {
+        syncVisuals()
+    }
+
     private fun syncVisuals() {
         markDirty()
         val currentWorld = world ?: return

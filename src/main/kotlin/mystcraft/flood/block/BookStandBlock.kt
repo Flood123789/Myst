@@ -2,6 +2,7 @@ package mystcraft.flood.block
 
 import mystcraft.flood.block.entity.BookStandBlockEntity
 import mystcraft.flood.item.DisplayedBookHelper
+import mystcraft.flood.network.ModMessages
 import net.minecraft.block.Block
 import net.minecraft.block.BlockEntityProvider
 import net.minecraft.block.BlockRenderType
@@ -39,7 +40,7 @@ class BookStandBlock(settings: Settings) : BlockWithEntity(settings), BlockEntit
     override fun createBlockEntity(pos: BlockPos, state: BlockState): BlockEntity =
         BookStandBlockEntity(pos, state)
 
-    override fun getRenderType(state: BlockState): BlockRenderType = BlockRenderType.MODEL
+    override fun getRenderType(state: BlockState): BlockRenderType = BlockRenderType.ENTITYBLOCK_ANIMATED
 
     override fun getOutlineShape(state: BlockState, world: BlockView, pos: BlockPos, context: ShapeContext): VoxelShape =
         SHAPE
@@ -84,6 +85,10 @@ class BookStandBlock(settings: Settings) : BlockWithEntity(settings), BlockEntit
         }
 
         val serverPlayer = player as? net.minecraft.server.network.ServerPlayerEntity ?: return ActionResult.SUCCESS
+        if (DisplayedBookHelper.isDescriptiveBook(displayedBook)) {
+            ModMessages.sendOpenDescriptiveBook(serverPlayer, displayedBook.copy(), standPos = pos)
+            return ActionResult.SUCCESS
+        }
         DisplayedBookHelper.activate(world, serverPlayer, displayedBook.copy())
         return ActionResult.SUCCESS
     }

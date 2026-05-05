@@ -1,0 +1,26 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "IPI",
+    "LWL",
+    "PPP"
+  ],
+  "key": {
+    "I": {
+      "item": "mystcraft-reforged:ink_vial"
+    },
+    "P": {
+      "item": "minecraft:oak_planks"
+    },
+    "L": {
+      "item": "minecraft:leather"
+    },
+    "W": {
+      "item": "mystcraft-reforged:writingdesk"
+    }
+  },
+  "result": {
+    "item": "mystcraft-reforged:printing_table"
+  },
+  "show_notification": true
+}

@@ -1,0 +1,35 @@
+wing: mystcraft_reforged
+rooms:
+- name: bin
+  description: Files from bin/
+  keywords:
+  - bin
+  - bin
+- name: gradle
+  description: Files from gradle/
+  keywords:
+  - gradle
+  - gradle
+- name: run
+  description: Files from run/
+  keywords:
+  - run
+  - run
+- name: src
+  description: Files from src/
+  keywords:
+  - src
+  - src
+- name: frontend
+  description: Files from client/
+  keywords:
+  - frontend
+  - client
+- name: configuration
+  description: Files from config/
+  keywords:
+  - configuration
+  - config
+- name: general
+  description: Files that don't fit other rooms
+  keywords: []

@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "top": "mystcraft-reforged:block/inkmixer_top",
+    "bottom": "mystcraft-reforged:block/book_binder_bottom",
+    "side": "mystcraft-reforged:block/inkmixer_side"
+  }
+}

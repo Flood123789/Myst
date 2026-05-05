@@ -37,7 +37,7 @@ class ForgottenRuinsFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defaul
         val serverWorld = world.toServerWorld()
         val ageId = serverWorld.registryKey.value
 
-        if (ageId.namespace != MystcraftReforged.MOD_ID) return false
+        if (!AgeSubdimensionManager.isPrimaryAgeRealm(ageId)) return false
 
         val profile = AgeProfileManager.getOrGenerateProfile(serverWorld.server, ageId)
         if (AgeLifecycleManager.isDeadAge(profile)) return false
@@ -46,10 +46,10 @@ class ForgottenRuinsFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defaul
         val explicit = profile.modifiers.contains(HistoricAgeThemes.FORGOTTEN_RUINS)
         val instability = profile.stability.instabilityScore
         val spawnChance = when {
-            explicit -> 0.92f
-            instability >= 75 -> 0.58f
-            instability >= 45 -> 0.28f
-            instability >= 18 -> 0.10f
+            explicit -> 0.72f
+            instability >= 75 -> 0.34f
+            instability >= 45 -> 0.16f
+            instability >= 18 -> 0.055f
             else -> 0.0f
         } * AgeFeatureTuning.chanceMultiplier(profile, HistoricAgeThemes.FORGOTTEN_RUINS)
         if (spawnChance <= 0f) return false
@@ -63,11 +63,11 @@ class ForgottenRuinsFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defaul
             cultureRegionZ.toLong() * 5_194_882_611L +
             0xCA71A4E2L
         val cultureRand = java.util.Random(cultureSeed)
-        val activeRegionChance = if (explicit) 0.90f else 0.58f
+        val activeRegionChance = if (explicit) 0.78f else 0.38f
         if (cultureRand.nextFloat() > activeRegionChance) return false
         val culture = RuinCulture.entries[cultureRand.nextInt(RuinCulture.entries.size)]
 
-        val cellSize = 8
+        val cellSize = if (explicit) 12 else 15
         val cellX = Math.floorDiv(chunkPos.x, cellSize)
         val cellZ = Math.floorDiv(chunkPos.z, cellSize)
         val localX = Math.floorMod(chunkPos.x, cellSize)
@@ -80,18 +80,19 @@ class ForgottenRuinsFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defaul
         val targetX = cellRand.nextInt(cellSize)
         val targetZ = cellRand.nextInt(cellSize)
         if (localX != targetX || localZ != targetZ) return false
-        if (!explicit && cellRand.nextFloat() > spawnChance) return false
+        if (cellRand.nextFloat() > spawnChance) return false
 
         val centerX = chunkPos.startX + 8 + cellRand.nextInt(7) - 3
         val centerZ = chunkPos.startZ + 8 + cellRand.nextInt(7) - 3
         val ground = getGround(world, centerX, centerZ) ?: return false
         val center = BlockPos(centerX, ground.y + 1, centerZ)
+        if (!AgeFeatureTuning.canPlaceMajorFeature(profile, ChunkPos(center), HistoricAgeThemes.FORGOTTEN_RUINS, 9)) return false
 
         val majorSettlementChance = when {
-            explicit -> 0.42f
-            instability >= 70 -> 0.26f
-            instability >= 40 -> 0.14f
-            else -> 0.05f
+            explicit -> 0.38f
+            instability >= 70 -> 0.20f
+            instability >= 40 -> 0.10f
+            else -> 0.03f
         }
         if (cellRand.nextFloat() < majorSettlementChance) {
             buildSettlementCluster(world, chunkPos, center, culture, cellRand)
@@ -105,20 +106,28 @@ class ForgottenRuinsFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defaul
                 buildBrokenBridge(world, chunkPos, center, culture, bridgeAxis, cellRand.nextBoolean())
                 true
             }
-            variantRoll < 42 -> {
+            variantRoll < 38 -> {
                 buildArchSite(world, chunkPos, center, culture, cellRand)
                 true
             }
-            variantRoll < 67 -> {
+            variantRoll < 56 -> {
                 buildHouseRuin(world, chunkPos, center, culture, 6 + cellRand.nextInt(3), 5 + cellRand.nextInt(3), 5 + cellRand.nextInt(2), true)
                 true
             }
-            variantRoll < 86 -> {
+            variantRoll < 72 -> {
                 buildCourtyardRuin(world, chunkPos, center, culture, cellRand)
                 true
             }
-            else -> {
+            variantRoll < 84 -> {
                 buildHamlet(world, chunkPos, center, culture, cellRand)
+                true
+            }
+            variantRoll < 94 -> {
+                buildShrinePlaza(world, chunkPos, center, culture, cellRand)
+                true
+            }
+            else -> {
+                buildWaystationLibrary(world, chunkPos, center, culture, cellRand)
                 true
             }
         }
@@ -286,6 +295,80 @@ class ForgottenRuinsFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defaul
         scatterRubble(world, chunkPos, center, 13, culture, rand)
         placeOvergrowth(world, chunkPos, center, 14, culture, rand)
         placeDisasterScars(world, chunkPos, center, culture, rand)
+    }
+
+    private fun buildShrinePlaza(world: StructureWorldAccess, chunkPos: ChunkPos, center: BlockPos, culture: RuinCulture, rand: java.util.Random) {
+        val radius = 7
+        for (dx in -radius..radius) {
+            for (dz in -radius..radius) {
+                val dist = abs(dx) + abs(dz)
+                if (dist > 11) continue
+                val ground = getGround(world, center.x + dx, center.z + dz) ?: continue
+                val block = when {
+                    dist > 9 -> culture.cracked
+                    dx == 0 || dz == 0 -> culture.floor
+                    else -> if ((dx * 13 + dz * 7).mod(5) == 0) culture.slab else culture.floor
+                }
+                setBlock(world, chunkPos, ground, block)
+            }
+        }
+
+        buildSteppedDais(world, chunkPos, center, culture, 3)
+        for (corner in listOf(BlockPos(-5, 0, -5), BlockPos(5, 0, -5), BlockPos(-5, 0, 5), BlockPos(5, 0, 5))) {
+            buildColumn(world, chunkPos, center.add(corner), culture, 5 + rand.nextInt(2))
+        }
+        buildLintel(world, chunkPos, center.add(-5, 5, -5), center.add(5, 4, -5), culture)
+        buildLintel(world, chunkPos, center.add(-5, 5, 5), center.add(5, 4, 5), culture)
+        setBlock(world, chunkPos, center.up(4), Blocks.BELL)
+        setBlock(world, chunkPos, center.north(3).up(), Blocks.SOUL_LANTERN)
+        setBlock(world, chunkPos, center.south(3).up(), Blocks.SOUL_LANTERN)
+
+        if (rand.nextFloat() < 0.65f) {
+            placeRuinChest(world, chunkPos, center.add(0, 0, -5), Direction.SOUTH, rand.nextBoolean(), rand)
+        }
+        scatterRubble(world, chunkPos, center, 10, culture, rand)
+        placeOvergrowth(world, chunkPos, center, 11, culture, rand)
+    }
+
+    private fun buildWaystationLibrary(world: StructureWorldAccess, chunkPos: ChunkPos, center: BlockPos, culture: RuinCulture, rand: java.util.Random) {
+        val halfX = 5
+        val halfZ = 7
+        for (dx in -halfX..halfX) {
+            for (dz in -halfZ..halfZ) {
+                val ground = getGround(world, center.x + dx, center.z + dz) ?: continue
+                setBlock(world, chunkPos, ground, if ((dx + dz).mod(4) == 0) culture.cracked else culture.floor)
+                val perimeter = dx == -halfX || dx == halfX || dz == -halfZ || dz == halfZ
+                if (!perimeter) continue
+                val doorway = dz == halfZ && abs(dx) <= 1
+                for (y in 1..5) {
+                    if (doorway && y <= 3) {
+                        setBlockState(world, chunkPos, ground.up(y), Blocks.AIR.defaultState)
+                    } else if (rand.nextFloat() > 0.18f + y * 0.025f) {
+                        setBlock(world, chunkPos, ground.up(y), culture.wallForDeterministic(dx, dz, y))
+                    }
+                }
+            }
+        }
+
+        for (z in -5..3 step 2) {
+            setBlock(world, chunkPos, center.add(-3, 0, z), Blocks.BOOKSHELF)
+            setBlock(world, chunkPos, center.add(-3, 1, z), if (rand.nextBoolean()) Blocks.CHISELED_BOOKSHELF else Blocks.BOOKSHELF)
+            setBlock(world, chunkPos, center.add(3, 0, z), Blocks.BOOKSHELF)
+            setBlock(world, chunkPos, center.add(3, 1, z), if (rand.nextBoolean()) Blocks.CHISELED_BOOKSHELF else Blocks.BOOKSHELF)
+        }
+        setBlock(world, chunkPos, center.add(0, 0, -4), Blocks.LECTERN)
+        setBlock(world, chunkPos, center.add(0, 0, -2), Blocks.CARTOGRAPHY_TABLE)
+        buildColumn(world, chunkPos, center.add(-halfX, 0, -halfZ), culture, 6)
+        buildColumn(world, chunkPos, center.add(halfX, 0, -halfZ), culture, 6)
+        buildLintel(world, chunkPos, center.add(-halfX, 5, -halfZ), center.add(halfX, 4, -halfZ), culture)
+        paveRoad(world, chunkPos, center.add(0, 0, halfZ), center.add(0, 0, halfZ + 10), culture)
+
+        placeRuinChest(world, chunkPos, center.add(0, 0, -5), Direction.SOUTH, true, rand)
+        if (rand.nextBoolean()) {
+            placeRuinChest(world, chunkPos, center.add(4, 0, 4), Direction.WEST, false, rand)
+        }
+        scatterRubble(world, chunkPos, center, 10, culture, rand)
+        placeOvergrowth(world, chunkPos, center, 10, culture, rand)
     }
 
     private fun buildBrokenBridge(
@@ -565,31 +648,7 @@ class ForgottenRuinsFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defaul
     }
 
     private fun getGround(world: StructureWorldAccess, x: Int, z: Int): BlockPos? {
-        val topY = world.getTopY(Heightmap.Type.WORLD_SURFACE_WG, x, z)
-        if (topY <= world.bottomY + 1 || topY >= world.topY - 4) return null
-        val surfacePos = BlockPos(x, topY - 1, z)
-        val surfaceState = world.getBlockState(surfacePos)
-
-        var y = if (surfaceState.isOf(Blocks.WATER)) {
-            world.getTopY(Heightmap.Type.OCEAN_FLOOR_WG, x, z) - 1
-        } else {
-            topY - 1
-        }
-
-        if (y <= world.bottomY + 1) return null
-
-        val minY = world.bottomY + 1
-        var attempts = 0
-        while (y >= minY && attempts < 48) {
-            val candidate = BlockPos(x, y, z)
-            val state = world.getBlockState(candidate)
-            if (isSolidGround(state) && hasStableMass(world, candidate)) {
-                return candidate
-            }
-            y--
-            attempts++
-        }
-        return null
+        return FeatureBuildHelper.findGround(world, x, z, FeatureBuildHelper.WaterMode.SEABED)
     }
 
     private fun setBlock(world: StructureWorldAccess, chunkPos: ChunkPos, pos: BlockPos, block: Block) {

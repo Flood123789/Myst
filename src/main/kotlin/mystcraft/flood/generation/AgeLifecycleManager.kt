@@ -2,6 +2,8 @@ package mystcraft.flood.generation
 
 import mystcraft.flood.MystcraftReforged
 import mystcraft.flood.access.DimensionInjector
+import mystcraft.flood.player.PlayerSpawnMemory
+import mystcraft.flood.generation.AgeSubdimensionManager
 import mystcraft.flood.generation.profile.AgeProfile
 import mystcraft.flood.generation.profile.AgeProfileManager
 import mystcraft.flood.generation.profile.TerrainType
@@ -106,6 +108,7 @@ object AgeLifecycleManager {
         targetProfile.stability.isStable = targetProfile.stability.instabilityScore <= 0
         AgeProfileManager.save(server, targetAgeId)
         syncAge(server, targetAgeId, targetProfile)
+        syncDerivedAges(server, targetAgeId)
 
         if (!player.isCreative) {
             sacrificialBook.decrement(1)
@@ -137,6 +140,7 @@ object AgeLifecycleManager {
 
         blankProfile(profile, sacrificedBy)
         AgeProfileManager.save(server, ageId)
+        syncDerivedAges(server, ageId, reloadLoadedWorlds = true)
 
         deleteDimensionData(server, ageId)
         (server as DimensionInjector).`mystcraft$reloadDimension`(ageId)
@@ -180,6 +184,8 @@ object AgeLifecycleManager {
         profile.ageEffect.enabled = false
         profile.physics.gravityScale = 1.0f
         profile.stability.effectsEnabled = false
+        profile.curses.activeCurses.clear()
+        profile.curses.diagnosedCurses.clear()
         profile.modifiers.clear()
         profile.ageState.surfaceSpawnX = null
         profile.ageState.surfaceSpawnY = null
@@ -208,10 +214,9 @@ object AgeLifecycleManager {
 
     private fun resolveFallback(player: ServerPlayerEntity, blockedAgeId: Identifier): Pair<ServerWorld, TeleportTarget> {
         val server = player.server
-        val spawnPos = player.spawnPointPosition
-        val spawnWorld = server.getWorld(player.spawnPointDimension)
-        if (spawnPos != null && spawnWorld != null && spawnWorld.registryKey.value != blockedAgeId && !isDeadAge(server, spawnWorld.registryKey.value)) {
-            return spawnWorld to teleportTargetAt(spawnWorld, spawnPos, player)
+        val rememberedFallback = PlayerSpawnMemory.findFallback(player, blockedAgeId)
+        if (rememberedFallback != null && !isDeadAge(server, rememberedFallback.first.registryKey.value)) {
+            return rememberedFallback.first to teleportTargetAt(rememberedFallback.first, rememberedFallback.second, player)
         }
 
         val overworld = server.overworld
@@ -226,6 +231,30 @@ object AgeLifecycleManager {
     private fun syncAge(server: MinecraftServer, ageId: Identifier, profile: AgeProfile) {
         server.playerManager?.playerList?.forEach { player ->
             ModMessages.sendDimensionSync(player, ageId, profile)
+        }
+    }
+
+    fun addInstability(server: MinecraftServer, ageId: Identifier, amount: Int): Boolean {
+        if (amount <= 0 || ageId.namespace != MystcraftReforged.MOD_ID) return false
+
+        val profile = AgeProfileManager.getOrGenerateProfile(server, ageId)
+        if (isDeadAge(profile)) return false
+
+        profile.stability.instabilityScore += amount
+        profile.stability.isStable = profile.stability.instabilityScore <= 0
+        AgeProfileManager.save(server, ageId)
+        syncAge(server, ageId, profile)
+        syncDerivedAges(server, ageId)
+        return true
+    }
+
+    private fun syncDerivedAges(server: MinecraftServer, rootAgeId: Identifier, reloadLoadedWorlds: Boolean = false) {
+        AgeSubdimensionManager.refreshDerivedProfiles(server, rootAgeId).forEach { derivedId ->
+            val derivedProfile = AgeProfileManager.getOrGenerateProfile(server, derivedId)
+            if (reloadLoadedWorlds && server.getWorld(net.minecraft.registry.RegistryKey.of(net.minecraft.registry.RegistryKeys.WORLD, derivedId)) != null) {
+                (server as DimensionInjector).`mystcraft$reloadDimension`(derivedId)
+            }
+            syncAge(server, derivedId, derivedProfile)
         }
     }
 

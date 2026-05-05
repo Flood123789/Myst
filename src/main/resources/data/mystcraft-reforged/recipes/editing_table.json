@@ -1,0 +1,26 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ICI",
+    "IWI",
+    "PPP"
+  ],
+  "key": {
+    "I": {
+      "item": "minecraft:iron_ingot"
+    },
+    "C": {
+      "item": "minecraft:copper_ingot"
+    },
+    "W": {
+      "item": "mystcraft-reforged:writingdesk"
+    },
+    "P": {
+      "item": "minecraft:oak_planks"
+    }
+  },
+  "result": {
+    "item": "mystcraft-reforged:editing_table"
+  },
+  "show_notification": true
+}

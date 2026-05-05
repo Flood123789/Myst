@@ -19,7 +19,6 @@ import net.minecraft.text.Text
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.ChunkPos
 import net.minecraft.util.math.Direction
-import net.minecraft.world.Heightmap
 import net.minecraft.world.StructureWorldAccess
 import net.minecraft.world.gen.feature.DefaultFeatureConfig
 import net.minecraft.world.gen.feature.Feature
@@ -31,26 +30,45 @@ class AbandonedArchiveFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defa
 
     override fun generate(context: FeatureContext<DefaultFeatureConfig>): Boolean {
         val world = context.world
-        val random = context.random
         val origin = context.origin
         val serverWorld = world.toServerWorld()
 
-        if (serverWorld.registryKey.value.namespace != MystcraftReforged.MOD_ID) return false
+        if (!AgeSubdimensionManager.isPrimaryAgeRealm(serverWorld.registryKey.value)) return false
         val profile = AgeProfileManager.getOrGenerateProfile(serverWorld.server, serverWorld.registryKey.value)
         if (AgeLifecycleManager.isDeadAge(profile)) return false
         if (profile.terrainType == TerrainType.BIOSPHERES) return false
 
-        if (random.nextInt(AgeFeatureTuning.rarityRollDivisor(profile, 420)) != 0) return false
-
-        val centerX = origin.x + 8
-        val centerZ = origin.z + 8
-        val topY = world.getTopY(Heightmap.Type.WORLD_SURFACE_WG, centerX, centerZ)
-        if (topY < 50 || topY > 150) return false
-
-        val centerPos = BlockPos(centerX, topY, centerZ)
-        if (world.getBlockState(centerPos.down()).isOf(Blocks.WATER)) return false
-
         val chunkPos = ChunkPos(origin)
+        val archiveRegionSize = 36
+        val regionX = Math.floorDiv(chunkPos.x, archiveRegionSize)
+        val regionZ = Math.floorDiv(chunkPos.z, archiveRegionSize)
+        val regionSeed = profile.seed +
+            regionX.toLong() * 8_851_921_307L +
+            regionZ.toLong() * 4_124_918_447L +
+            0xA7C417EL
+        val regionRand = java.util.Random(regionSeed)
+        val regionChance = when {
+            profile.stability.instabilityScore >= 70 -> 0.36f
+            profile.stability.instabilityScore >= 35 -> 0.24f
+            else -> 0.14f
+        } * AgeFeatureTuning.chanceMultiplier(profile)
+        if (regionRand.nextFloat() > regionChance) return false
+
+        val ownerChunkX = regionX * archiveRegionSize + 5 + regionRand.nextInt(archiveRegionSize - 10)
+        val ownerChunkZ = regionZ * archiveRegionSize + 5 + regionRand.nextInt(archiveRegionSize - 10)
+        if (chunkPos.x != ownerChunkX || chunkPos.z != ownerChunkZ) return false
+        if (!AgeFeatureTuning.canPlaceMajorFeature(profile, chunkPos, AgeFeatureTuning.ABANDONED_ARCHIVE, 18)) return false
+
+        val random = net.minecraft.util.math.random.Random.create(regionSeed xor 0xB00C51BEL)
+
+        val centerX = ownerChunkX * 16 + 8 + regionRand.nextInt(7) - 3
+        val centerZ = ownerChunkZ * 16 + 8 + regionRand.nextInt(7) - 3
+        val ground = FeatureBuildHelper.findGround(world, centerX, centerZ) ?: return false
+        if (ground.y < 49 || ground.y > 149) return false
+
+        val centerPos = ground.up()
+        if (world.getBlockState(ground).isOf(Blocks.WATER)) return false
+
         val variant = ArchiveVariant.entries[random.nextInt(ArchiveVariant.entries.size)]
         val chestSpots = mutableListOf<BlockPos>()
         val supplySpots = mutableListOf<BlockPos>()
@@ -86,27 +104,28 @@ class AbandonedArchiveFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defa
         supplySpots: MutableList<BlockPos>,
         random: net.minecraft.util.math.random.Random
     ) {
-        val halfX = 8
-        val halfZ = 7
-        val wallHeight = 8
+        val halfX = 11
+        val halfZ = 9
+        val wallHeight = 10
         layFloor(world, chunkPos, center, halfX, halfZ)
         buildShell(world, chunkPos, center, halfX, halfZ, wallHeight, random)
 
-        for (z in -4..4 step 4) {
-            buildShelfRow(world, chunkPos, center.add(-5, 0, z), Direction.EAST, 7, random)
-            buildShelfRow(world, chunkPos, center.add(5, 0, z), Direction.WEST, 7, random)
+        for (z in -6..6 step 4) {
+            buildShelfRow(world, chunkPos, center.add(-8, 0, z), Direction.EAST, 10, random)
+            buildShelfRow(world, chunkPos, center.add(8, 0, z), Direction.WEST, 10, random)
         }
         buildReadingTable(world, chunkPos, center.add(-2, 0, -1))
         buildReadingTable(world, chunkPos, center.add(2, 0, -1))
         buildReadingTable(world, chunkPos, center.add(-2, 0, 3))
         buildReadingTable(world, chunkPos, center.add(2, 0, 3))
-        buildColumn(world, chunkPos, center.add(-7, 0, -5), 7)
-        buildColumn(world, chunkPos, center.add(7, 0, -5), 7)
-        buildColumn(world, chunkPos, center.add(-7, 0, 5), 7)
-        buildColumn(world, chunkPos, center.add(7, 0, 5), 7)
-        chestSpots += listOf(center.add(-6, 0, -4), center.add(6, 0, 4), center.add(0, 0, 5))
-        supplySpots += listOf(center.add(-3, 0, -5), center.add(3, 0, -5))
-        scatterDebris(world, chunkPos, center, 10, random)
+        buildColumn(world, chunkPos, center.add(-9, 0, -7), 9)
+        buildColumn(world, chunkPos, center.add(9, 0, -7), 9)
+        buildColumn(world, chunkPos, center.add(-9, 0, 7), 9)
+        buildColumn(world, chunkPos, center.add(9, 0, 7), 9)
+        buildIndexDais(world, chunkPos, center.add(0, 0, -5))
+        chestSpots += listOf(center.add(-8, 0, -6), center.add(8, 0, 6), center.add(0, 0, 7), center.add(0, 0, -6))
+        supplySpots += listOf(center.add(-4, 0, -7), center.add(4, 0, -7), center.add(-9, 0, 0), center.add(9, 0, 0))
+        scatterDebris(world, chunkPos, center, 12, random)
     }
 
     private fun buildRotunda(
@@ -117,8 +136,8 @@ class AbandonedArchiveFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defa
         supplySpots: MutableList<BlockPos>,
         random: net.minecraft.util.math.random.Random
     ) {
-        val radius = 7
-        val wallHeight = 7
+        val radius = 10
+        val wallHeight = 9
         for (dx in -radius..radius) {
             for (dz in -radius..radius) {
                 val dist = dx * dx + dz * dz
@@ -142,18 +161,19 @@ class AbandonedArchiveFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defa
         }
 
         for (angleIndex in 0 until 6) {
-            val x = listOf(0, 5, 5, 0, -5, -5)[angleIndex]
-            val z = listOf(6, 3, -3, -6, -3, 3)[angleIndex]
-            buildColumn(world, chunkPos, center.add(x, 0, z), 6)
+            val x = listOf(0, 7, 7, 0, -7, -7)[angleIndex]
+            val z = listOf(8, 4, -4, -8, -4, 4)[angleIndex]
+            buildColumn(world, chunkPos, center.add(x, 0, z), 8)
         }
 
         buildShelfRing(world, chunkPos, center, radius - 3, random)
         buildRotundaRoof(world, chunkPos, center, radius, wallHeight)
         placeDoorPair(world, chunkPos, center.add(0, 0, radius), Direction.NORTH)
+        buildEntryCourt(world, chunkPos, center, radius)
         setBlock(world, chunkPos, center.up(), Blocks.LECTERN)
-        chestSpots += listOf(center.add(0, 0, 0), center.add(4, 0, -1), center.add(-4, 0, 1))
-        supplySpots += listOf(center.add(0, 0, 4), center.add(0, 0, -4))
-        scatterDebris(world, chunkPos, center, 9, random)
+        chestSpots += listOf(center.add(0, 0, 0), center.add(6, 0, -2), center.add(-6, 0, 2), center.add(0, 0, -7))
+        supplySpots += listOf(center.add(0, 0, 6), center.add(0, 0, -6))
+        scatterDebris(world, chunkPos, center, 12, random)
     }
 
     private fun buildCloister(
@@ -164,29 +184,29 @@ class AbandonedArchiveFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defa
         supplySpots: MutableList<BlockPos>,
         random: net.minecraft.util.math.random.Random
     ) {
-        val half = 8
+        val half = 10
         layFloor(world, chunkPos, center, half, half)
-        buildShell(world, chunkPos, center, half, half, 7, random)
+        buildShell(world, chunkPos, center, half, half, 9, random)
 
         for (dx in -6..6 step 4) {
-            buildColumn(world, chunkPos, center.add(dx, 0, -6), 6)
-            buildColumn(world, chunkPos, center.add(dx, 0, 6), 6)
+            buildColumn(world, chunkPos, center.add(dx, 0, -8), 7)
+            buildColumn(world, chunkPos, center.add(dx, 0, 8), 7)
         }
         for (dz in -6..6 step 4) {
-            buildColumn(world, chunkPos, center.add(-6, 0, dz), 6)
-            buildColumn(world, chunkPos, center.add(6, 0, dz), 6)
+            buildColumn(world, chunkPos, center.add(-8, 0, dz), 7)
+            buildColumn(world, chunkPos, center.add(8, 0, dz), 7)
         }
 
-        buildShelfRow(world, chunkPos, center.add(-6, 0, 0), Direction.EAST, 5, random)
-        buildShelfRow(world, chunkPos, center.add(6, 0, 0), Direction.WEST, 5, random)
+        buildShelfRow(world, chunkPos, center.add(-8, 0, 0), Direction.EAST, 7, random)
+        buildShelfRow(world, chunkPos, center.add(8, 0, 0), Direction.WEST, 7, random)
         buildReadingTable(world, chunkPos, center.add(-2, 0, -2))
         buildReadingTable(world, chunkPos, center.add(2, 0, -2))
         buildReadingTable(world, chunkPos, center.add(-2, 0, 2))
         buildReadingTable(world, chunkPos, center.add(2, 0, 2))
         setBlock(world, chunkPos, center, Blocks.MOSS_BLOCK)
-        chestSpots += listOf(center.add(-6, 0, -6), center.add(6, 0, 6), center.add(0, 0, 0))
-        supplySpots += listOf(center.add(-6, 0, 6), center.add(6, 0, -6))
-        scatterDebris(world, chunkPos, center, 11, random)
+        chestSpots += listOf(center.add(-8, 0, -8), center.add(8, 0, 8), center.add(0, 0, 0), center.add(8, 0, -8))
+        supplySpots += listOf(center.add(-8, 0, 8), center.add(8, 0, -8))
+        scatterDebris(world, chunkPos, center, 13, random)
     }
 
     private fun buildScriptorium(
@@ -197,10 +217,10 @@ class AbandonedArchiveFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defa
         supplySpots: MutableList<BlockPos>,
         random: net.minecraft.util.math.random.Random
     ) {
-        layFloor(world, chunkPos, center.add(-3, 0, 0), 6, 5)
-        layFloor(world, chunkPos, center.add(5, 0, -2), 4, 8)
-        buildShell(world, chunkPos, center.add(-3, 0, 0), 6, 5, 7, random)
-        buildShell(world, chunkPos, center.add(5, 0, -2), 4, 8, 7, random)
+        layFloor(world, chunkPos, center.add(-4, 0, 0), 8, 6)
+        layFloor(world, chunkPos, center.add(6, 0, -2), 5, 10)
+        buildShell(world, chunkPos, center.add(-4, 0, 0), 8, 6, 8, random)
+        buildShell(world, chunkPos, center.add(6, 0, -2), 5, 10, 8, random)
 
         buildShelfRow(world, chunkPos, center.add(-7, 0, -2), Direction.EAST, 6, random)
         buildShelfRow(world, chunkPos, center.add(6, 0, -5), Direction.WEST, 6, random)
@@ -208,9 +228,10 @@ class AbandonedArchiveFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defa
         buildReadingTable(world, chunkPos, center.add(-2, 0, 1))
         buildReadingTable(world, chunkPos, center.add(5, 0, -1))
         setBlock(world, chunkPos, center.add(1, 0, -6), Blocks.CAULDRON)
-        chestSpots += listOf(center.add(-6, 0, 4), center.add(7, 0, -6), center.add(5, 0, 5))
-        supplySpots += listOf(center.add(-1, 0, -4), center.add(6, 0, 1))
-        scatterDebris(world, chunkPos, center, 10, random)
+        buildIndexDais(world, chunkPos, center.add(1, 0, 3))
+        chestSpots += listOf(center.add(-8, 0, 5), center.add(8, 0, -8), center.add(6, 0, 7), center.add(-2, 0, -5))
+        supplySpots += listOf(center.add(-1, 0, -5), center.add(7, 0, 1))
+        scatterDebris(world, chunkPos, center, 12, random)
     }
 
     private fun buildStacks(
@@ -221,21 +242,21 @@ class AbandonedArchiveFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defa
         supplySpots: MutableList<BlockPos>,
         random: net.minecraft.util.math.random.Random
     ) {
-        val halfX = 8
-        val halfZ = 6
+        val halfX = 10
+        val halfZ = 8
         layFloor(world, chunkPos, center, halfX, halfZ)
-        buildShell(world, chunkPos, center, halfX, halfZ, 8, random)
-        for (x in -6..6 step 3) {
-            buildShelfRow(world, chunkPos, center.add(x, 0, -3), Direction.SOUTH, 7, random)
+        buildShell(world, chunkPos, center, halfX, halfZ, 10, random)
+        for (x in -8..8 step 4) {
+            buildShelfRow(world, chunkPos, center.add(x, 0, -4), Direction.SOUTH, 9, random)
         }
         buildReadingTable(world, chunkPos, center.add(-3, 0, 3))
         buildReadingTable(world, chunkPos, center.add(3, 0, 3))
         for (x in -4..4 step 4) {
-            buildColumn(world, chunkPos, center.add(x, 0, -4), 6)
+            buildColumn(world, chunkPos, center.add(x, 0, -6), 8)
         }
-        chestSpots += listOf(center.add(-6, 0, -4), center.add(6, 0, -4), center.add(0, 0, 4))
-        supplySpots += listOf(center.add(-6, 0, 4), center.add(6, 0, 4))
-        scatterDebris(world, chunkPos, center, 10, random)
+        chestSpots += listOf(center.add(-8, 0, -6), center.add(8, 0, -6), center.add(0, 0, 6), center.add(0, 0, -6))
+        supplySpots += listOf(center.add(-8, 0, 6), center.add(8, 0, 6))
+        scatterDebris(world, chunkPos, center, 12, random)
     }
 
     private fun layFloor(world: StructureWorldAccess, chunkPos: ChunkPos, center: BlockPos, halfX: Int, halfZ: Int) {
@@ -280,6 +301,7 @@ class AbandonedArchiveFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defa
         buildGrandRoof(world, chunkPos, center, halfX, halfZ, wallHeight, random)
         buildExteriorButtresses(world, chunkPos, center, halfX, halfZ)
         placeDoorPair(world, chunkPos, center.add(0, 0, halfZ), Direction.NORTH)
+        buildEntryCourt(world, chunkPos, center, halfZ)
     }
 
     private fun buildColumn(world: StructureWorldAccess, chunkPos: ChunkPos, base: BlockPos, height: Int) {
@@ -337,6 +359,39 @@ class AbandonedArchiveFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defa
         setBlock(world, chunkPos, center.up(), Blocks.CANDLE)
         setBlockState(world, chunkPos, center.north(), Blocks.SPRUCE_STAIRS.defaultState.with(Properties.HORIZONTAL_FACING, Direction.SOUTH))
         setBlockState(world, chunkPos, center.south(), Blocks.SPRUCE_STAIRS.defaultState.with(Properties.HORIZONTAL_FACING, Direction.NORTH))
+    }
+
+    private fun buildIndexDais(world: StructureWorldAccess, chunkPos: ChunkPos, center: BlockPos) {
+        for (dx in -2..2) {
+            for (dz in -1..1) {
+                val edge = abs(dx) == 2 || abs(dz) == 1
+                setBlock(world, chunkPos, center.add(dx, 0, dz), if (edge) Blocks.CHISELED_STONE_BRICKS else Blocks.SMOOTH_STONE)
+            }
+        }
+        setBlock(world, chunkPos, center.up(), Blocks.CARTOGRAPHY_TABLE)
+        setBlock(world, chunkPos, center.east().up(), Blocks.LECTERN)
+        setBlock(world, chunkPos, center.west().up(), Blocks.LECTERN)
+        setBlock(world, chunkPos, center.north().up(), Blocks.CANDLE)
+    }
+
+    private fun buildEntryCourt(world: StructureWorldAccess, chunkPos: ChunkPos, center: BlockPos, halfZ: Int) {
+        val startZ = halfZ + 1
+        for (dz in startZ..startZ + 7) {
+            val width = 5 - ((dz - startZ) / 2)
+            for (dx in -width..width) {
+                val pos = center.add(dx, -1, dz)
+                val edge = abs(dx) == width
+                setBlock(world, chunkPos, pos, if (edge) Blocks.MOSSY_STONE_BRICKS else Blocks.SMOOTH_STONE)
+            }
+        }
+        for (dx in listOf(-4, 4)) {
+            setBlock(world, chunkPos, center.add(dx, 0, startZ + 1), Blocks.STONE_BRICK_WALL)
+            setBlock(world, chunkPos, center.add(dx, 1, startZ + 1), Blocks.LANTERN)
+            setBlock(world, chunkPos, center.add(dx, 0, startZ + 5), Blocks.STONE_BRICK_WALL)
+        }
+        for (dx in -2..2) {
+            setBlockState(world, chunkPos, center.add(dx, 0, halfZ + 1), Blocks.STONE_BRICK_STAIRS.defaultState.with(Properties.HORIZONTAL_FACING, Direction.SOUTH))
+        }
     }
 
     private fun scatterDebris(world: StructureWorldAccess, chunkPos: ChunkPos, center: BlockPos, radius: Int, random: net.minecraft.util.math.random.Random) {

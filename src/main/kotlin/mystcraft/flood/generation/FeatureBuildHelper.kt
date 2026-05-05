@@ -1,5 +1,8 @@
 package mystcraft.flood.generation
 
+import mystcraft.flood.generation.profile.AgeDimensionRole
+import mystcraft.flood.generation.profile.AgeProfileManager
+import mystcraft.flood.generation.profile.TerrainType
 import net.minecraft.block.Block
 import net.minecraft.block.BlockState
 import net.minecraft.block.Blocks
@@ -18,6 +21,8 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 
 object FeatureBuildHelper {
+    private const val INTERIOR_MAX_CLEARANCE = 28
+
     enum class WaterMode {
         AVOID,
         SEABED,
@@ -25,6 +30,25 @@ object FeatureBuildHelper {
     }
 
     fun findGround(world: StructureWorldAccess, x: Int, z: Int, waterMode: WaterMode = WaterMode.AVOID): BlockPos? {
+        val serverWorld = world.toServerWorld()
+        val ageId = serverWorld.registryKey.value
+        val role = AgeSubdimensionManager.roleOf(ageId)
+        val rootId = AgeSubdimensionManager.rootIdOf(ageId)
+        val profile = if (AgeSubdimensionManager.isMystcraftRealm(serverWorld.registryKey)) {
+            AgeProfileManager.getOrGenerateProfile(serverWorld.server, rootId)
+        } else {
+            null
+        }
+        val preferInterior = profile?.terrainType == TerrainType.CAVES || role == AgeDimensionRole.NETHER
+
+        return if (preferInterior) {
+            findInteriorGround(world, x, z, waterMode) ?: findSurfaceGround(world, x, z, waterMode)
+        } else {
+            findSurfaceGround(world, x, z, waterMode) ?: findInteriorGround(world, x, z, waterMode)
+        }
+    }
+
+    private fun findSurfaceGround(world: StructureWorldAccess, x: Int, z: Int, waterMode: WaterMode): BlockPos? {
         val topY = world.getTopY(Heightmap.Type.WORLD_SURFACE_WG, x, z)
         if (topY <= world.bottomY + 1 || topY >= world.topY - 4) return null
 
@@ -41,6 +65,42 @@ object FeatureBuildHelper {
                     }
                 }
                 isSolidGround(state) -> {
+                    return when {
+                        !sawWater -> pos
+                        waterMode == WaterMode.SEABED -> pos
+                        else -> null
+                    }
+                }
+            }
+            y--
+        }
+
+        return null
+    }
+
+    private fun findInteriorGround(world: StructureWorldAccess, x: Int, z: Int, waterMode: WaterMode): BlockPos? {
+        val topY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z)
+        if (topY <= world.bottomY + 1) return null
+
+        var y = (topY - 1).coerceAtMost(world.topY - 4)
+        var sawWater = false
+        while (y > world.bottomY + 1) {
+            val pos = BlockPos(x, y, z)
+            val state = world.getBlockState(pos)
+            when {
+                state.isOf(Blocks.WATER) -> {
+                    sawWater = true
+                    if (waterMode == WaterMode.SURFACE) {
+                        return pos
+                    }
+                }
+                isSolidGround(state) && hasStandableAir(world, pos) -> {
+                    val ceilingClearance = interiorCeilingClearance(world, pos)
+                    if (ceilingClearance == Int.MAX_VALUE) {
+                        y--
+                        continue
+                    }
+
                     return when {
                         !sawWater -> pos
                         waterMode == WaterMode.SEABED -> pos
@@ -174,6 +234,28 @@ object FeatureBuildHelper {
 
     private fun isSolidGround(state: BlockState): Boolean =
         !state.isAir && !state.isOf(Blocks.WATER) && !state.isOf(Blocks.LAVA)
+
+    private fun hasStandableAir(world: StructureWorldAccess, ground: BlockPos): Boolean {
+        val feet = ground.up()
+        val head = ground.up(2)
+        return isPassable(world, feet) && isPassable(world, head)
+    }
+
+    private fun isPassable(world: StructureWorldAccess, pos: BlockPos): Boolean {
+        val state = world.getBlockState(pos)
+        return state.fluidState.isEmpty && (state.isAir || state.getCollisionShape(world, pos).isEmpty)
+    }
+
+    private fun interiorCeilingClearance(world: StructureWorldAccess, ground: BlockPos): Int {
+        for (offset in 3..INTERIOR_MAX_CLEARANCE) {
+            val pos = ground.up(offset)
+            if (pos.y >= world.topY) break
+            if (!isPassable(world, pos)) {
+                return offset - 1
+            }
+        }
+        return Int.MAX_VALUE
+    }
 
     private fun lerp(a: Double, b: Double, t: Double): Double = a + (b - a) * t
 }

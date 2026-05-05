@@ -34,6 +34,8 @@ object ModFeatures {
     val PAGE_STORMS: Feature<DefaultFeatureConfig> = PageStormFeature(DefaultFeatureConfig.CODEC)
     val MEMORY_BLOOMS: Feature<DefaultFeatureConfig> = MemoryBloomFeature(DefaultFeatureConfig.CODEC)
     val STABLE_SANCTUARIES: Feature<DefaultFeatureConfig> = StableSanctuaryFeature(DefaultFeatureConfig.CODEC)
+    val METEOR_SHOWERS: Feature<DefaultFeatureConfig> = MeteorShowerFeature(DefaultFeatureConfig.CODEC)
+    val SKY_SPHERES: Feature<DefaultFeatureConfig> = SkySphereFeature(DefaultFeatureConfig.CODEC)
 
     private var hasRegistered = false
 
@@ -64,6 +66,8 @@ object ModFeatures {
         Registry.register(Registries.FEATURE, Identifier(MystcraftReforged.MOD_ID, "page_storms"), PAGE_STORMS)
         Registry.register(Registries.FEATURE, Identifier(MystcraftReforged.MOD_ID, "memory_blooms"), MEMORY_BLOOMS)
         Registry.register(Registries.FEATURE, Identifier(MystcraftReforged.MOD_ID, "stable_sanctuaries"), STABLE_SANCTUARIES)
+        Registry.register(Registries.FEATURE, Identifier(MystcraftReforged.MOD_ID, "meteor_showers"), METEOR_SHOWERS)
+        Registry.register(Registries.FEATURE, Identifier(MystcraftReforged.MOD_ID, "sky_spheres"), SKY_SPHERES)
 
         MystcraftReforged.LOGGER.info("Successfully registered all worldgen features.")
     }

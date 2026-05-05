@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "PPP",
+    "BIB",
+    "PPP"
+  ],
+  "key": {
+    "P": {
+      "item": "minecraft:oak_planks"
+    },
+    "B": {
+      "item": "minecraft:book"
+    },
+    "I": {
+      "item": "mystcraft-reforged:ink_vial"
+    }
+  },
+  "result": {
+    "item": "mystcraft-reforged:writingdesk"
+  },
+  "show_notification": true
+}

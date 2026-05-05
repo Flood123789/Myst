@@ -22,8 +22,12 @@ import net.minecraft.world.gen.feature.DefaultFeatureConfig
 import net.minecraft.world.gen.feature.Feature
 import net.minecraft.world.gen.feature.util.FeatureContext
 import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
+import kotlin.math.sin
 
 class CityGridFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatureConfig>(codec) {
 
@@ -31,9 +35,80 @@ class CityGridFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatu
         // Flip this off once we know which generation path is misbehaving.
         private const val DEBUG_CITY_GEN = true
         private const val SLOW_CHUNK_WARN_MS = 50L
+        private const val CITY_CELL_SIZE = 4096
+        private const val CITY_CENTER_JITTER = 640
+        private const val CITY_MIN_RADIUS = 240
+        private const val CITY_RADIUS_VARIANCE = 140
+        private const val CITY_GROUND_MIN_Y = 68
+        private const val CITY_GROUND_MAX_Y = 92
+        private const val CITY_GROUND_Y = 76
+        private const val CITY_GROUND_STEP = 6
+        private const val HIGHWAY_CLEARANCE_FROM_CITY = 192
+        private const val SUBWAY_RAIL_Y = 28
+        private const val STATION_FLOOR_OFFSET = -35
+        private const val STATION_RAIL_OFFSET = -34
+        private const val RAIL_GRID_PERIOD_CHUNKS = 20
+        private const val RAIL_GRID_HALF_PERIOD_CHUNKS = 10
+        private const val CITY_ROAD_GRID_CHUNKS = 4
+        private const val CITY_AVENUE_GRID_CHUNKS = 8
+        private const val BUILDING_WATER_REJECT_RATIO = 0.28
+        private const val ROAD_WATER_REJECT_RATIO = 0.62
+        private const val TERRAIN_CUT_REJECT_DELTA = 34
+        private val ENABLE_LEGACY_CITY_FEATURE = java.lang.Boolean.getBoolean("mystcraft.legacyCityFeature")
     }
 
+    private enum class CityTone {
+        CIVIC,
+        INDUSTRIAL,
+        BRICKWORK,
+        GARDEN,
+        MARINA
+    }
+
+    private data class CityAnchor(
+        val gridX: Int,
+        val gridZ: Int,
+        val centerX: Int,
+        val centerZ: Int,
+        val radius: Int,
+        val groundY: Int,
+        val tone: CityTone,
+        val avenuePitchX: Double,
+        val avenuePitchZ: Double,
+        val avenueWaveX: Double,
+        val avenueWaveZ: Double,
+        val streetPhaseX: Int,
+        val streetPhaseZ: Int
+    )
+
+    private data class CorridorInfo(
+        val influence: Double,
+        val axisDistance: Int,
+        val alongDistance: Int,
+        val eastWest: Boolean,
+        val deckY: Int
+    )
+
+    private data class RailGridInfo(
+        val mx: Int,
+        val mz: Int,
+        val subwayEW: Boolean,
+        val subwayNS: Boolean,
+        val station: Boolean,
+        val stationApproach: Boolean
+    )
+
+    private data class TerrainFit(
+        val waterRatio: Double,
+        val avgSurfaceY: Int,
+        val maxSurfaceY: Int,
+        val waterHeavy: Boolean,
+        val steepCut: Boolean
+    )
+
     private data class DistrictInfo(
+        val gridX: Int,
+        val gridZ: Int,
         val regionX: Int,
         val regionZ: Int,
         val centerX: Int,
@@ -44,11 +119,17 @@ class CityGridFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatu
         val highwayDistX: Int,
         val highwayDistZ: Int,
         val minHighwayDist: Int,
+        val highwayDeckY: Int,
+        val cityInfluence: Double,
+        val connectorInfluence: Double,
+        val style: CityTone,
+        val avenueAxisDistance: Int,
         val isCore: Boolean,
         val isSuburb: Boolean,
         val isCity: Boolean,
         val isHighway: Boolean,
         val isMainAvenue: Boolean,
+        val isPark: Boolean,
         val isSubwayX: Boolean,
         val isSubwayZ: Boolean
     )
@@ -77,23 +158,82 @@ class CityGridFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatu
         val flatRoof: Boolean = false
     )
 
+    private data class StreetPalette(
+        val avenue: BlockState,
+        val avenueStripe: BlockState,
+        val support: BlockState,
+        val lamp: BlockState,
+        val corePaving: BlockState,
+        val suburbStreet: BlockState,
+        val suburbLot: BlockState,
+        val parkGround: BlockState,
+        val tunnelWall: BlockState
+    )
+
+    private enum class ChunkKind {
+        OUTSIDE,
+        HIGHWAY,
+        AVENUE,
+        STREET,
+        STATION,
+        PARK,
+        PLAZA,
+        TOWER,
+        MIDRISE,
+        SUBURB
+    }
+
+    private data class CityChunkPlan(
+        val chunkX: Int,
+        val chunkZ: Int,
+        val anchor: CityAnchor,
+        val style: CityTone,
+        val cityFactor: Double,
+        val corridorFactor: Double,
+        val localChunkX: Int,
+        val localChunkZ: Int,
+        val isCity: Boolean,
+        val isCore: Boolean,
+        val isSuburb: Boolean,
+        val stationZone: Boolean,
+        val avenueNS: Boolean,
+        val avenueEW: Boolean,
+        val streetNS: Boolean,
+        val streetEW: Boolean,
+        val highwayNS: Boolean,
+        val highwayEW: Boolean,
+        val subwayNS: Boolean,
+        val subwayEW: Boolean,
+        val kind: ChunkKind,
+        val groundY: Int = CITY_GROUND_Y
+    ) {
+        val isActive: Boolean
+            get() = kind != ChunkKind.OUTSIDE || subwayNS || subwayEW
+
+        val isRoadChunk: Boolean
+            get() = kind == ChunkKind.HIGHWAY || kind == ChunkKind.AVENUE || kind == ChunkKind.STREET || kind == ChunkKind.STATION
+    }
+
     override fun generate(context: FeatureContext<DefaultFeatureConfig>): Boolean {
         val world = context.world
         val origin = context.origin
         val serverWorld = world.toServerWorld()
         val startedAt = System.nanoTime()
 
-        if (serverWorld.registryKey.value.namespace != MystcraftReforged.MOD_ID) return false
+        if (!AgeSubdimensionManager.isPrimaryAgeRealm(serverWorld.registryKey.value)) return false
         val profile = AgeProfileManager.getOrGenerateProfile(serverWorld.server, serverWorld.registryKey.value)
         if (profile.terrainType != TerrainType.CITIES) return false
+        if (!ENABLE_LEGACY_CITY_FEATURE) return false
 
         val chunkX = origin.x shr 4
         val chunkZ = origin.z shr 4
         val debugNotes = mutableListOf<String>()
-        val cityBaseY = 64
-        val stationRadius = 28
-        val stationFloorY = 29
-        val stationRailY = 30
+        val chunkPlan = chunkPlan(chunkX, chunkZ)
+        if (!chunkPlan.isActive) return false
+
+        val cityBaseY = chunkPlan.groundY
+        val stationRailY = SUBWAY_RAIL_Y
+        val stationFloorY = stationRailY - 1
         val skyscraperPalettes = listOf(
             SkyscraperPalette(
                 Blocks.SMOOTH_STONE.defaultState,
@@ -138,109 +278,58 @@ class CityGridFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatu
             HousePalette(Blocks.BIRCH_PLANKS.defaultState, Blocks.SMOOTH_SANDSTONE.defaultState, Blocks.BIRCH_WOOD.defaultState),
             HousePalette(Blocks.CRIMSON_PLANKS.defaultState, Blocks.CYAN_TERRACOTTA.defaultState, Blocks.STRIPPED_CRIMSON_STEM.defaultState)
         )
+        val westPlan = chunkPlan(chunkX - 1, chunkZ)
+        val eastPlan = chunkPlan(chunkX + 1, chunkZ)
+        val northPlan = chunkPlan(chunkX, chunkZ - 1)
+        val southPlan = chunkPlan(chunkX, chunkZ + 1)
+        val streetPalette = streetPaletteFor(chunkPlan.style)
 
-        for (x in 0..15) {
-            for (z in 0..15) {
-                val gX = origin.x + x
-                val gZ = origin.z + z
-                val info = districtInfo(gX, gZ)
-                val natY = world.getTopY(Heightmap.Type.WORLD_SURFACE_WG, gX, gZ)
-                val isWaterSurface = world.getBlockState(BlockPos(gX, 61, gZ)).isOf(Blocks.WATER) || natY < 62
+        if (chunkPlan.kind != ChunkKind.OUTSIDE) {
+            shapeChunkTerrain(world, origin, chunkPlan, westPlan, eastPlan, northPlan, southPlan, streetPalette)
+        }
 
-                val cityInfluence = clamp01((288.0 - info.radius) / 32.0)
-                val smoothCityInfluence = cityInfluence * cityInfluence * (3.0 - 2.0 * cityInfluence)
-                val blendedY = natY + ((cityBaseY - natY) * smoothCityInfluence).toInt()
-                val roadDistance = if (info.isCity) min(info.distX, info.distZ) else info.minHighwayDist
-                val roadY = computeRoadY(cityBaseY, blendedY, info.isCity)
-                val roadShoulderInfluence = if (info.isHighway || info.isMainAvenue || info.isCity) {
-                    clamp01((10.0 - roadDistance) / 6.0)
-                } else {
-                    0.0
-                }
-                val terrainInfluence = max(cityInfluence, roadShoulderInfluence)
-                val targetTerrainY = if (roadShoulderInfluence > cityInfluence) {
-                    natY + ((roadY - natY) * roadShoulderInfluence).toInt()
-                } else {
-                    blendedY
-                }
-                val isBridge = info.isHighway && isWaterSurface && cityInfluence == 0.0
+        if (chunkPlan.subwayEW || chunkPlan.subwayNS) {
+            generateSubwayChunk(world, origin, chunkPlan, streetPalette, stationRailY)
+            debugNotes.add("subway")
+        }
 
-                if (terrainInfluence > 0.0 && !isBridge) {
-                    if (targetTerrainY < 319) {
-                        for (y in (targetTerrainY + 1)..min(319, max(natY, targetTerrainY) + 15)) {
-                            world.setBlockState(BlockPos(gX, y, gZ), Blocks.AIR.defaultState, 2)
-                        }
-                    }
-                    for (y in max(min(natY, targetTerrainY) - 5, 50)..targetTerrainY) {
-                        val pos = BlockPos(gX, y, gZ)
-                        if (!world.getBlockState(pos).isOpaqueFullCube(world, pos)) {
-                            world.setBlockState(pos, Blocks.DIRT.defaultState, 2)
-                        }
-                    }
-                    if (smoothCityInfluence < 0.99 && !info.isMainAvenue && !info.isHighway) {
-                        world.setBlockState(BlockPos(gX, targetTerrainY, gZ), Blocks.GRASS_BLOCK.defaultState, 2)
-                    }
-                }
-
-                if ((info.isSubwayX || info.isSubwayZ) && info.radius > stationRadius) {
-                    generateTunnelColumn(context, gX, gZ, info, stationRailY, isWaterSurface)
-                    if (x == 8 && z == 8 && DEBUG_CITY_GEN) {
-                        debugNotes.add("subway-column(y=${if (info.isSubwayZ && !info.isSubwayX) stationRailY - (max(0, 24 - info.distX) / 3) else stationRailY})")
-                    }
-                }
-
-                if (terrainInfluence == 0.0 && !isBridge && !info.isHighway) continue
-
-                if (info.isHighway || info.isMainAvenue) {
-                    generateRoadColumn(context, gX, gZ, roadY, info, isBridge)
-                    if (x == 8 && z == 8 && DEBUG_CITY_GEN) {
-                        debugNotes.add(if (isBridge) "bridge-road(y=$roadY)" else "road(y=$roadY)")
-                    }
-                    continue
-                }
-
-                val coreStreet = Math.floorMod(gX, 16) < 4 || Math.floorMod(gZ, 16) < 4
-                val suburbStreet = Math.floorMod(info.regionX, 32) < 6 || Math.floorMod(info.regionZ, 32) < 6
-
-                if (info.isCore && info.radius > stationRadius) {
-                    if (coreStreet) {
-                        world.setBlockState(BlockPos(gX, cityBaseY - 1, gZ), Blocks.STONE.defaultState, 2)
-                        world.setBlockState(BlockPos(gX, cityBaseY, gZ), Blocks.GRAY_CONCRETE_POWDER.defaultState, 2)
-                    } else {
-                        world.setBlockState(BlockPos(gX, cityBaseY, gZ), Blocks.SMOOTH_STONE.defaultState, 2)
-                    }
-                } else if (info.isSuburb) {
-                    if (suburbStreet) {
-                        world.setBlockState(BlockPos(gX, cityBaseY - 1, gZ), Blocks.GRAVEL.defaultState, 2)
-                        world.setBlockState(BlockPos(gX, cityBaseY, gZ), Blocks.COBBLESTONE.defaultState, 2)
-                    } else {
-                        for (y in (cityBaseY + 1)..319) {
-                            world.setBlockState(BlockPos(gX, y, gZ), Blocks.AIR.defaultState, 2)
-                        }
-                        world.setBlockState(BlockPos(gX, cityBaseY, gZ), Blocks.GRASS_BLOCK.defaultState, 2)
-                    }
-                }
+        when (chunkPlan.kind) {
+            ChunkKind.HIGHWAY -> {
+                generateGrandHighwayChunk(world, origin, chunkPlan, streetPalette)
+                debugNotes.add("highway(y=${chunkPlan.groundY})")
             }
-        }
-
-        generateCentralStation(context, cityBaseY, stationFloorY, stationRailY)
-        if (DEBUG_CITY_GEN && intersectsStation(origin)) {
-            debugNotes.add("station-pass")
-        }
-
-        val skyscraperResult = generateSkyscraperChunk(context, cityBaseY, skyscraperPalettes)
-        if (DEBUG_CITY_GEN && skyscraperResult != null) {
-            debugNotes.add(skyscraperResult)
-        }
-
-        val suburbResult = generateSuburbHouseChunk(context, cityBaseY, housePalettes)
-        if (DEBUG_CITY_GEN && suburbResult != null) {
-            debugNotes.add(suburbResult)
+            ChunkKind.AVENUE, ChunkKind.STREET, ChunkKind.STATION -> {
+                generateRoadSurfaceChunk(world, origin, chunkPlan, streetPalette)
+                if (chunkPlan.kind == ChunkKind.STATION) {
+                    generateSubwayStationChunk(world, origin, chunkPlan, streetPalette, stationFloorY, stationRailY)
+                    debugNotes.add("station")
+                }
+                debugNotes.add("roads(${chunkPlan.kind})")
+            }
+            ChunkKind.PARK -> {
+                generateParkLot(world, origin, cityBaseY, chunkPlan, streetPalette)
+                debugNotes.add("park")
+            }
+            ChunkKind.PLAZA -> {
+                generatePlazaChunk(world, origin, cityBaseY, chunkPlan, streetPalette)
+                debugNotes.add("plaza")
+            }
+            ChunkKind.TOWER -> {
+                generateTowerChunk(context, cityBaseY, chunkPlan, skyscraperPalettes, tall = true)?.let(debugNotes::add)
+            }
+            ChunkKind.MIDRISE -> {
+                generateTowerChunk(context, cityBaseY, chunkPlan, skyscraperPalettes, tall = false)?.let(debugNotes::add)
+            }
+            ChunkKind.SUBURB -> {
+                generateSuburbLot(context.world, origin, cityBaseY, chunkPlan, housePalettes)?.let(debugNotes::add)
+            }
+            ChunkKind.OUTSIDE -> {
+                if (!chunkPlan.subwayEW && !chunkPlan.subwayNS) return false
+            }
         }
 
         if (DEBUG_CITY_GEN) {
             val elapsedMs = (System.nanoTime() - startedAt) / 1_000_000
-            val centerInfo = districtInfo(origin.x + 8, origin.z + 8)
             if (debugNotes.isNotEmpty() || elapsedMs >= SLOW_CHUNK_WARN_MS) {
                 val level = if (elapsedMs >= SLOW_CHUNK_WARN_MS) "warn" else "info"
                 val message = buildString {
@@ -248,18 +337,22 @@ class CityGridFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatu
                     append(chunkX)
                     append(",")
                     append(chunkZ)
-                    append(" region=")
-                    append(centerInfo.regionX)
+                    append(" anchor=")
+                    append(chunkPlan.anchor.gridX)
                     append(",")
-                    append(centerInfo.regionZ)
-                    append(" radius=")
-                    append(centerInfo.radius)
-                    append(" city=")
-                    append(centerInfo.isCity)
-                    append(" highway=")
-                    append(centerInfo.isHighway || centerInfo.isMainAvenue)
+                    append(chunkPlan.anchor.gridZ)
+                    append(" kind=")
+                    append(chunkPlan.kind)
+                    append(" cityFactor=")
+                    append("%.2f".format(chunkPlan.cityFactor))
+                    append(" corridor=")
+                    append("%.2f".format(chunkPlan.corridorFactor))
+                    append(" tone=")
+                    append(chunkPlan.style)
+                    append(" roads=")
+                    append(chunkPlan.avenueNS || chunkPlan.avenueEW || chunkPlan.streetNS || chunkPlan.streetEW || chunkPlan.highwayNS || chunkPlan.highwayEW)
                     append(" subway=")
-                    append(centerInfo.isSubwayX || centerInfo.isSubwayZ)
+                    append(chunkPlan.subwayNS || chunkPlan.subwayEW)
                     append(" tookMs=")
                     append(elapsedMs)
                     if (debugNotes.isNotEmpty()) {
@@ -277,6 +370,780 @@ class CityGridFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatu
         return true
     }
 
+    private fun chunkPlan(chunkX: Int, chunkZ: Int): CityChunkPlan {
+        val sampleX = (chunkX shl 4) + 8
+        val sampleZ = (chunkZ shl 4) + 8
+        val info = districtInfo(sampleX, sampleZ)
+        val anchor = cityAnchor(info.gridX, info.gridZ)
+        val localChunkX = Math.floorDiv(sampleX - anchor.centerX, 16)
+        val localChunkZ = Math.floorDiv(sampleZ - anchor.centerZ, 16)
+
+        val rail = railGridInfo(localChunkX, localChunkZ, info.cityInfluence)
+        val roadColumn = info.cityInfluence > 0.30 && Math.floorMod(localChunkX, CITY_ROAD_GRID_CHUNKS) == 0
+        val roadRow = info.cityInfluence > 0.30 && Math.floorMod(localChunkZ, CITY_ROAD_GRID_CHUNKS) == 0
+        val avenueNS = info.cityInfluence > 0.34 && (
+            rail.subwayNS || (roadColumn && Math.floorMod(localChunkX, CITY_AVENUE_GRID_CHUNKS) == 0)
+        )
+        val avenueEW = info.cityInfluence > 0.34 && (
+            rail.subwayEW || (roadRow && Math.floorMod(localChunkZ, CITY_AVENUE_GRID_CHUNKS) == 0)
+        )
+        val streetNS = roadColumn && !avenueNS
+        val streetEW = roadRow && !avenueEW
+
+        val corridorEastWest = info.highwayDistZ <= info.highwayDistX
+        val corridorProtected = info.connectorInfluence > 0.10
+        val highwayEW = info.connectorInfluence > 0.56 && corridorEastWest && info.cityInfluence < 0.12
+        val highwayNS = info.connectorInfluence > 0.56 && !corridorEastWest && info.cityInfluence < 0.12
+
+        val stationZone = rail.station
+        val stationApproach = rail.stationApproach
+        val corridorRailEW = corridorEastWest && info.connectorInfluence > 0.56 && info.highwayDistZ <= 2
+        val corridorRailNS = !corridorEastWest && info.connectorInfluence > 0.56 && info.highwayDistX <= 2
+        val subwayEW = rail.subwayEW || corridorRailEW
+        val subwayNS = rail.subwayNS || corridorRailNS
+        val parkDivisor = if (info.style == CityTone.GARDEN) 8 else 12
+        val park = !stationZone && !stationApproach && info.isSuburb && !avenueNS && !avenueEW && !streetNS && !streetEW &&
+            rangedHash(chunkX, chunkZ, 401L, 0, parkDivisor - 1) == 0
+        val buildingChance = when {
+            info.cityInfluence > 0.82 -> 0.94
+            info.cityInfluence > 0.66 -> 0.82
+            info.cityInfluence > 0.50 -> 0.62
+            else -> 0.32
+        }
+        val buildRoll = rangedHash(chunkX, chunkZ, 557L, 0, 999) / 1000.0
+        val canHostBuilding = info.isCity &&
+            !stationZone &&
+            !stationApproach &&
+            !highwayNS &&
+            !highwayEW &&
+            !avenueNS &&
+            !avenueEW &&
+            !streetNS &&
+            !streetEW &&
+            !corridorRailEW &&
+            !corridorRailNS &&
+            !park
+        val chooseTower = info.cityInfluence > 0.72 || rangedHash(chunkX, chunkZ, 571L, 0, 4) == 0
+
+        val kind = when {
+            stationZone -> ChunkKind.STATION
+            corridorProtected && !highwayEW && !highwayNS && !corridorRailEW && !corridorRailNS -> ChunkKind.OUTSIDE
+            !info.isCity && info.connectorInfluence < 0.62 -> ChunkKind.OUTSIDE
+            highwayNS || highwayEW -> ChunkKind.HIGHWAY
+            avenueNS || avenueEW -> ChunkKind.AVENUE
+            streetNS || streetEW -> ChunkKind.STREET
+            park -> ChunkKind.PARK
+            canHostBuilding && buildRoll < buildingChance -> if (chooseTower) ChunkKind.TOWER else ChunkKind.MIDRISE
+            info.isSuburb && !corridorProtected -> ChunkKind.SUBURB
+            info.isCity -> ChunkKind.PLAZA
+            else -> ChunkKind.OUTSIDE
+        }
+
+        return CityChunkPlan(
+            chunkX = chunkX,
+            chunkZ = chunkZ,
+            anchor = anchor,
+            style = info.style,
+            cityFactor = info.cityInfluence,
+            corridorFactor = info.connectorInfluence,
+            localChunkX = localChunkX,
+            localChunkZ = localChunkZ,
+            isCity = info.isCity,
+            isCore = info.isCore,
+            isSuburb = info.isSuburb,
+            stationZone = stationZone,
+            avenueNS = avenueNS,
+            avenueEW = avenueEW,
+            streetNS = streetNS,
+            streetEW = streetEW,
+            highwayNS = highwayNS,
+            highwayEW = highwayEW,
+            subwayNS = subwayNS,
+            subwayEW = subwayEW,
+            kind = kind,
+            groundY = when (kind) {
+                ChunkKind.HIGHWAY -> info.highwayDeckY
+                else -> anchor.groundY
+            }
+        )
+    }
+
+    private fun railGridInfo(localChunkX: Int, localChunkZ: Int, cityInfluence: Double): RailGridInfo {
+        if (cityInfluence <= 0.12) {
+            return RailGridInfo(0, 0, subwayEW = false, subwayNS = false, station = false, stationApproach = false)
+        }
+
+        val mx = Math.floorMod(localChunkX + 1, RAIL_GRID_PERIOD_CHUNKS)
+        val mz = Math.floorMod(localChunkZ + 1, RAIL_GRID_PERIOD_CHUNKS)
+        val onRailColumn = mx == 0 || mx == RAIL_GRID_HALF_PERIOD_CHUNKS
+        val onRailRow = mz == 0 || mz == RAIL_GRID_HALF_PERIOD_CHUNKS
+        val nearRailColumn = modDistance(mx, RAIL_GRID_HALF_PERIOD_CHUNKS) <= 1
+        val nearRailRow = modDistance(mz, RAIL_GRID_HALF_PERIOD_CHUNKS) <= 1
+
+        return RailGridInfo(
+            mx = mx,
+            mz = mz,
+            subwayEW = onRailRow,
+            subwayNS = onRailColumn,
+            station = cityInfluence > 0.30 && onRailColumn && onRailRow,
+            stationApproach = cityInfluence > 0.28 && nearRailColumn && nearRailRow
+        )
+    }
+
+    private fun applyTerrainFit(
+        world: StructureWorldAccess,
+        origin: BlockPos,
+        plan: CityChunkPlan
+    ): CityChunkPlan {
+        if (!plan.isActive || plan.kind == ChunkKind.HIGHWAY) return plan
+
+        val fit = terrainFit(world, origin, plan.groundY)
+        val rejectForWater = when (plan.kind) {
+            ChunkKind.TOWER, ChunkKind.MIDRISE, ChunkKind.SUBURB, ChunkKind.PARK -> fit.waterRatio > BUILDING_WATER_REJECT_RATIO
+            ChunkKind.STATION, ChunkKind.AVENUE, ChunkKind.STREET -> fit.waterRatio > ROAD_WATER_REJECT_RATIO
+            else -> false
+        }
+        val rejectForCut = fit.steepCut && plan.kind != ChunkKind.AVENUE && plan.kind != ChunkKind.STREET
+
+        if ((rejectForWater && plan.style != CityTone.MARINA) || rejectForCut) {
+            return plan.copy(
+                kind = ChunkKind.OUTSIDE,
+                subwayNS = false,
+                subwayEW = false,
+                stationZone = false,
+                avenueNS = false,
+                avenueEW = false,
+                streetNS = false,
+                streetEW = false
+            )
+        }
+
+        val terrainDelta = fit.avgSurfaceY - plan.groundY
+        val adjustedY = when {
+            fit.waterHeavy -> max(plan.groundY, 70)
+            abs(terrainDelta) <= 10 -> plan.groundY
+            else -> quantizeCityY((plan.groundY + terrainDelta / 2).coerceIn(CITY_GROUND_MIN_Y, CITY_GROUND_MAX_Y))
+        }
+
+        return plan.copy(groundY = adjustedY)
+    }
+
+    private fun terrainFit(world: StructureWorldAccess, origin: BlockPos, targetY: Int): TerrainFit {
+        var waterColumns = 0
+        var totalSurface = 0
+        var maxSurface = world.bottomY
+        var samples = 0
+
+        for (x in 2..13 step 3) {
+            for (z in 2..13 step 3) {
+                val worldX = origin.x + x
+                val worldZ = origin.z + z
+                val surfaceY = world.getTopY(Heightmap.Type.WORLD_SURFACE_WG, worldX, worldZ)
+                val oceanY = world.getTopY(Heightmap.Type.OCEAN_FLOOR_WG, worldX, worldZ)
+                val surfaceState = world.getBlockState(BlockPos(worldX, max(world.bottomY + 1, surfaceY - 1), worldZ))
+                if (surfaceState.block == Blocks.WATER || surfaceY - oceanY > 5) {
+                    waterColumns++
+                }
+                totalSurface += surfaceY
+                maxSurface = max(maxSurface, surfaceY)
+                samples++
+            }
+        }
+
+        val avgSurface = if (samples == 0) targetY else totalSurface / samples
+        val waterRatio = if (samples == 0) 0.0 else waterColumns.toDouble() / samples.toDouble()
+        return TerrainFit(
+            waterRatio = waterRatio,
+            avgSurfaceY = avgSurface,
+            maxSurfaceY = maxSurface,
+            waterHeavy = waterRatio > BUILDING_WATER_REJECT_RATIO,
+            steepCut = maxSurface - targetY > TERRAIN_CUT_REJECT_DELTA
+        )
+    }
+
+    private fun quantizeCityY(y: Int): Int {
+        val steps = ((y - CITY_GROUND_MIN_Y).toDouble() / CITY_GROUND_STEP.toDouble()).roundToInt()
+        return (CITY_GROUND_MIN_Y + steps * CITY_GROUND_STEP).coerceIn(CITY_GROUND_MIN_Y, CITY_GROUND_MAX_Y)
+    }
+
+    private fun shapeChunkTerrain(
+        world: StructureWorldAccess,
+        origin: BlockPos,
+        plan: CityChunkPlan,
+        westPlan: CityChunkPlan,
+        eastPlan: CityChunkPlan,
+        northPlan: CityChunkPlan,
+        southPlan: CityChunkPlan,
+        streetPalette: StreetPalette
+    ) {
+        if (plan.kind == ChunkKind.HIGHWAY) {
+            return
+        }
+
+        val surfaceBlock = when (plan.kind) {
+            ChunkKind.PARK -> streetPalette.parkGround
+            ChunkKind.SUBURB -> streetPalette.suburbLot
+            ChunkKind.TOWER, ChunkKind.MIDRISE -> streetPalette.corePaving
+            else -> streetPalette.corePaving
+        }
+        val clearTop = when (plan.kind) {
+            ChunkKind.TOWER -> 220
+            ChunkKind.MIDRISE -> 170
+            ChunkKind.STATION -> plan.groundY + 18
+            else -> plan.groundY + 10
+        }
+
+        for (x in 0..15) {
+            for (z in 0..15) {
+                val worldX = origin.x + x
+                val worldZ = origin.z + z
+                val targetY = plan.groundY
+                val topY = world.getTopY(Heightmap.Type.WORLD_SURFACE_WG, worldX, worldZ)
+                val clearUntil = min(255, max(topY + 3, clearTop))
+
+                for (y in (targetY + 1)..clearUntil) {
+                    val pos = BlockPos(worldX, y, worldZ)
+                    if (!world.getBlockState(pos).isAir) {
+                        world.setBlockState(pos, Blocks.AIR.defaultState, 2)
+                    }
+                }
+
+                var fillY = targetY - 1
+                while (fillY > world.bottomY) {
+                    val pos = BlockPos(worldX, fillY, worldZ)
+                    val state = world.getBlockState(pos)
+                    if (state.isOpaqueFullCube(world, pos)) break
+                    world.setBlockState(pos, streetPalette.support, 2)
+                    fillY--
+                }
+
+                world.setBlockState(BlockPos(worldX, targetY, worldZ), surfaceBlock, 2)
+            }
+        }
+
+    }
+
+    private fun buildChunkEdgeWall(
+        world: StructureWorldAccess,
+        origin: BlockPos,
+        direction: Direction,
+        groundY: Int,
+        streetPalette: StreetPalette
+    ) {
+        val range = 0..15
+        for (i in range) {
+            val worldX = when (direction) {
+                Direction.WEST -> origin.x
+                Direction.EAST -> origin.x + 15
+                else -> origin.x + i
+            }
+            val worldZ = when (direction) {
+                Direction.NORTH -> origin.z
+                Direction.SOUTH -> origin.z + 15
+                else -> origin.z + i
+            }
+
+            var supportY = groundY
+            while (supportY > world.bottomY) {
+                val pos = BlockPos(worldX, supportY, worldZ)
+                val state = world.getBlockState(pos)
+                if (state.isOpaqueFullCube(world, pos) && supportY < groundY - 1) break
+                if (!state.isOpaqueFullCube(world, pos) || supportY >= groundY - 1) {
+                    world.setBlockState(pos, streetPalette.support, 2)
+                }
+                supportY--
+            }
+        }
+    }
+
+    private fun generateRoadSurfaceChunk(
+        world: StructureWorldAccess,
+        origin: BlockPos,
+        plan: CityChunkPlan,
+        streetPalette: StreetPalette
+    ) {
+        val roadNS = plan.highwayNS || plan.avenueNS || plan.streetNS || plan.stationZone
+        val roadEW = plan.highwayEW || plan.avenueEW || plan.streetEW || plan.stationZone
+        val roadHalfWidth = when (plan.kind) {
+            ChunkKind.HIGHWAY -> 4
+            ChunkKind.AVENUE, ChunkKind.STATION -> 3
+            else -> 2
+        }
+        val stripeColor = if (plan.kind == ChunkKind.HIGHWAY) streetPalette.corePaving else streetPalette.avenueStripe
+
+        for (x in 0..15) {
+            for (z in 0..15) {
+                val dx = abs(x - 7)
+                val dz = abs(z - 7)
+                val nsRoad = roadNS && dx <= roadHalfWidth
+                val ewRoad = roadEW && dz <= roadHalfWidth
+                val sidewalk = (roadNS && dx == roadHalfWidth + 1) || (roadEW && dz == roadHalfWidth + 1)
+                val pos = BlockPos(origin.x + x, plan.groundY, origin.z + z)
+
+                when {
+                    nsRoad || ewRoad -> world.setBlockState(pos, streetPalette.avenue, 2)
+                    sidewalk || plan.kind == ChunkKind.STATION -> world.setBlockState(pos, streetPalette.corePaving, 2)
+                }
+
+                if (nsRoad && !ewRoad && x == 7 && z % 4 != 0) {
+                    world.setBlockState(pos, stripeColor, 2)
+                }
+                if (ewRoad && !nsRoad && z == 7 && x % 4 != 0) {
+                    world.setBlockState(pos, stripeColor, 2)
+                }
+            }
+        }
+
+        val shouldLamp = when (plan.kind) {
+            ChunkKind.STATION -> true
+            ChunkKind.AVENUE -> positiveHash(plan.chunkX, plan.chunkZ) % 3 == 0
+            else -> false
+        }
+        if (shouldLamp) {
+            for ((lampX, lampZ) in listOf(2 to 2, 13 to 2, 2 to 13, 13 to 13)) {
+                val base = BlockPos(origin.x + lampX, plan.groundY + 1, origin.z + lampZ)
+                world.setBlockState(base, Blocks.STONE_BRICK_WALL.defaultState, 2)
+                world.setBlockState(base.up(), Blocks.STONE_BRICK_WALL.defaultState, 2)
+                world.setBlockState(base.up(2), streetPalette.lamp, 2)
+            }
+        }
+    }
+
+    private fun generatePlazaChunk(
+        world: StructureWorldAccess,
+        origin: BlockPos,
+        cityBaseY: Int,
+        plan: CityChunkPlan,
+        streetPalette: StreetPalette
+    ) {
+        val hash = positiveHash(plan.chunkX, plan.chunkZ)
+        val accent = when (plan.style) {
+            CityTone.GARDEN -> Blocks.MOSSY_STONE_BRICKS.defaultState
+            CityTone.MARINA -> Blocks.PRISMARINE_BRICKS.defaultState
+            CityTone.INDUSTRIAL -> Blocks.POLISHED_DEEPSLATE.defaultState
+            CityTone.BRICKWORK -> Blocks.MUD_BRICKS.defaultState
+            CityTone.CIVIC -> Blocks.POLISHED_ANDESITE.defaultState
+        }
+
+        if (hash % 4 == 0) {
+            for (x in 4..11) {
+                world.setBlockState(BlockPos(origin.x + x, cityBaseY, origin.z + 4), accent, 2)
+                world.setBlockState(BlockPos(origin.x + x, cityBaseY, origin.z + 11), accent, 2)
+            }
+            for (z in 4..11) {
+                world.setBlockState(BlockPos(origin.x + 4, cityBaseY, origin.z + z), accent, 2)
+                world.setBlockState(BlockPos(origin.x + 11, cityBaseY, origin.z + z), accent, 2)
+            }
+        }
+
+        if (hash % 5 == 0) {
+            val base = BlockPos(origin.x + 8, cityBaseY + 1, origin.z + 8)
+            world.setBlockState(base, Blocks.STONE_BRICK_WALL.defaultState, 2)
+            world.setBlockState(base.up(), Blocks.STONE_BRICK_WALL.defaultState, 2)
+            world.setBlockState(base.up(2), streetPalette.lamp, 2)
+        }
+    }
+
+    private fun generateSubwayStationChunk(
+        world: StructureWorldAccess,
+        origin: BlockPos,
+        plan: CityChunkPlan,
+        streetPalette: StreetPalette,
+        stationFloorY: Int,
+        stationRailY: Int
+    ) {
+        val hallMin = 2
+        val hallMax = 13
+        for (x in hallMin..hallMax) {
+            for (z in hallMin..hallMax) {
+                val edge = x == hallMin || x == hallMax || z == hallMin || z == hallMax
+                for (y in stationFloorY..(stationRailY + 5)) {
+                    val pos = BlockPos(origin.x + x, y, origin.z + z)
+                    when {
+                        y == stationFloorY -> world.setBlockState(pos, Blocks.POLISHED_ANDESITE.defaultState, 2)
+                        y == stationRailY + 5 -> world.setBlockState(pos, Blocks.STONE_BRICKS.defaultState, 2)
+                        edge -> world.setBlockState(pos, streetPalette.tunnelWall, 2)
+                        else -> world.setBlockState(pos, Blocks.AIR.defaultState, 2)
+                    }
+                }
+            }
+        }
+
+        for (x in 5..10) {
+            for (z in 5..10) {
+                val edge = x == 5 || x == 10 || z == 5 || z == 10
+                for (y in (stationRailY + 6)..(plan.groundY + 7)) {
+                    val pos = BlockPos(origin.x + x, y, origin.z + z)
+                    when {
+                        y == plan.groundY -> world.setBlockState(pos, Blocks.SMOOTH_STONE.defaultState, 2)
+                        edge -> world.setBlockState(pos, Blocks.STONE_BRICKS.defaultState, 2)
+                        else -> world.setBlockState(pos, Blocks.AIR.defaultState, 2)
+                    }
+                }
+            }
+        }
+
+        for (y in (stationRailY + 1)..(plan.groundY + 3)) {
+            val ladderPos = BlockPos(origin.x + 5, y, origin.z + 8)
+            world.setBlockState(ladderPos, Blocks.LADDER.defaultState.with(Properties.HORIZONTAL_FACING, Direction.EAST), 2)
+            world.setBlockState(BlockPos(origin.x + 6, y, origin.z + 8), Blocks.AIR.defaultState, 2)
+            world.setBlockState(BlockPos(origin.x + 7, y, origin.z + 8), Blocks.AIR.defaultState, 2)
+            world.setBlockState(BlockPos(origin.x + 8, y, origin.z + 8), Blocks.AIR.defaultState, 2)
+        }
+
+        for (x in 4..11) {
+            for (z in 4..11) {
+                val pos = BlockPos(origin.x + x, plan.groundY + 1, origin.z + z)
+                val edge = x == 4 || x == 11 || z == 4 || z == 11
+                val doorway = z == 4 && x in 7..8
+                when {
+                    doorway -> world.setBlockState(pos, Blocks.AIR.defaultState, 2)
+                    edge -> world.setBlockState(pos, Blocks.STONE_BRICKS.defaultState, 2)
+                    x in 6..9 && z in 6..9 -> world.setBlockState(pos, Blocks.AIR.defaultState, 2)
+                    else -> world.setBlockState(pos, Blocks.AIR.defaultState, 2)
+                }
+                if (edge && !doorway) {
+                    world.setBlockState(pos.up(), Blocks.STONE_BRICKS.defaultState, 2)
+                    world.setBlockState(pos.up(2), Blocks.STONE_BRICKS.defaultState, 2)
+                }
+                world.setBlockState(BlockPos(origin.x + x, plan.groundY + 4, origin.z + z), Blocks.SMOOTH_STONE.defaultState, 2)
+            }
+        }
+
+        for ((lampX, lampZ) in listOf(3 to 3, 12 to 3, 3 to 12, 12 to 12, 7 to 7, 8 to 8)) {
+            world.setBlockState(BlockPos(origin.x + lampX, stationRailY + 4, origin.z + lampZ), streetPalette.lamp, 2)
+        }
+
+        if (plan.subwayEW) {
+            for (x in 1..14) {
+                val railPos = BlockPos(origin.x + x, stationRailY, origin.z + 8)
+                if (x % 8 == 0) {
+                    world.setBlockState(
+                        railPos,
+                        Blocks.POWERED_RAIL.defaultState
+                            .with(PoweredRailBlock.POWERED, true)
+                            .with(Properties.STRAIGHT_RAIL_SHAPE, RailShape.EAST_WEST),
+                        2
+                    )
+                    world.setBlockState(railPos.down(), Blocks.REDSTONE_BLOCK.defaultState, 2)
+                } else {
+                    world.setBlockState(railPos, Blocks.RAIL.defaultState.with(Properties.RAIL_SHAPE, RailShape.EAST_WEST), 2)
+                }
+            }
+        }
+
+        if (plan.subwayNS) {
+            for (z in 1..14) {
+                val railPos = BlockPos(origin.x + 8, stationRailY, origin.z + z)
+                if (z % 8 == 0) {
+                    world.setBlockState(
+                        railPos,
+                        Blocks.POWERED_RAIL.defaultState
+                            .with(PoweredRailBlock.POWERED, true)
+                            .with(Properties.STRAIGHT_RAIL_SHAPE, RailShape.NORTH_SOUTH),
+                        2
+                    )
+                    world.setBlockState(railPos.down(), Blocks.REDSTONE_BLOCK.defaultState, 2)
+                } else {
+                    world.setBlockState(railPos, Blocks.RAIL.defaultState.with(Properties.RAIL_SHAPE, RailShape.NORTH_SOUTH), 2)
+                }
+            }
+        }
+    }
+
+    private fun generateGrandHighwayChunk(
+        world: StructureWorldAccess,
+        origin: BlockPos,
+        plan: CityChunkPlan,
+        streetPalette: StreetPalette
+    ) {
+        val deckY = plan.groundY
+        val eastWest = plan.highwayEW || !plan.highwayNS
+        val halfWidth = 5
+
+        for (x in 0..15) {
+            for (z in 0..15) {
+                val axisDistance = if (eastWest) abs(z - 7) else abs(x - 7)
+                val worldX = origin.x + x
+                val worldZ = origin.z + z
+                val deckPos = BlockPos(worldX, deckY, worldZ)
+
+                for (y in (deckY + 1)..(deckY + 6)) {
+                    world.setBlockState(BlockPos(worldX, y, worldZ), Blocks.AIR.defaultState, 2)
+                }
+
+                val block = when {
+                    axisDistance <= halfWidth -> streetPalette.avenue
+                    else -> Blocks.SMOOTH_STONE.defaultState
+                }
+                world.setBlockState(deckPos, block, 2)
+                world.setBlockState(deckPos.down(), streetPalette.support, 2)
+
+                if (axisDistance == 0 && ((if (eastWest) x else z) % 4 != 0)) {
+                    world.setBlockState(deckPos, streetPalette.avenueStripe, 2)
+                }
+
+                val along = if (eastWest) x else z
+                val shouldSupport = along % 5 == 0 && axisDistance in 0..halfWidth
+                if (shouldSupport) {
+                    var y = deckY - 1
+                    while (y > world.bottomY) {
+                        val pos = BlockPos(worldX, y, worldZ)
+                        val state = world.getBlockState(pos)
+                        if (state.isOpaqueFullCube(world, pos)) {
+                            world.setBlockState(pos, streetPalette.support, 2)
+                            break
+                        }
+                        world.setBlockState(pos, streetPalette.support, 2)
+                        y--
+                    }
+                }
+
+                val edge = if (eastWest) z == 1 || z == 14 else x == 1 || x == 14
+                if (edge) {
+                    world.setBlockState(BlockPos(worldX, deckY + 1, worldZ), Blocks.STONE_BRICK_WALL.defaultState, 2)
+                }
+
+                if ((axisDistance == halfWidth + 1 || edge) && along % 8 == 0) {
+                    val base = BlockPos(worldX, deckY + 1, worldZ)
+                    world.setBlockState(base, Blocks.STONE_BRICK_WALL.defaultState, 2)
+                    world.setBlockState(base.up(), Blocks.STONE_BRICK_WALL.defaultState, 2)
+                    world.setBlockState(base.up(2), streetPalette.lamp, 2)
+                }
+            }
+        }
+    }
+
+    private fun generateSubwayChunk(
+        world: StructureWorldAccess,
+        origin: BlockPos,
+        plan: CityChunkPlan,
+        streetPalette: StreetPalette,
+        stationRailY: Int
+    ) {
+        fun carveEw() {
+            for (x in 0..15) {
+                for (z in 6..9) {
+                    for (y in (stationRailY - 1)..(stationRailY + 4)) {
+                        val isWall = z == 6 || z == 9 || y == stationRailY - 1 || y == stationRailY + 4
+                        val pos = BlockPos(origin.x + x, y, origin.z + z)
+                        world.setBlockState(pos, if (isWall) streetPalette.tunnelWall else Blocks.AIR.defaultState, 2)
+                    }
+                }
+                if (x % 8 == 0) {
+                    world.setBlockState(BlockPos(origin.x + x, stationRailY + 2, origin.z + 6), streetPalette.lamp, 2)
+                    world.setBlockState(BlockPos(origin.x + x, stationRailY + 2, origin.z + 9), streetPalette.lamp, 2)
+                }
+                val railPos = BlockPos(origin.x + x, stationRailY, origin.z + 8)
+                if (x % 8 == 0) {
+                    world.setBlockState(
+                        railPos,
+                        Blocks.POWERED_RAIL.defaultState
+                            .with(PoweredRailBlock.POWERED, true)
+                            .with(Properties.STRAIGHT_RAIL_SHAPE, RailShape.EAST_WEST),
+                        2
+                    )
+                    world.setBlockState(railPos.down(), Blocks.REDSTONE_BLOCK.defaultState, 2)
+                } else {
+                    world.setBlockState(railPos, Blocks.RAIL.defaultState.with(Properties.RAIL_SHAPE, RailShape.EAST_WEST), 2)
+                }
+            }
+        }
+
+        fun carveNs() {
+            for (x in 6..9) {
+                for (z in 0..15) {
+                    for (y in (stationRailY - 1)..(stationRailY + 4)) {
+                        val isWall = x == 6 || x == 9 || y == stationRailY - 1 || y == stationRailY + 4
+                        val pos = BlockPos(origin.x + x, y, origin.z + z)
+                        world.setBlockState(pos, if (isWall) streetPalette.tunnelWall else Blocks.AIR.defaultState, 2)
+                    }
+                }
+            }
+            for (z in 0..15) {
+                if (z % 8 == 0) {
+                    world.setBlockState(BlockPos(origin.x + 6, stationRailY + 2, origin.z + z), streetPalette.lamp, 2)
+                    world.setBlockState(BlockPos(origin.x + 9, stationRailY + 2, origin.z + z), streetPalette.lamp, 2)
+                }
+                val railPos = BlockPos(origin.x + 8, stationRailY, origin.z + z)
+                if (z % 8 == 0) {
+                    world.setBlockState(
+                        railPos,
+                        Blocks.POWERED_RAIL.defaultState
+                            .with(PoweredRailBlock.POWERED, true)
+                            .with(Properties.STRAIGHT_RAIL_SHAPE, RailShape.NORTH_SOUTH),
+                        2
+                    )
+                    world.setBlockState(railPos.down(), Blocks.REDSTONE_BLOCK.defaultState, 2)
+                } else {
+                    world.setBlockState(railPos, Blocks.RAIL.defaultState.with(Properties.RAIL_SHAPE, RailShape.NORTH_SOUTH), 2)
+                }
+            }
+        }
+
+        if (plan.subwayEW) carveEw()
+        if (plan.subwayNS) carveNs()
+    }
+
+    private fun generateParkLot(
+        world: StructureWorldAccess,
+        origin: BlockPos,
+        cityBaseY: Int,
+        plan: CityChunkPlan,
+        streetPalette: StreetPalette
+    ) {
+        val parkHash = positiveHash(origin.x shr 4, origin.z shr 4)
+        val hasPond = parkHash % 3 == 0
+        val hasGazebo = parkHash % 3 == 1
+        val hasFountain = parkHash % 5 == 0
+
+        for (x in 2..13) {
+            for (z in 2..13) {
+                val gX = origin.x + x
+                val gZ = origin.z + z
+                val dx = x - 8
+                val dz = z - 8
+                val radial = dx * dx + dz * dz
+                val isCrossPath = abs(dx) <= 1 || abs(dz) <= 1
+                val isRingPath = radial in 20..34
+                val floor = when {
+                    hasPond && radial <= 9 -> Blocks.WATER.defaultState
+                    hasPond && radial in 10..16 -> Blocks.STONE_BRICKS.defaultState
+                    hasFountain && radial <= 4 -> Blocks.SMOOTH_STONE.defaultState
+                    isCrossPath || isRingPath -> streetPalette.suburbStreet
+                    else -> streetPalette.parkGround
+                }
+                world.setBlockState(BlockPos(gX, cityBaseY, gZ), floor, 2)
+                for (y in (cityBaseY + 1)..(cityBaseY + 6)) {
+                    world.setBlockState(BlockPos(gX, y, gZ), Blocks.AIR.defaultState, 2)
+                }
+            }
+        }
+
+        if (hasGazebo) {
+            for (x in 6..10) {
+                for (z in 6..10) {
+                    val edge = x == 6 || x == 10 || z == 6 || z == 10
+                    world.setBlockState(
+                        BlockPos(origin.x + x, cityBaseY + 1, origin.z + z),
+                        if (edge) Blocks.OAK_FENCE.defaultState else Blocks.AIR.defaultState,
+                        2
+                    )
+                    world.setBlockState(BlockPos(origin.x + x, cityBaseY + 4, origin.z + z), Blocks.SPRUCE_SLAB.defaultState, 2)
+                }
+            }
+        } else if (hasFountain) {
+            world.setBlockState(BlockPos(origin.x + 8, cityBaseY + 1, origin.z + 8), Blocks.STONE_BRICK_WALL.defaultState, 2)
+            world.setBlockState(BlockPos(origin.x + 8, cityBaseY + 2, origin.z + 8), Blocks.WATER.defaultState, 2)
+        } else {
+            for ((treeX, treeZ) in listOf(5 to 5, 11 to 5, 5 to 11, 11 to 11)) {
+                world.setBlockState(BlockPos(origin.x + treeX, cityBaseY + 1, origin.z + treeZ), Blocks.OAK_LOG.defaultState, 2)
+                world.setBlockState(BlockPos(origin.x + treeX, cityBaseY + 2, origin.z + treeZ), Blocks.OAK_LOG.defaultState, 2)
+                for (leafX in -1..1) {
+                    for (leafZ in -1..1) {
+                        world.setBlockState(BlockPos(origin.x + treeX + leafX, cityBaseY + 3, origin.z + treeZ + leafZ), Blocks.OAK_LEAVES.defaultState, 2)
+                    }
+                }
+            }
+        }
+
+        val lamps = if (plan.style == CityTone.GARDEN) {
+            listOf(4 to 4, 12 to 4, 4 to 12, 12 to 12)
+        } else {
+            listOf(3 to 3, 13 to 3, 3 to 13, 13 to 13)
+        }
+        for ((lampX, lampZ) in lamps) {
+            val base = BlockPos(origin.x + lampX, cityBaseY + 1, origin.z + lampZ)
+            world.setBlockState(base, Blocks.STONE_BRICK_WALL.defaultState, 2)
+            world.setBlockState(base.up(), Blocks.STONE_BRICK_WALL.defaultState, 2)
+            world.setBlockState(base.up(2), streetPalette.lamp, 2)
+        }
+    }
+
+    private fun generateTowerChunk(
+        context: FeatureContext<DefaultFeatureConfig>,
+        cityBaseY: Int,
+        plan: CityChunkPlan,
+        palettes: List<SkyscraperPalette>,
+        tall: Boolean
+    ): String? {
+        val world = context.world
+        val origin = context.origin
+        val chunkHash = positiveHash(origin.x shr 4, origin.z shr 4)
+        val palette = pickSkyscraperPalette(plan.style, palettes, chunkHash)
+        val frontFace = pickSkyscraperFront(districtInfo(origin.x + 8, origin.z + 8), chunkHash)
+        val height = cityBaseY + if (tall) 34 + (chunkHash % 42) else 18 + (chunkHash % 18)
+        val inset = if (tall) 1 + (chunkHash % 2) else 2 + (chunkHash % 2)
+        val min = inset
+        val max = 15 - inset
+        val hasPageLoot = tall && chunkHash % 18 == 0
+
+        for (x in min..max) {
+            for (z in min..max) {
+                val gX = origin.x + x
+                val gZ = origin.z + z
+                world.setBlockState(BlockPos(gX, cityBaseY, gZ), palette.foundation, 2)
+
+                for (y in (cityBaseY + 1)..height) {
+                    val pos = BlockPos(gX, y, gZ)
+                    val isFloor = (y - cityBaseY) % 4 == 0
+                    val isOuterWall = x == min || x == max || z == min || z == max
+                    val wallFace = when {
+                        x == min && z in (min + 1) until max -> Direction.WEST
+                        x == max && z in (min + 1) until max -> Direction.EAST
+                        z == min && x in (min + 1) until max -> Direction.NORTH
+                        z == max && x in (min + 1) until max -> Direction.SOUTH
+                        else -> null
+                    }
+
+                    when {
+                        isFloor -> world.setBlockState(pos, palette.floor, 2)
+                        isOuterWall -> {
+                            val isPillar = x % 4 == 0 || z % 4 == 0 || wallFace == null
+                            val isSolidBand = (y - cityBaseY) % 8 == 1
+                            val facadeBlock = when {
+                                isPillar -> palette.pillar
+                                isSolidBand -> palette.wall
+                                wallFace == frontFace -> palette.glass
+                                (y - cityBaseY) % 6 == 2 -> palette.glass
+                                else -> palette.wall
+                            }
+                            world.setBlockState(pos, facadeBlock, 2)
+                        }
+                        else -> world.setBlockState(pos, Blocks.AIR.defaultState, 2)
+                    }
+                }
+            }
+        }
+
+        decorateSkyscraperInterior(world, origin, cityBaseY, height, frontFace, palette, chunkHash, hasPageLoot)
+        return if (tall) "tower(height=$height)" else "midrise(height=$height)"
+    }
+
+    private fun generateSuburbLot(
+        world: StructureWorldAccess,
+        origin: BlockPos,
+        cityBaseY: Int,
+        plan: CityChunkPlan,
+        palettes: List<HousePalette>
+    ): String? {
+        val lotHash = positiveHash(origin.x shr 4, origin.z shr 4)
+        val styles = houseStylesFor(plan.style)
+        val style = styles[lotHash % styles.size]
+        val houseOffsetX = 1 + ((lotHash shr 2) and 1) + max(0, (12 - style.width) / 2)
+        val houseOffsetZ = 1 + ((lotHash shr 3) and 1) + max(0, (12 - style.depth) / 2)
+        val housePos = BlockPos(origin.x + houseOffsetX, cityBaseY, origin.z + houseOffsetZ)
+        val hasPageLoot = lotHash % 30 == 0
+        val palette = pickHousePalette(plan.style, palettes, lotHash)
+        generateVillageStyleHouse(world, housePos, style, palette, lotHash, hasPageLoot)
+        return "suburb(${style.family},loot=$hasPageLoot)"
+    }
+
+    private fun modDistance(value: Int, spacing: Int): Int {
+        val mod = Math.floorMod(value, spacing)
+        return min(mod, spacing - mod)
+    }
+
     private fun generateRoadColumn(
         context: FeatureContext<DefaultFeatureConfig>,
         gX: Int,
@@ -286,10 +1153,11 @@ class CityGridFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatu
         isBridge: Boolean
     ) {
         val world = context.world
+        val streetPalette = streetPaletteFor(info.style)
 
         if (isBridge) {
-            world.setBlockState(BlockPos(gX, roadY - 1, gZ), Blocks.STONE.defaultState, 2)
-            world.setBlockState(BlockPos(gX, roadY, gZ), Blocks.CYAN_TERRACOTTA.defaultState, 2)
+            world.setBlockState(BlockPos(gX, roadY - 1, gZ), streetPalette.support, 2)
+            world.setBlockState(BlockPos(gX, roadY, gZ), streetPalette.avenue, 2)
 
             val actualMinDist = info.minHighwayDist
             if (actualMinDist == 6) {
@@ -304,14 +1172,14 @@ class CityGridFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatu
 
                 if (isPeak) {
                     for (y in seabedY..min(archY + 8, 120)) {
-                        world.setBlockState(BlockPos(gX, y, gZ), Blocks.RED_CONCRETE.defaultState, 2)
+                        world.setBlockState(BlockPos(gX, y, gZ), streetPalette.support, 2)
                     }
 
                     for (dx in -1..1) {
                         for (dz in -1..1) {
                             if (abs(dx) == 1 && abs(dz) == 1) continue
                             for (y in max(seabedY, roadY + 1)..archY + 5) {
-                                world.setBlockState(BlockPos(gX + dx, y, gZ + dz), Blocks.RED_NETHER_BRICKS.defaultState, 2)
+                                world.setBlockState(BlockPos(gX + dx, y, gZ + dz), streetPalette.avenueStripe, 2)
                             }
                         }
                     }
@@ -320,9 +1188,9 @@ class CityGridFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatu
                         world.setBlockState(BlockPos(gX, y, gZ), Blocks.AIR.defaultState, 2)
                     }
 
-                    world.setBlockState(BlockPos(gX, archY, gZ), Blocks.RED_NETHER_BRICKS.defaultState, 2)
+                    world.setBlockState(BlockPos(gX, archY, gZ), streetPalette.avenueStripe, 2)
                     if (archY > roadY + 10 && spanPos % 3 == 0) {
-                        world.setBlockState(BlockPos(gX, archY - 1, gZ), Blocks.RED_NETHER_BRICKS.defaultState, 2)
+                        world.setBlockState(BlockPos(gX, archY - 1, gZ), streetPalette.avenueStripe, 2)
                     }
 
                     if (spanPos % 6 == 0) {
@@ -345,19 +1213,19 @@ class CityGridFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatu
             }
         }
 
-        world.setBlockState(BlockPos(gX, roadY - 1, gZ), Blocks.STONE.defaultState, 2)
-        world.setBlockState(BlockPos(gX, roadY, gZ), Blocks.CYAN_TERRACOTTA.defaultState, 2)
+        world.setBlockState(BlockPos(gX, roadY - 1, gZ), streetPalette.support, 2)
+        world.setBlockState(BlockPos(gX, roadY, gZ), streetPalette.avenue, 2)
 
         val actualMinDist = if (info.isCity) min(info.distX, info.distZ) else info.minHighwayDist
         if (actualMinDist == 0) {
-            world.setBlockState(BlockPos(gX, roadY, gZ), Blocks.YELLOW_CONCRETE.defaultState, 2)
+            world.setBlockState(BlockPos(gX, roadY, gZ), streetPalette.avenueStripe, 2)
         }
 
         if (actualMinDist == 6 && ((gX % 32 == 0) || (gZ % 32 == 0))) {
-            world.setBlockState(BlockPos(gX, roadY, gZ), Blocks.STONE_BRICKS.defaultState, 2)
+            world.setBlockState(BlockPos(gX, roadY, gZ), streetPalette.corePaving, 2)
             world.setBlockState(BlockPos(gX, roadY + 1, gZ), Blocks.STONE_BRICK_WALL.defaultState, 2)
             world.setBlockState(BlockPos(gX, roadY + 2, gZ), Blocks.STONE_BRICK_WALL.defaultState, 2)
-            world.setBlockState(BlockPos(gX, roadY + 3, gZ), Blocks.SHROOMLIGHT.defaultState, 2)
+            world.setBlockState(BlockPos(gX, roadY + 3, gZ), streetPalette.lamp, 2)
         }
     }
 
@@ -371,6 +1239,7 @@ class CityGridFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatu
     ) {
         val world = context.world
         val tunnelY = stationRailY
+        val streetPalette = streetPaletteFor(info.style)
 
         for (sy in (tunnelY - 1)..(tunnelY + 4)) {
             val pos = BlockPos(gX, sy, gZ)
@@ -381,9 +1250,9 @@ class CityGridFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatu
             )
             if (isWall) {
                 val material = when {
-                    isLightColumn -> Blocks.SHROOMLIGHT.defaultState
+                    isLightColumn -> streetPalette.lamp
                     isWaterSurface && sy > tunnelY -> Blocks.GLASS.defaultState
-                    else -> Blocks.STONE_BRICKS.defaultState
+                    else -> streetPalette.tunnelWall
                 }
                 world.setBlockState(pos, material, 2)
             } else {
@@ -578,7 +1447,7 @@ class CityGridFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatu
         val chunkInfo = districtInfo(origin.x + 8, origin.z + 8)
         if (!chunkInfo.isCore || chunkInfo.radius <= 28) return null
 
-        val chunkAxisDistance = min(abs(chunkInfo.centerX), abs(chunkInfo.centerZ)) - 8
+        val chunkAxisDistance = chunkInfo.avenueAxisDistance - 8
         if (chunkAxisDistance <= 14) return "skyscraper-skip(near-avenue)"
         for (x in 4..14) {
             for (z in 4..14) {
@@ -590,8 +1459,15 @@ class CityGridFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatu
         }
 
         val chunkHash = positiveHash(origin.x shr 4, origin.z shr 4)
-        val palette = palettes[chunkHash % palettes.size]
-        val height = cityBaseY + 30 + (chunkHash % 80)
+        val palette = pickSkyscraperPalette(chunkInfo.style, palettes, chunkHash)
+        val heightBias = when (chunkInfo.style) {
+            CityTone.CIVIC -> 26
+            CityTone.INDUSTRIAL -> 14
+            CityTone.BRICKWORK -> 18
+            CityTone.GARDEN -> 8
+            CityTone.MARINA -> 22
+        }
+        val height = cityBaseY + 28 + heightBias + (chunkHash % 54)
         val frontFace = pickSkyscraperFront(chunkInfo, chunkHash)
         val hasPageLoot = chunkHash % 15 == 0
 
@@ -638,6 +1514,105 @@ class CityGridFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatu
         return "skyscraper(height=$height,palette=${chunkHash % palettes.size},loot=$hasPageLoot)"
     }
 
+    private fun generateParkChunk(
+        context: FeatureContext<DefaultFeatureConfig>,
+        cityBaseY: Int,
+        chunkInfo: DistrictInfo
+    ): String? {
+        if (!chunkInfo.isPark) return null
+
+        val origin = context.origin
+        val world = context.world
+        val streetPalette = streetPaletteFor(chunkInfo.style)
+        val parkHash = positiveHash(origin.x shr 4, origin.z shr 4)
+        val hasPond = parkHash % 3 == 0
+        val hasGazebo = parkHash % 3 == 1
+        val hasFountain = parkHash % 5 == 0
+
+        for (x in 2..13) {
+            for (z in 2..13) {
+                val gX = origin.x + x
+                val gZ = origin.z + z
+                val dx = x - 8
+                val dz = z - 8
+                val radial = dx * dx + dz * dz
+                val isCrossPath = abs(dx) <= 1 || abs(dz) <= 1
+                val isRingPath = radial in 20..34
+                val pos = BlockPos(gX, cityBaseY, gZ)
+                val floor = when {
+                    hasPond && radial <= 9 -> Blocks.WATER.defaultState
+                    hasPond && radial in 10..16 -> Blocks.STONE_BRICKS.defaultState
+                    hasFountain && radial <= 4 -> Blocks.SMOOTH_STONE.defaultState
+                    isCrossPath || isRingPath -> streetPalette.suburbStreet
+                    else -> streetPalette.parkGround
+                }
+                world.setBlockState(pos, floor, 2)
+
+                for (y in (cityBaseY + 1)..(cityBaseY + 6)) {
+                    world.setBlockState(BlockPos(gX, y, gZ), Blocks.AIR.defaultState, 2)
+                }
+
+                if (!hasPond && !hasGazebo && !hasFountain && radial in 12..18 && parkHash % 2 == 0 && (x + z) % 5 == 0) {
+                    world.setBlockState(BlockPos(gX, cityBaseY + 1, gZ), Blocks.FLOWERING_AZALEA_LEAVES.defaultState, 2)
+                }
+            }
+        }
+
+        val lampPositions = listOf(
+            BlockPos(origin.x + 4, cityBaseY + 1, origin.z + 4),
+            BlockPos(origin.x + 12, cityBaseY + 1, origin.z + 4),
+            BlockPos(origin.x + 4, cityBaseY + 1, origin.z + 12),
+            BlockPos(origin.x + 12, cityBaseY + 1, origin.z + 12)
+        )
+        for (lampBase in lampPositions) {
+            world.setBlockState(lampBase, Blocks.STONE_BRICK_WALL.defaultState, 2)
+            world.setBlockState(lampBase.up(), Blocks.STONE_BRICK_WALL.defaultState, 2)
+            world.setBlockState(lampBase.up(2), streetPalette.lamp, 2)
+        }
+
+        if (hasGazebo) {
+            for (x in 6..10) {
+                for (z in 6..10) {
+                    val edge = x == 6 || x == 10 || z == 6 || z == 10
+                    world.setBlockState(
+                        BlockPos(origin.x + x, cityBaseY + 1, origin.z + z),
+                        if (edge) Blocks.OAK_FENCE.defaultState else Blocks.AIR.defaultState,
+                        2
+                    )
+                    world.setBlockState(BlockPos(origin.x + x, cityBaseY + 4, origin.z + z), Blocks.SPRUCE_SLAB.defaultState, 2)
+                }
+            }
+        } else if (hasFountain) {
+            world.setBlockState(BlockPos(origin.x + 8, cityBaseY + 1, origin.z + 8), Blocks.STONE_BRICK_WALL.defaultState, 2)
+            world.setBlockState(BlockPos(origin.x + 8, cityBaseY + 2, origin.z + 8), Blocks.WATER.defaultState, 2)
+        } else if (!hasPond) {
+            for ((treeX, treeZ) in listOf(5 to 5, 11 to 5, 5 to 11, 11 to 11)) {
+                world.setBlockState(BlockPos(origin.x + treeX, cityBaseY + 1, origin.z + treeZ), Blocks.OAK_LOG.defaultState, 2)
+                world.setBlockState(BlockPos(origin.x + treeX, cityBaseY + 2, origin.z + treeZ), Blocks.OAK_LOG.defaultState, 2)
+                for (leafX in -1..1) {
+                    for (leafZ in -1..1) {
+                        world.setBlockState(BlockPos(origin.x + treeX + leafX, cityBaseY + 3, origin.z + treeZ + leafZ), Blocks.OAK_LEAVES.defaultState, 2)
+                    }
+                }
+            }
+        }
+
+        return buildString {
+            append("park(")
+            append(
+                when {
+                    hasPond -> "pond"
+                    hasGazebo -> "gazebo"
+                    hasFountain -> "fountain"
+                    else -> "garden"
+                }
+            )
+            append(",tone=")
+            append(chunkInfo.style)
+            append(")")
+        }
+    }
+
     private fun generateSuburbHouseChunk(
         context: FeatureContext<DefaultFeatureConfig>,
         cityBaseY: Int,
@@ -647,43 +1622,26 @@ class CityGridFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatu
         val chunkInfo = districtInfo(origin.x + 8, origin.z + 8)
         if (!chunkInfo.isSuburb) return null
 
+        val parkResult = generateParkChunk(context, cityBaseY, chunkInfo)
+        if (parkResult != null) return parkResult
+
         val apartmentResult = generateApartmentBuildingChunk(context, cityBaseY)
         if (apartmentResult != null) return apartmentResult
 
-        val lotLocalX = Math.floorMod(origin.x, 32)
-        val lotLocalZ = Math.floorMod(origin.z, 32)
-        if (lotLocalX != 16 || lotLocalZ != 16) return "house-skip(not-lot-owner)"
-
-        val distanceToMainAvenue = min(abs(chunkInfo.centerX), abs(chunkInfo.centerZ)) - 8
+        val distanceToMainAvenue = chunkInfo.avenueAxisDistance - 8
         if (distanceToMainAvenue <= 18) return "house-skip(near-avenue)"
         if (chunkInfo.radius <= 140) return "house-skip(inner-ring)"
 
         val lotHash = positiveHash(origin.x shr 4, origin.z shr 4)
-        val styles = listOf(
-            HouseStyle("plains", 8, 8, 4),
-            HouseStyle("plains", 10, 7, 4),
-            HouseStyle("plains", 9, 9, 4, stories = 2),
-            HouseStyle("plains", 10, 8, 4, stories = 2, splitLevel = true),
-            HouseStyle("taiga", 8, 10, 4),
-            HouseStyle("taiga", 9, 9, 4, stories = 2),
-            HouseStyle("taiga", 10, 8, 4, splitLevel = true),
-            HouseStyle("savanna", 9, 7, 4, flatRoof = true),
-            HouseStyle("savanna", 10, 8, 4, stories = 2, flatRoof = true),
-            HouseStyle("desert", 10, 8, 4, flatRoof = true),
-            HouseStyle("desert", 9, 9, 4, stories = 2, flatRoof = true),
-            HouseStyle("snowy", 8, 8, 5),
-            HouseStyle("snowy", 9, 8, 4, stories = 2),
-            HouseStyle("generic", 9, 8, 4),
-            HouseStyle("generic", 10, 9, 4, stories = 2),
-            HouseStyle("generic", 8, 10, 4, splitLevel = true)
-        )
+        val styles = houseStylesFor(chunkInfo.style)
         val style = styles[lotHash % styles.size]
-        val houseOffsetX = 2 + max(0, (12 - style.width) / 2)
-        val houseOffsetZ = 2 + max(0, (12 - style.depth) / 2)
+        val houseOffsetX = 1 + ((lotHash shr 2) and 1) + max(0, (12 - style.width) / 2)
+        val houseOffsetZ = 1 + ((lotHash shr 3) and 1) + max(0, (12 - style.depth) / 2)
         val housePos = BlockPos(origin.x + houseOffsetX, cityBaseY, origin.z + houseOffsetZ)
         val hasPageLoot = lotHash % 30 == 0
-        generateVillageStyleHouse(context.world, housePos, style, palettes[lotHash % palettes.size], lotHash, hasPageLoot)
-        return "house(${style.family},stories=${style.stories},split=${style.splitLevel},loot=$hasPageLoot,palette=${lotHash % palettes.size})"
+        val palette = pickHousePalette(chunkInfo.style, palettes, lotHash)
+        generateVillageStyleHouse(context.world, housePos, style, palette, lotHash, hasPageLoot)
+        return "house(${style.family},stories=${style.stories},split=${style.splitLevel},loot=$hasPageLoot,tone=${chunkInfo.style})"
     }
 
     private fun generateVillageStyleHouse(
@@ -1028,7 +1986,7 @@ class CityGridFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatu
 
         val ownerOriginX = if (modX == 16) origin.x else origin.x - 16
         val ownerInfo = districtInfo(ownerOriginX + 8, origin.z + 8)
-        val distanceToMainAvenue = min(abs(ownerInfo.centerX), abs(ownerInfo.centerZ)) - 8
+        val distanceToMainAvenue = ownerInfo.avenueAxisDistance - 8
         if (!ownerInfo.isSuburb || distanceToMainAvenue <= 18 || ownerInfo.radius <= 140) return null
 
         val ownerHash = positiveHash(ownerOriginX shr 4, origin.z shr 4)
@@ -1235,27 +2193,70 @@ class CityGridFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatu
     }
 
     private fun districtInfo(gX: Int, gZ: Int): DistrictInfo {
-        val regionX = Math.floorMod(gX, 1024)
-        val regionZ = Math.floorMod(gZ, 1024)
-        val centerX = regionX - 512
-        val centerZ = regionZ - 512
+        val chunkX = Math.floorDiv(gX, 16)
+        val chunkZ = Math.floorDiv(gZ, 16)
+        val sampleX = (chunkX shl 4) + 8
+        val sampleZ = (chunkZ shl 4) + 8
+        val cellX = Math.floorDiv(sampleX, CITY_CELL_SIZE)
+        val cellZ = Math.floorDiv(sampleZ, CITY_CELL_SIZE)
+
+        var dominantAnchor: CityAnchor? = null
+        var dominantScore = Double.NEGATIVE_INFINITY
+        var secondScore = Double.NEGATIVE_INFINITY
+
+        for (gridX in (cellX - 1)..(cellX + 1)) {
+            for (gridZ in (cellZ - 1)..(cellZ + 1)) {
+                val anchor = cityAnchor(gridX, gridZ)
+                val distance = hypot((sampleX - anchor.centerX).toDouble(), (sampleZ - anchor.centerZ).toDouble())
+                val score = 1.0 - (distance / anchor.radius.toDouble())
+                if (score > dominantScore) {
+                    secondScore = dominantScore
+                    dominantScore = score
+                    dominantAnchor = anchor
+                } else if (score > secondScore) {
+                    secondScore = score
+                }
+            }
+        }
+
+        val anchor = dominantAnchor ?: cityAnchor(cellX, cellZ)
+        val centerX = gX - anchor.centerX
+        val centerZ = gZ - anchor.centerZ
         val distX = abs(centerX)
         val distZ = abs(centerZ)
-        val radius = max(distX, distZ)
+        val pointDistance = hypot((gX - anchor.centerX).toDouble(), (gZ - anchor.centerZ).toDouble())
+        val radius = pointDistance.roundToInt()
 
-        val isCore = radius <= 128
-        val isSuburb = radius in 129..256
-        val isCity = radius <= 256
+        val avenueWarpX = (sin((gZ + anchor.streetPhaseZ).toDouble() / anchor.avenuePitchX) * anchor.avenueWaveX).roundToInt()
+        val avenueWarpZ = (cos((gX - anchor.streetPhaseX).toDouble() / anchor.avenuePitchZ) * anchor.avenueWaveZ).roundToInt()
+        val avenueAxisDistance = min(abs(centerX + avenueWarpX), abs(centerZ + avenueWarpZ))
+        val corridorInfo = corridorInfo(gX, gZ, anchor)
+        val cityInfluence = clamp01(((anchor.radius * 0.88) - pointDistance) / (anchor.radius * 0.20))
+        val connectorInfluence = corridorInfo.influence
+        val overlapBoost = clamp01((secondScore + 0.12) / 0.42)
 
-        val fadeX = clamp01((distZ - 256).toDouble() / 128.0)
-        val fadeZ = clamp01((distX - 256).toDouble() / 128.0)
-        val twistX = (Math.sin(gZ * 0.03) * 20.0 * fadeX).toInt()
-        val twistZ = (Math.sin(gX * 0.03) * 20.0 * fadeZ).toInt()
-        val highwayDistX = abs(centerX + twistX)
-        val highwayDistZ = abs(centerZ + twistZ)
-        val minHighwayDist = min(highwayDistX, highwayDistZ)
+        val isCore = pointDistance <= anchor.radius * 0.28 || (cityInfluence > 0.78 && overlapBoost > 0.20)
+        val isSuburb = !isCore && pointDistance <= anchor.radius * 0.56 && connectorInfluence < 0.05
+        val isCity = cityInfluence > 0.28
+        val isHighway = connectorInfluence > 0.72 && cityInfluence < 0.08
+        val isMainAvenue = isCity && !isHighway && (avenueAxisDistance <= 6 || connectorInfluence > 0.46)
+        val subwayAxisX = abs(centerZ + (avenueWarpZ / 2))
+        val subwayAxisZ = abs(centerX + (avenueWarpX / 2))
+        val isSubwayX = isCity && anchor.radius > 300 && subwayAxisX < 3
+        val isSubwayZ = isCity && anchor.radius > 300 && subwayAxisZ < 3
+
+        val regionX = Math.floorMod(centerX + anchor.streetPhaseX, 128)
+        val regionZ = Math.floorMod(centerZ + anchor.streetPhaseZ, 128)
+        val parkHash = positiveHash((gX shr 5) + anchor.gridX * 19, (gZ shr 5) + anchor.gridZ * 23)
+        val isPark = isSuburb && !isMainAvenue && connectorInfluence < 0.05 && avenueAxisDistance > 10 &&
+            parkHash % (if (anchor.tone == CityTone.GARDEN) 4 else 7) == 0
+        val highwayDistX = if (corridorInfo.eastWest) corridorInfo.alongDistance else corridorInfo.axisDistance
+        val highwayDistZ = if (corridorInfo.eastWest) corridorInfo.axisDistance else corridorInfo.alongDistance
+        val minHighwayDist = if (corridorInfo.influence > 0.12) corridorInfo.axisDistance else avenueAxisDistance
 
         return DistrictInfo(
+            gridX = anchor.gridX,
+            gridZ = anchor.gridZ,
             regionX = regionX,
             regionZ = regionZ,
             centerX = centerX,
@@ -1266,13 +2267,208 @@ class CityGridFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatu
             highwayDistX = highwayDistX,
             highwayDistZ = highwayDistZ,
             minHighwayDist = minHighwayDist,
+            highwayDeckY = corridorInfo.deckY,
+            cityInfluence = cityInfluence,
+            connectorInfluence = connectorInfluence,
+            style = anchor.tone,
+            avenueAxisDistance = avenueAxisDistance,
             isCore = isCore,
             isSuburb = isSuburb,
             isCity = isCity,
-            isHighway = !isCity && minHighwayDist <= 6,
-            isMainAvenue = isCity && min(distX, distZ) <= 6,
-            isSubwayX = distZ < 3,
-            isSubwayZ = distX < 3
+            isHighway = isHighway,
+            isMainAvenue = isMainAvenue,
+            isPark = isPark,
+            isSubwayX = isSubwayX,
+            isSubwayZ = isSubwayZ
+        )
+    }
+
+    private fun cityAnchor(gridX: Int, gridZ: Int): CityAnchor {
+        val tones = CityTone.values()
+        return CityAnchor(
+            gridX = gridX,
+            gridZ = gridZ,
+            centerX = gridX * CITY_CELL_SIZE + (CITY_CELL_SIZE / 2) + rangedHash(gridX, gridZ, 17L, -CITY_CENTER_JITTER, CITY_CENTER_JITTER),
+            centerZ = gridZ * CITY_CELL_SIZE + (CITY_CELL_SIZE / 2) + rangedHash(gridX, gridZ, 29L, -CITY_CENTER_JITTER, CITY_CENTER_JITTER),
+            radius = CITY_MIN_RADIUS + rangedHash(gridX, gridZ, 43L, 0, CITY_RADIUS_VARIANCE),
+            groundY = CITY_GROUND_MIN_Y + CITY_GROUND_STEP * rangedHash(gridX, gridZ, 47L, 0, (CITY_GROUND_MAX_Y - CITY_GROUND_MIN_Y) / CITY_GROUND_STEP),
+            tone = tones[rangedHash(gridX, gridZ, 61L, 0, tones.size - 1)],
+            avenuePitchX = 68.0 + rangedHash(gridX, gridZ, 73L, 0, 28),
+            avenuePitchZ = 68.0 + rangedHash(gridX, gridZ, 89L, 0, 28),
+            avenueWaveX = 2.0 + rangedHash(gridX, gridZ, 101L, 0, 5),
+            avenueWaveZ = 2.0 + rangedHash(gridX, gridZ, 113L, 0, 5),
+            streetPhaseX = rangedHash(gridX, gridZ, 127L, 0, 127),
+            streetPhaseZ = rangedHash(gridX, gridZ, 149L, 0, 127)
+        )
+    }
+
+    private fun corridorInfo(gX: Int, gZ: Int, anchor: CityAnchor): CorridorInfo {
+        var bestInfluence = 0.0
+        var bestAxisDistance = Int.MAX_VALUE
+        var bestAlongDistance = Int.MAX_VALUE
+        var bestEastWest = true
+        var bestDeckY = anchor.groundY + 10
+
+        val neighbors = listOf(
+            anchor.gridX - 1 to anchor.gridZ,
+            anchor.gridX + 1 to anchor.gridZ,
+            anchor.gridX to anchor.gridZ - 1,
+            anchor.gridX to anchor.gridZ + 1
+        )
+
+        for ((neighborX, neighborZ) in neighbors) {
+            val neighbor = cityAnchor(neighborX, neighborZ)
+            val dx = neighbor.centerX - anchor.centerX
+            val dz = neighbor.centerZ - anchor.centerZ
+            val lengthSquared = dx.toDouble() * dx.toDouble() + dz.toDouble() * dz.toDouble()
+            if (lengthSquared <= 0.0) continue
+
+            val localX = gX - anchor.centerX
+            val localZ = gZ - anchor.centerZ
+            val t = clamp01((localX * dx + localZ * dz) / lengthSquared)
+            val corridorLength = kotlin.math.sqrt(lengthSquared)
+            val alongDistance = t * corridorLength
+            val sourceClearance = anchor.radius + HIGHWAY_CLEARANCE_FROM_CITY
+            val targetClearance = neighbor.radius + HIGHWAY_CLEARANCE_FROM_CITY
+            if (alongDistance <= sourceClearance || alongDistance >= corridorLength - targetClearance) {
+                continue
+            }
+            val closestX = anchor.centerX + dx * t
+            val closestZ = anchor.centerZ + dz * t
+            val lateralDistance = hypot(gX - closestX, gZ - closestZ)
+            val eastWest = abs(dx) >= abs(dz)
+            val width = if (eastWest) 12.0 else 10.0
+            val influence = clamp01((width - lateralDistance) / width)
+            val deckY = ((anchor.groundY + 10) + ((neighbor.groundY + 10) - (anchor.groundY + 10)) * t).roundToInt()
+
+            if (influence > bestInfluence) {
+                bestInfluence = influence
+                bestAxisDistance = lateralDistance.roundToInt()
+                bestAlongDistance = alongDistance.roundToInt()
+                bestEastWest = eastWest
+                bestDeckY = deckY
+            }
+        }
+
+        return CorridorInfo(
+            influence = bestInfluence,
+            axisDistance = if (bestAxisDistance == Int.MAX_VALUE) 999 else bestAxisDistance,
+            alongDistance = if (bestAlongDistance == Int.MAX_VALUE) 999 else bestAlongDistance,
+            eastWest = bestEastWest,
+            deckY = bestDeckY
+        )
+    }
+
+    private fun streetPaletteFor(style: CityTone): StreetPalette = when (style) {
+        CityTone.CIVIC -> StreetPalette(
+            avenue = Blocks.GRAY_CONCRETE_POWDER.defaultState,
+            avenueStripe = Blocks.YELLOW_CONCRETE.defaultState,
+            support = Blocks.STONE.defaultState,
+            lamp = Blocks.SHROOMLIGHT.defaultState,
+            corePaving = Blocks.SMOOTH_STONE.defaultState,
+            suburbStreet = Blocks.POLISHED_ANDESITE.defaultState,
+            suburbLot = Blocks.GRASS_BLOCK.defaultState,
+            parkGround = Blocks.MOSS_BLOCK.defaultState,
+            tunnelWall = Blocks.STONE_BRICKS.defaultState
+        )
+        CityTone.INDUSTRIAL -> StreetPalette(
+            avenue = Blocks.DEEPSLATE_TILES.defaultState,
+            avenueStripe = Blocks.YELLOW_TERRACOTTA.defaultState,
+            support = Blocks.COBBLED_DEEPSLATE.defaultState,
+            lamp = Blocks.SEA_LANTERN.defaultState,
+            corePaving = Blocks.POLISHED_DEEPSLATE.defaultState,
+            suburbStreet = Blocks.DEEPSLATE_BRICKS.defaultState,
+            suburbLot = Blocks.COARSE_DIRT.defaultState,
+            parkGround = Blocks.MOSS_BLOCK.defaultState,
+            tunnelWall = Blocks.DEEPSLATE_BRICKS.defaultState
+        )
+        CityTone.BRICKWORK -> StreetPalette(
+            avenue = Blocks.TERRACOTTA.defaultState,
+            avenueStripe = Blocks.SMOOTH_STONE.defaultState,
+            support = Blocks.BRICKS.defaultState,
+            lamp = Blocks.SHROOMLIGHT.defaultState,
+            corePaving = Blocks.MUD_BRICKS.defaultState,
+            suburbStreet = Blocks.PACKED_MUD.defaultState,
+            suburbLot = Blocks.GRASS_BLOCK.defaultState,
+            parkGround = Blocks.ROOTED_DIRT.defaultState,
+            tunnelWall = Blocks.BRICKS.defaultState
+        )
+        CityTone.GARDEN -> StreetPalette(
+            avenue = Blocks.MOSSY_STONE_BRICKS.defaultState,
+            avenueStripe = Blocks.SMOOTH_STONE.defaultState,
+            support = Blocks.STONE.defaultState,
+            lamp = Blocks.PEARLESCENT_FROGLIGHT.defaultState,
+            corePaving = Blocks.CALCITE.defaultState,
+            suburbStreet = Blocks.COBBLESTONE.defaultState,
+            suburbLot = Blocks.GRASS_BLOCK.defaultState,
+            parkGround = Blocks.MOSS_BLOCK.defaultState,
+            tunnelWall = Blocks.MOSSY_STONE_BRICKS.defaultState
+        )
+        CityTone.MARINA -> StreetPalette(
+            avenue = Blocks.CYAN_TERRACOTTA.defaultState,
+            avenueStripe = Blocks.WHITE_CONCRETE.defaultState,
+            support = Blocks.SMOOTH_STONE.defaultState,
+            lamp = Blocks.SEA_LANTERN.defaultState,
+            corePaving = Blocks.SMOOTH_QUARTZ.defaultState,
+            suburbStreet = Blocks.PRISMARINE_BRICKS.defaultState,
+            suburbLot = Blocks.GRASS_BLOCK.defaultState,
+            parkGround = Blocks.MOSS_BLOCK.defaultState,
+            tunnelWall = Blocks.PRISMARINE_BRICKS.defaultState
+        )
+    }
+
+    private fun pickSkyscraperPalette(style: CityTone, palettes: List<SkyscraperPalette>, chunkHash: Int): SkyscraperPalette {
+        val candidates = when (style) {
+            CityTone.CIVIC -> listOf(1, 2, 4)
+            CityTone.INDUSTRIAL -> listOf(0, 3, 4)
+            CityTone.BRICKWORK -> listOf(3, 0, 1)
+            CityTone.GARDEN -> listOf(4, 1, 2)
+            CityTone.MARINA -> listOf(2, 4, 0)
+        }
+        return palettes[candidates[chunkHash % candidates.size] % palettes.size]
+    }
+
+    private fun pickHousePalette(style: CityTone, palettes: List<HousePalette>, lotHash: Int): HousePalette {
+        val candidates = when (style) {
+            CityTone.CIVIC -> listOf(0, 3, 4)
+            CityTone.INDUSTRIAL -> listOf(1, 2, 4)
+            CityTone.BRICKWORK -> listOf(2, 0, 1)
+            CityTone.GARDEN -> listOf(0, 2, 3)
+            CityTone.MARINA -> listOf(3, 4, 0)
+        }
+        return palettes[candidates[lotHash % candidates.size] % palettes.size]
+    }
+
+    private fun houseStylesFor(style: CityTone): List<HouseStyle> = when (style) {
+        CityTone.CIVIC -> listOf(
+            HouseStyle("plains", 8, 8, 4),
+            HouseStyle("plains", 10, 7, 4),
+            HouseStyle("generic", 9, 8, 4),
+            HouseStyle("generic", 10, 9, 4, stories = 2)
+        )
+        CityTone.INDUSTRIAL -> listOf(
+            HouseStyle("taiga", 8, 10, 4),
+            HouseStyle("generic", 10, 9, 4, stories = 2),
+            HouseStyle("generic", 8, 10, 4, splitLevel = true),
+            HouseStyle("taiga", 10, 8, 4, splitLevel = true)
+        )
+        CityTone.BRICKWORK -> listOf(
+            HouseStyle("plains", 9, 9, 4, stories = 2),
+            HouseStyle("taiga", 9, 9, 4, stories = 2),
+            HouseStyle("generic", 9, 8, 4),
+            HouseStyle("generic", 10, 9, 4, stories = 2)
+        )
+        CityTone.GARDEN -> listOf(
+            HouseStyle("plains", 8, 8, 4),
+            HouseStyle("plains", 10, 8, 4, stories = 2, splitLevel = true),
+            HouseStyle("snowy", 8, 8, 5),
+            HouseStyle("snowy", 9, 8, 4, stories = 2)
+        )
+        CityTone.MARINA -> listOf(
+            HouseStyle("savanna", 9, 7, 4, flatRoof = true),
+            HouseStyle("savanna", 10, 8, 4, stories = 2, flatRoof = true),
+            HouseStyle("desert", 10, 8, 4, flatRoof = true),
+            HouseStyle("desert", 9, 9, 4, stories = 2, flatRoof = true)
         )
     }
 
@@ -1297,13 +2493,26 @@ class CityGridFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatu
         return (x * 73428767 xor z * 912931).let { if (it == Int.MIN_VALUE) 0 else abs(it) }
     }
 
+    private fun rangedHash(x: Int, z: Int, salt: Long, minValue: Int, maxValue: Int): Int {
+        if (maxValue <= minValue) return minValue
+        val span = maxValue - minValue + 1
+        return minValue + Math.floorMod(mixedHash(x, z, salt), span.toLong()).toInt()
+    }
+
+    private fun mixedHash(x: Int, z: Int, salt: Long): Long {
+        var hash = x.toLong() * 341873128712L + z.toLong() * 132897987541L + salt * 31L
+        hash = hash xor (hash ushr 29)
+        hash *= 0x9E3779B1L
+        hash = hash xor (hash ushr 26)
+        return hash
+    }
+
     private fun shouldDecay(x: Int, y: Int, z: Int): Boolean {
-        val hash = positiveHash(x xor y, z xor (y * 31))
-        return hash % 100 < 5
+        return false
     }
 
     private fun pickSkyscraperFront(info: DistrictInfo, chunkHash: Int): Direction {
-        val touchesMainRoad = min(abs(info.centerX), abs(info.centerZ)) <= 24
+        val touchesMainRoad = info.avenueAxisDistance <= 24
         if (touchesMainRoad) {
             return if (abs(info.centerX) <= abs(info.centerZ)) {
                 if (info.centerX >= 0) Direction.WEST else Direction.EAST

@@ -3,9 +3,12 @@ package mystcraft.flood.mixin;
 import kotlin.Pair;
 import mystcraft.flood.access.DimensionInjector;
 import mystcraft.flood.generation.AgeBuilder;
+import mystcraft.flood.generation.AgeSubdimensionManager;
+import mystcraft.flood.generation.profile.AgeDimensionRole;
 import mystcraft.flood.generation.profile.AgeProfile;
 import mystcraft.flood.network.ModMessages;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents;
+import net.minecraft.entity.boss.dragon.EnderDragonFight;
 import net.minecraft.registry.DynamicRegistryManager;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKey;
@@ -64,9 +67,13 @@ public abstract class MinecraftServerMixin implements DimensionInjector {
         try {
             Registry<DimensionOptions> optionsRegistry = this.getRegistryManager().get(RegistryKeys.DIMENSION);
             Registry<DimensionType> typeRegistry = this.getRegistryManager().get(RegistryKeys.DIMENSION_TYPE);
-            
-            RegistryKey<DimensionType> baseAgeKey = RegistryKey.of(RegistryKeys.DIMENSION_TYPE, new Identifier("mystcraft-reforged", "base_age"));
-            RegistryEntry<DimensionType> typeEntry = typeRegistry.getEntry(baseAgeKey).orElseThrow();
+
+            AgeDimensionRole role = AgeSubdimensionManager.INSTANCE.roleOf(ageId);
+            RegistryKey<DimensionType> dimensionTypeKey = RegistryKey.of(
+                    RegistryKeys.DIMENSION_TYPE,
+                    new Identifier("mystcraft-reforged", role.getDimensionTypePath())
+            );
+            RegistryEntry<DimensionType> typeEntry = typeRegistry.getEntry(dimensionTypeKey).orElseThrow();
 
             Pair<ChunkGenerator, AgeProfile> result = AgeBuilder.INSTANCE.buildGenerator(server, ageId, symbols);
             ChunkGenerator customGen = result.getFirst();
@@ -126,6 +133,10 @@ public abstract class MinecraftServerMixin implements DimensionInjector {
                     return profile.getSeed();
                 }
             };
+
+            if (role == AgeDimensionRole.END) {
+                newWorld.setEnderDragonFight(new EnderDragonFight(newWorld, profile.getSeed(), EnderDragonFight.Data.DEFAULT));
+            }
 
             server.getOverworld().getWorldBorder().addListener(new WorldBorderListener.WorldBorderSyncer(newWorld.getWorldBorder()));
             this.worlds.put(worldKey, newWorld);

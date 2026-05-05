@@ -1,6 +1,14 @@
 {
   "parent": "item/generated",
   "textures": {
-    "layer0": "mystcraft-reforged:item/notebook"
-  }
+    "layer0": "mystcraft-reforged:item/folder"
+  },
+  "overrides": [
+    {
+      "predicate": {
+        "mystcraft-reforged:filled": 1.0
+      },
+      "model": "mystcraft-reforged:item/notebook_filled"
+    }
+  ]
 }

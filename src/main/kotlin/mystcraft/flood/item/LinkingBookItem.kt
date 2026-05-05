@@ -3,6 +3,7 @@ package mystcraft.flood.item
 import net.fabricmc.fabric.api.dimension.v1.FabricDimensions
 import mystcraft.flood.generation.AgeLifecycleManager
 import mystcraft.flood.generation.AgeTravelEffects
+import mystcraft.flood.network.ModMessages
 import net.minecraft.client.item.TooltipContext
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.item.Item
@@ -21,10 +22,19 @@ import net.minecraft.world.World
 
 class LinkingBookItem(settings: Settings) : Item(settings) {
     override fun use(world: World, user: PlayerEntity, hand: Hand): TypedActionResult<ItemStack> {
-        if (world.isClient || user !is ServerPlayerEntity) return TypedActionResult.pass(user.getStackInHand(hand))
+        if (world.isClient) return TypedActionResult.success(user.getStackInHand(hand))
+        if (user !is ServerPlayerEntity) return TypedActionResult.pass(user.getStackInHand(hand))
 
         val stack = user.getStackInHand(hand)
-        activate(world, user, stack)
+        if (!stack.orCreateNbt.contains("Dimension")) {
+            bindCurrentLocation(world, user, stack)
+        }
+
+        if (user.isSneaking && stack.orCreateNbt.contains("Dimension")) {
+            activate(world, user, stack)
+        } else {
+            ModMessages.sendOpenLinkingBook(user, stack, hand)
+        }
         return TypedActionResult.success(stack)
     }
 
@@ -32,14 +42,7 @@ class LinkingBookItem(settings: Settings) : Item(settings) {
         val nbt = stack.orCreateNbt
 
         if (!nbt.contains("Dimension")) {
-            nbt.putString("Dimension", world.registryKey.value.toString())
-            nbt.putDouble("PosX", user.x)
-            nbt.putDouble("PosY", user.y)
-            nbt.putDouble("PosZ", user.z)
-            nbt.putFloat("Yaw", user.yaw)
-            nbt.putFloat("Pitch", user.pitch)
-            
-            user.sendMessage(Text.literal("Linking Book bound to current location."), true)
+            bindCurrentLocation(world, user, stack)
         } else {
             val dimId = Identifier(nbt.getString("Dimension"))
             val dimKey = RegistryKey.of(RegistryKeys.WORLD, dimId)
@@ -84,5 +87,17 @@ class LinkingBookItem(settings: Settings) : Item(settings) {
     // === NEW: Makes the item glow if it is linked ===
     override fun hasGlint(stack: ItemStack): Boolean {
         return stack.hasNbt() && stack.nbt!!.contains("Dimension")
+    }
+
+    private fun bindCurrentLocation(world: World, user: ServerPlayerEntity, stack: ItemStack) {
+        val nbt = stack.orCreateNbt
+        nbt.putString("Dimension", world.registryKey.value.toString())
+        nbt.putDouble("PosX", user.x)
+        nbt.putDouble("PosY", user.y)
+        nbt.putDouble("PosZ", user.z)
+        nbt.putFloat("Yaw", user.yaw)
+        nbt.putFloat("Pitch", user.pitch)
+        world.server?.let { BookPreviewData.refreshForStack(it, stack) }
+        user.sendMessage(Text.literal("Linking Book bound to current location.").formatted(Formatting.GREEN), true)
     }
 }

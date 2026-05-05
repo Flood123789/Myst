@@ -62,9 +62,13 @@ class LostPageItem(settings: Settings) : Item(settings) {
         return when (symbol.path) {
             "terrain_void" -> 1
             "terrain_cities", "terrain_biospheres", "dense_ores", "spawning_no_mobs", "exotic_virus" -> 2
+            "curse_cleansing" -> 3
             "ancient_bones" -> 3
-            "forgotten_ruins", "collapsed_observatory", "gateway_ruins", "page_storms", "stable_sanctuaries" -> 4
+            "meteor_showers", "sky_spheres" -> 3
+            "forgotten_ruins", "collapsed_observatory", "gateway_ruins", "page_storms", "stable_sanctuaries", "sky_rifts", "comets" -> 4
             "ancient_aqueducts", "memory_blooms", "terrain_alpha" -> 5
+            "sky_rainbows", "sky_auroras", "shooting_stars", "bright_sky", "dark_sky",
+            "particle_motes", "particle_ash", "particle_spores", "particle_void" -> 7
             "terrain_caves", "terrain_floating_islands", "terrain_beta", "terrain_flat", "giant_trees", "crystal_formations", "tendrils",
             "obelisks", "terrain_amplified", "weather_endless_storm", "weather_normal", "stars_dense", "no_stars", "sun_red", "sun_blue", "low_gravity",
             "biome_checkerboard", "biome_vanilla", "cloud_height_low", "cloud_height_normal", "cloud_height_high" -> 5

@@ -7,15 +7,23 @@ import mystcraft.flood.block.entity.ModBlockEntities
 import mystcraft.flood.client.AgeTravelSoundSuppressor
 import mystcraft.flood.client.cache.ClientAgeCache
 import mystcraft.flood.client.gui.BookBinderScreen
+import mystcraft.flood.client.gui.EditingTableScreen
 import mystcraft.flood.client.gui.NotebookScreen
+import mystcraft.flood.client.gui.PrintingTableScreen
+import mystcraft.flood.client.gui.WritingDeskScreen
 import mystcraft.flood.client.network.ClientMessages
+import mystcraft.flood.client.render.AgeAmbientParticlePainter
 import mystcraft.flood.client.render.AgePlantTintHelper
 import mystcraft.flood.client.render.BookStandBlockEntityRenderer
 import mystcraft.flood.client.render.BookReceptacleBlockEntityRenderer
 import mystcraft.flood.client.render.ClientRenderCompatibility
+import mystcraft.flood.client.render.DescriptiveBookEntityRenderer
+import mystcraft.flood.client.render.ModEntityModelLayers
 import mystcraft.flood.client.render.MystcraftDimensionEffects
 import mystcraft.flood.client.render.PageIconItemRenderer
+import mystcraft.flood.entity.ModEntities
 import mystcraft.flood.gui.ModScreens
+import mystcraft.flood.item.NotebookItem
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.blockrenderlayer.v1.BlockRenderLayerMap
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
@@ -23,7 +31,9 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.rendering.v1.BuiltinItemRendererRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.ColorProviderRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.DimensionRenderingRegistry
+import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry
 import net.minecraft.client.gui.screen.ingame.HandledScreens
+import net.minecraft.client.item.ModelPredicateProviderRegistry
 import net.minecraft.client.render.RenderLayer
 import net.minecraft.client.render.block.entity.BlockEntityRendererFactories
 import net.minecraft.client.render.block.entity.EndPortalBlockEntityRenderer
@@ -38,10 +48,16 @@ class MystcraftReforgedClient : ClientModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register { client ->
             AgeTravelSoundSuppressor.INSTANCE.tick(client)
+            AgeAmbientParticlePainter.tick(client)
         }
         
         HandledScreens.register(ModScreens.BOOK_BINDER_HANDLER, ::BookBinderScreen)
+        HandledScreens.register(ModScreens.WRITING_DESK_HANDLER, ::WritingDeskScreen)
+        HandledScreens.register(ModScreens.EDITING_TABLE_HANDLER, ::EditingTableScreen)
+        HandledScreens.register(ModScreens.PRINTING_TABLE_HANDLER, ::PrintingTableScreen)
         HandledScreens.register(ModScreens.NOTEBOOK_HANDLER, ::NotebookScreen)
+        ModEntityModelLayers.register()
+        EntityRendererRegistry.register(ModEntities.DESCRIPTIVE_BOOK_ANCHOR, ::DescriptiveBookEntityRenderer)
 
         DimensionRenderingRegistry.registerDimensionEffects(
             Identifier("mystcraft-reforged", "age_effects"),
@@ -69,6 +85,9 @@ class MystcraftReforgedClient : ClientModInitializer {
 
         BuiltinItemRendererRegistry.INSTANCE.register(ModItems.SYMBOL_PAGE, PageIconItemRenderer)
         BuiltinItemRendererRegistry.INSTANCE.register(ModItems.LOST_PAGE, PageIconItemRenderer)
+        ModelPredicateProviderRegistry.register(ModItems.NOTEBOOK, Identifier(MystcraftReforged.MOD_ID, "filled")) { stack, _, _, _ ->
+            if (NotebookItem.getSymbols(stack).isNotEmpty()) 1.0f else 0.0f
+        }
 
         // === RANDOMIZED PORTAL COLOR PROVIDER ===
         ColorProviderRegistry.BLOCK.register(net.minecraft.client.color.block.BlockColorProvider { state, world, pos, tintIndex ->
@@ -91,6 +110,10 @@ class MystcraftReforgedClient : ClientModInitializer {
         ColorProviderRegistry.BLOCK.register(net.minecraft.client.color.block.BlockColorProvider { state, world, pos, _ ->
             AgePlantTintHelper.getTintFor(state.block, world, pos)
         },
+            Blocks.OAK_LEAVES,
+            Blocks.JUNGLE_LEAVES,
+            Blocks.ACACIA_LEAVES,
+            Blocks.DARK_OAK_LEAVES,
             Blocks.BIRCH_LEAVES,
             Blocks.SPRUCE_LEAVES,
             Blocks.MANGROVE_LEAVES,
@@ -116,7 +139,8 @@ class MystcraftReforgedClient : ClientModInitializer {
             Blocks.BIG_DRIPLEAF_STEM,
             Blocks.MOSS_BLOCK,
             Blocks.MOSS_CARPET,
-            Blocks.PINK_PETALS
+            Blocks.PINK_PETALS,
+            Blocks.WATER
         )
         
         MystcraftReforged.LOGGER.info("Client initialized cleanly. Render compatibility mode: ${ClientRenderCompatibility.describe()}")

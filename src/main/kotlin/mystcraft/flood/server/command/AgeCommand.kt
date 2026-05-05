@@ -5,7 +5,9 @@ import com.mojang.brigadier.arguments.IntegerArgumentType
 import com.mojang.brigadier.context.CommandContext
 import mystcraft.flood.MystcraftReforged
 import mystcraft.flood.access.DimensionInjector
+import mystcraft.flood.generation.AgeCurseManager
 import mystcraft.flood.generation.AgeLifecycleManager
+import mystcraft.flood.generation.AgeSubdimensionManager
 import mystcraft.flood.generation.profile.AgeProfileManager
 import mystcraft.flood.network.ModMessages
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback
@@ -94,6 +96,14 @@ object AgeCommand {
                     .then(CommandManager.literal("age_effect")
                         .then(CommandManager.literal("toggle")
                             .executes { toggleAgeEffect(it) }
+                        )
+                    )
+                    .then(CommandManager.literal("curse")
+                        .then(CommandManager.literal("list")
+                            .executes { listAgeCurses(it) }
+                        )
+                        .then(CommandManager.literal("cleanse")
+                            .executes { cleanseAgeCurse(it) }
                         )
                     )
                     .then(CommandManager.literal("gravity")
@@ -208,23 +218,22 @@ object AgeCommand {
     private fun toggleAgeInstability(context: CommandContext<ServerCommandSource>): Int {
         val source = context.source
         val world = source.world
-        val id = world.registryKey.value
+        val currentId = world.registryKey.value
 
-        if (id.namespace != MystcraftReforged.MOD_ID) {
+        if (currentId.namespace != MystcraftReforged.MOD_ID) {
             source.sendError(Text.literal("You must be in a Mystcraft Age to toggle instability effects!"))
             return 0
         }
 
-        val profile = AgeProfileManager.getOrGenerateProfile(world.server, id)
+        val rootAgeId = AgeSubdimensionManager.rootIdOf(currentId)
+        val profile = AgeProfileManager.getOrGenerateProfile(world.server, rootAgeId)
         profile.stability.effectsEnabled = !profile.stability.effectsEnabled
 
-        world.players.forEach { player ->
-            ModMessages.sendDimensionSync(player, id, profile)
-        }
+        ModMessages.syncAgeFamily(world.server, rootAgeId)
 
         val stateText = if (profile.stability.effectsEnabled) "enabled" else "disabled"
         source.sendFeedback(
-            { Text.literal("Instability effects are now $stateText for Age: $id (score remains ${profile.stability.instabilityScore}).") },
+            { Text.literal("Instability effects are now $stateText for Age: $rootAgeId (score remains ${profile.stability.instabilityScore}).") },
             true
         )
         return 1
@@ -254,6 +263,64 @@ object AgeCommand {
 
         val stateText = if (profile.ageEffect.enabled) "enabled" else "disabled"
         source.sendFeedback({ Text.literal("Age effect '$effectId' is now $stateText for Age: $id") }, true)
+        return 1
+    }
+
+    private fun listAgeCurses(context: CommandContext<ServerCommandSource>): Int {
+        val source = context.source
+        val id = source.world.registryKey.value
+
+        if (id.namespace != MystcraftReforged.MOD_ID) {
+            source.sendError(Text.literal("You must be in a Mystcraft Age to inspect curses!"))
+            return 0
+        }
+
+        val rootAgeId = AgeSubdimensionManager.rootIdOf(id)
+        val profile = AgeProfileManager.getOrGenerateProfile(source.server, rootAgeId)
+        val curses = AgeCurseManager.refresh(profile)
+
+        if (curses.isEmpty()) {
+            source.sendFeedback({ Text.literal("No removable curses are legible in Age: $rootAgeId") }, false)
+            return 1
+        }
+
+        source.sendFeedback({ Text.literal("Removable curses in Age $rootAgeId:") }, false)
+        curses.forEach { curse ->
+            source.sendFeedback({ Text.literal("- ${curse.label(profile)}") }, false)
+        }
+        return curses.size
+    }
+
+    private fun cleanseAgeCurse(context: CommandContext<ServerCommandSource>): Int {
+        val source = context.source
+        val id = source.world.registryKey.value
+
+        if (id.namespace != MystcraftReforged.MOD_ID) {
+            source.sendError(Text.literal("You must be in a Mystcraft Age to cleanse curses!"))
+            return 0
+        }
+
+        val rootAgeId = AgeSubdimensionManager.rootIdOf(id)
+        val profile = AgeProfileManager.getOrGenerateProfile(source.server, rootAgeId)
+        val curse = AgeCurseManager.nextCurse(profile)
+        if (curse == null) {
+            source.sendFeedback({ Text.literal("No removable curses are legible in Age: $rootAgeId") }, false)
+            return 0
+        }
+
+        val curseName = curse.label(profile)
+        val result = AgeCurseManager.cleanseNext(profile)
+        if (!result.changed) {
+            source.sendError(Text.literal("The curse could not be cleansed."))
+            return 0
+        }
+
+        AgeProfileManager.save(source.server, rootAgeId)
+        ModMessages.syncAgeFamily(source.server, rootAgeId)
+        source.sendFeedback(
+            { Text.literal("Cleansed $curseName from $rootAgeId. Instability fell by ${result.instabilityReduced}.") },
+            true
+        )
         return 1
     }
 
