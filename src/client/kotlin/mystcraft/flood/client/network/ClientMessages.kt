@@ -1,6 +1,7 @@
 package mystcraft.flood.client.network
 
 import mystcraft.flood.MystcraftReforged
+import mystcraft.flood.block.entity.BookStandBlockEntity
 import mystcraft.flood.client.cache.ClientAgeCache
 import mystcraft.flood.client.gui.DescriptiveBookScreen
 import mystcraft.flood.client.gui.LinkingBookScreen
@@ -68,6 +69,16 @@ object ClientMessages {
 
             client.execute {
                 client.setScreen(LinkingBookScreen(stack, hand))
+            }
+        }
+
+        ClientPlayNetworking.registerGlobalReceiver(ModMessages.BOOK_STAND_SYNC) { client, _, buf, _ ->
+            val pos = buf.readBlockPos()
+            val stack = buf.readItemStack()
+
+            client.execute {
+                val blockEntity = client.world?.getBlockEntity(pos) as? BookStandBlockEntity ?: return@execute
+                blockEntity.applySyncedBook(stack)
             }
         }
     }

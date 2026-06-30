@@ -9,6 +9,8 @@ import mystcraft.flood.generation.profile.AgeProfile
 import mystcraft.flood.generation.profile.AgeProfileManager
 import mystcraft.flood.mixin.PlayerEntitySpawnAccessor
 import mystcraft.flood.network.ModMessages
+import net.minecraft.block.BedBlock
+import net.minecraft.block.RespawnAnchorBlock
 import net.minecraft.nbt.NbtCompound
 import net.minecraft.registry.RegistryKey
 import net.minecraft.registry.RegistryKeys
@@ -53,14 +55,33 @@ object PlayerSpawnMemory {
         forced: Boolean
     ) {
         if (pos == null) {
+            // Vanilla clears this after a failed bed validation; keep Mystcraft's
+            // persistent per-dimension spawn so the next restore can repair it.
+            if (AgeSubdimensionManager.isMystcraftRealm(dimension) && getStoredSpawn(player, dimension) != null) {
+                player.server.getWorld(dimension)?.let { world ->
+                    val restored = resolveTargetForWorld(player, world, player.pos)
+                    applyActiveSpawn(player, restored.dimension, restored.stored)
+                }
+                return
+            }
+
             clearStoredSpawn(player, dimension)
             return
         }
 
         val world = player.server.getWorld(dimension)
         if (world != null && AgeSubdimensionManager.isMystcraftRealm(dimension)) {
-            val resolved = AgeTravelSafety.resolveCustomBoundRespawn(world, pos, angle)
-            val stored = StoredSpawn(resolved, angle, true, SpawnKind.BOUND)
+            val stored = if (!forced && isVanillaRespawnBlock(world, pos)) {
+                StoredSpawn(pos, angle, forced, SpawnKind.BOUND)
+            } else {
+                val resolved = if (forced) {
+                    AgeTravelSafety.resolveForcedStandRespawn(world, pos)
+                } else {
+                    AgeTravelSafety.resolveBoundRespawn(world, pos)
+                        ?: AgeTravelSafety.resolveCustomBoundRespawn(world, pos, angle)
+                }
+                StoredSpawn(resolved, angle, true, SpawnKind.BOUND)
+            }
             putStoredSpawn(player, dimension, stored)
             applyActiveSpawn(player, dimension, stored)
             return
@@ -96,8 +117,8 @@ object PlayerSpawnMemory {
     ): Pair<ServerWorld, StoredSpawn> {
         val resolved = resolveTargetForWorld(player, world, preferredPos)
         val targetWorld = player.server.getWorld(resolved.dimension) ?: world
-        val targetStored = resolved.stored ?: resolveMystcraftSpawn(player, targetWorld, getStoredSpawn(player, targetWorld.registryKey), preferredPos)
-        return targetWorld to targetStored
+        val targetSpawn = resolveRespawnStand(player, targetWorld, resolved.stored, preferredPos)
+        return targetWorld to targetSpawn
     }
 
     @JvmStatic
@@ -170,15 +191,7 @@ object PlayerSpawnMemory {
         val role = AgeSubdimensionManager.roleOf(ageId)
 
         val validStored = when (stored?.kind) {
-            SpawnKind.BOUND -> {
-                val resolved = if (stored.forced) {
-                    AgeTravelSafety.resolveForcedStandRespawn(world, stored.pos)
-                } else {
-                    AgeTravelSafety.resolveBoundRespawn(world, stored.pos)
-                        ?: AgeTravelSafety.resolveCustomBoundRespawn(world, stored.pos, stored.angle)
-                }
-                stored.copy(pos = resolved, forced = true)
-            }
+            SpawnKind.BOUND -> resolveBoundActiveSpawn(world, stored)
             SpawnKind.AGE_DEFAULT -> if (role == AgeDimensionRole.OVERWORLD) stored else null
             null -> null
         }
@@ -211,23 +224,39 @@ object PlayerSpawnMemory {
         return ResolvedSpawnTarget(world.registryKey, created)
     }
 
-    private fun resolveMystcraftSpawn(
+    private fun resolveRespawnStand(
         player: ServerPlayerEntity,
         world: ServerWorld,
         stored: StoredSpawn?,
         preferredPos: Vec3d
     ): StoredSpawn {
-        val target = resolveMystcraftTarget(player, world, stored, preferredPos)
-        return target.stored ?: StoredSpawn(BlockPos.ofFloored(preferredPos), player.yaw, true, SpawnKind.AGE_DEFAULT)
+        stored?.let {
+            return when (it.kind) {
+                SpawnKind.BOUND -> {
+                    val resolved = if (it.forced) {
+                        AgeTravelSafety.resolveForcedStandRespawn(world, it.pos)
+                    } else {
+                        AgeTravelSafety.resolveBoundRespawn(world, it.pos)
+                            ?: AgeTravelSafety.resolveCustomBoundRespawn(world, it.pos, it.angle)
+                    }
+                    it.copy(pos = resolved, forced = true)
+                }
+                SpawnKind.AGE_DEFAULT -> it.copy(
+                    pos = AgeTravelSafety.resolveForcedStandRespawn(world, it.pos),
+                    forced = true
+                )
+            }
+        }
+
+        val target = resolveMystcraftTarget(player, world, getStoredSpawn(player, world.registryKey), preferredPos)
+        return target.stored?.let { resolveRespawnStand(player, world, it, preferredPos) }
+            ?: StoredSpawn(BlockPos.ofFloored(preferredPos), player.yaw, true, SpawnKind.AGE_DEFAULT)
     }
 
     private fun resolveExternalSpawn(world: ServerWorld, stored: StoredSpawn?): StoredSpawn? {
         stored ?: return null
         return when (stored.kind) {
-            SpawnKind.BOUND -> {
-                val resolved = AgeTravelSafety.resolveBoundRespawn(world, stored.pos) ?: return null
-                stored.copy(pos = resolved)
-            }
+            SpawnKind.BOUND -> if (stored.forced || isVanillaRespawnBlock(world, stored.pos)) stored else null
             SpawnKind.AGE_DEFAULT -> stored
         }
     }
@@ -237,9 +266,11 @@ object PlayerSpawnMemory {
         if (player.spawnPointDimension != world.registryKey) return null
 
         return if (AgeSubdimensionManager.isMystcraftRealm(world.registryKey)) {
-            val bound = AgeTravelSafety.resolveBoundRespawn(world, activePos)
-            if (bound != null) {
-                StoredSpawn(bound, player.spawnAngle, player.isSpawnForced, SpawnKind.BOUND)
+            if (!player.isSpawnForced && isVanillaRespawnBlock(world, activePos)) {
+                StoredSpawn(activePos, player.spawnAngle, false, SpawnKind.BOUND)
+            } else if (player.isSpawnForced) {
+                val resolved = AgeTravelSafety.resolveForcedStandRespawn(world, activePos)
+                StoredSpawn(resolved, player.spawnAngle, true, SpawnKind.BOUND)
             } else {
                 StoredSpawn(activePos, player.spawnAngle, true, SpawnKind.AGE_DEFAULT)
             }
@@ -276,6 +307,59 @@ object PlayerSpawnMemory {
 
     private fun getStoredSpawn(player: ServerPlayerEntity, dimension: RegistryKey<World>): StoredSpawn? =
         access(player).`mystcraft$getDimensionSpawns`()[dimension.value.toString()]?.let(::decode)
+
+    private fun resolveBoundActiveSpawn(world: ServerWorld, stored: StoredSpawn): StoredSpawn? {
+        if (!stored.forced && isVanillaRespawnBlock(world, stored.pos)) {
+            return stored
+        }
+
+        findNearbyVanillaRespawnBlock(world, stored.pos)?.let { recovered ->
+            return stored.copy(pos = recovered, forced = false)
+        }
+
+        if (stored.forced) {
+            return stored.copy(pos = AgeTravelSafety.resolveForcedStandRespawn(world, stored.pos), forced = true)
+        }
+
+        val resolved = AgeTravelSafety.resolveBoundRespawn(world, stored.pos) ?: return null
+        return stored.copy(pos = resolved, forced = true)
+    }
+
+    private fun isVanillaRespawnBlock(world: ServerWorld, pos: BlockPos): Boolean {
+        val blockState = world.getBlockState(pos)
+        val block = blockState.block
+        return (block is BedBlock && BedBlock.isBedWorking(world)) ||
+            (block is RespawnAnchorBlock && RespawnAnchorBlock.isNether(world))
+    }
+
+    private fun findNearbyVanillaRespawnBlock(world: ServerWorld, pos: BlockPos): BlockPos? {
+        for (radius in 0..4) {
+            for (dx in -radius..radius) {
+                for (dz in -radius..radius) {
+                    if (radius > 0 && kotlin.math.abs(dx) != radius && kotlin.math.abs(dz) != radius) continue
+
+                    for (dy in -2..2) {
+                        val candidate = pos.add(dx, dy, dz)
+                        if (!isVanillaRespawnBlock(world, candidate)) continue
+
+                        val respawnStand = AgeTravelSafety.resolveBoundRespawn(world, candidate) ?: continue
+                        if (isNear(respawnStand, pos, maxDistanceSquared = 16)) {
+                            return candidate
+                        }
+                    }
+                }
+            }
+        }
+
+        return null
+    }
+
+    private fun isNear(a: BlockPos, b: BlockPos, maxDistanceSquared: Int): Boolean {
+        val dx = a.x - b.x
+        val dy = a.y - b.y
+        val dz = a.z - b.z
+        return dx * dx + dy * dy + dz * dz <= maxDistanceSquared
+    }
 
     private fun encode(stored: StoredSpawn): NbtCompound = NbtCompound().apply {
         putInt(POS_X, stored.pos.x)

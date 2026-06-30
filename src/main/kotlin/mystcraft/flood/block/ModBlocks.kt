@@ -39,7 +39,6 @@ object ModBlocks {
             .ticksRandomly()
             .strength(-1.0f, 3600000.0f)
             .dropsNothing()
-            .nonOpaque()
     ))
 
     val WHITE_DECAY = registerBlock("white_decay", WhiteDecayBlock(
@@ -48,7 +47,6 @@ object ModBlocks {
             .ticksRandomly()
             .strength(-1.0f, 3600000.0f)
             .dropsNothing()
-            .nonOpaque()
     ))
     val WHITE_DECAY_SLAB = registerBlock("white_decay_slab", WhiteDecaySlabBlock(
         AbstractBlock.Settings.create()

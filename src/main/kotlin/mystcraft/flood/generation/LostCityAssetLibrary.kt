@@ -50,15 +50,26 @@ object LostCityAssetLibrary {
         "bricks_standard",
         "bricks_gray",
         "bricks_cyan",
+        "bricks_silver",
         "bricks_desert",
+        "bricks_desert_orange",
+        "bricks_desert_red",
+        "bricks_desert_redsand",
+        "bricks_border",
         "quartzbricks_border"
     )
 
     private val glassPalettes = listOf(
+        "glass_full",
         "glass_full_blue",
         "glass_full_gray",
         "glass_full_light_blue",
-        "glass_full_white"
+        "glass_full_white",
+        "glass_pane",
+        "glass_pane_blue",
+        "glass_pane_gray",
+        "glass_pane_light_blue",
+        "glass_pane_white"
     )
 
     private val sidePalettes = listOf(
@@ -68,8 +79,11 @@ object LostCityAssetLibrary {
         "glass_side_variant_street"
     )
 
+    private const val PLACE_CELLARS = false
+
     private val parts = mutableMapOf<String, LostCityPart>()
     private val buildings = mutableMapOf<String, LostCityBuilding>()
+    private val multiBuildings = mutableMapOf<String, LostCityMultiBuilding>()
     private val paletteFiles = mutableMapOf<String, Map<Char, PaletteEntry>>()
     private val blockStates = mutableMapOf<String, BlockState?>()
 
@@ -78,6 +92,7 @@ object LostCityAssetLibrary {
         val xSize: Int,
         val zSize: Int,
         val refPalette: String?,
+        val inlinePalette: Map<Char, PaletteEntry>,
         val slices: List<List<String>>
     ) {
         val height: Int = slices.size
@@ -92,6 +107,13 @@ object LostCityAssetLibrary {
         val minFloors: Int,
         val maxFloors: Int,
         val inlinePalette: Map<Char, PaletteEntry>
+    )
+
+    private data class LostCityMultiBuilding(
+        val name: String,
+        val dimX: Int,
+        val dimZ: Int,
+        val buildings: List<List<String>>
     )
 
     private data class PaletteEntry(
@@ -117,10 +139,23 @@ object LostCityAssetLibrary {
         style: Int,
         setBlock: (Int, Int, Int, BlockState) -> Unit
     ): Int {
-        val building = pickBuilding(seed)
+        return placeBuilding(pickBuilding(seed).name, baseX, baseY, baseZ, floors, seed, style, setBlock)
+    }
+
+    fun placeBuilding(
+        buildingName: String,
+        baseX: Int,
+        baseY: Int,
+        baseZ: Int,
+        floors: Int,
+        seed: Long,
+        style: Int,
+        setBlock: (Int, Int, Int, BlockState) -> Unit
+    ): Int {
+        val building = building(buildingName)
         var y = baseY
 
-        val cellar = building.cellarParts.pick(seed xor 0x5ca1e11L)
+        val cellar = if (PLACE_CELLARS) building.cellarParts.pick(seed xor 0x5ca1e11L) else null
         if (cellar != null) {
             val part = part(cellar)
             placePart(part.name, baseX, baseY - part.height, baseZ, seed, style, building, setBlock)
@@ -148,6 +183,12 @@ object LostCityAssetLibrary {
         }
 
         return y - baseY
+    }
+
+    fun multiBuildingPart(name: String, x: Int, z: Int): String? {
+        val multi = multiBuilding(name)
+        if (x !in 0 until multi.dimX || z !in 0 until multi.dimZ) return null
+        return multi.buildings.getOrNull(x)?.getOrNull(z)
     }
 
     fun placePart(
@@ -179,7 +220,7 @@ object LostCityAssetLibrary {
         voidAsAir: Boolean = false
     ) {
         val part = part(partName)
-        val palette = paletteFor(part.refPalette, building, style)
+        val palette = paletteFor(part.refPalette, part.inlinePalette, building, style)
         for (y in part.slices.indices) {
             val slice = part.slices[y]
             for (z in 0 until part.zSize) {
@@ -205,6 +246,7 @@ object LostCityAssetLibrary {
             xSize = json.get("xsize")?.asInt ?: 16,
             zSize = json.get("zsize")?.asInt ?: 16,
             refPalette = json.get("refpalette")?.asString,
+            inlinePalette = json.getAsJsonObject("palette")?.let(::parsePaletteObject) ?: emptyMap(),
             slices = slices
         )
     }
@@ -256,9 +298,30 @@ object LostCityAssetLibrary {
         )
     }
 
-    private fun paletteFor(refPalette: String?, building: LostCityBuilding?, style: Int): Map<Char, PaletteEntry> {
+    private fun multiBuilding(name: String): LostCityMultiBuilding = multiBuildings.getOrPut(name) {
+        val json = readJson("$ROOT/multibuildings/$name.json")
+        val rows = json.getAsJsonArray("buildings")?.map { row ->
+            row.asJsonArray.map { it.asString }
+        } ?: emptyList()
+        LostCityMultiBuilding(
+            name = name,
+            dimX = json.get("dimx")?.asInt ?: rows.size,
+            dimZ = json.get("dimz")?.asInt ?: rows.firstOrNull()?.size ?: 0,
+            buildings = rows
+        )
+    }
+
+    private fun paletteFor(
+        refPalette: String?,
+        partPalette: Map<Char, PaletteEntry>,
+        building: LostCityBuilding?,
+        style: Int
+    ): Map<Char, PaletteEntry> {
         val palette = linkedMapOf<Char, PaletteEntry>()
         palette.putAll(paletteFile("default"))
+        if (floorMod(style.toLong(), 8) in 4..6) {
+            palette.putAll(paletteFile("default_desert"))
+        }
         palette.putAll(paletteFile("common"))
         palette.putAll(paletteFile(brickPalettes[floorMod(style.toLong(), brickPalettes.size)]))
         palette.putAll(paletteFile(glassPalettes[floorMod((style + 1).toLong(), glassPalettes.size)]))
@@ -266,6 +329,7 @@ object LostCityAssetLibrary {
         if (refPalette != null) {
             palette.putAll(paletteFile(refPalette))
         }
+        palette.putAll(partPalette)
         if (building != null) {
             palette.putAll(building.inlinePalette)
         }
@@ -339,14 +403,15 @@ object LostCityAssetLibrary {
     }
 
     private fun parseBlockState(value: String): BlockState? = blockStates.getOrPut(value) {
-        if (value == "minecraft:structure_void") return@getOrPut null
-        val blockId = value.substringBefore('[')
+        val normalized = normalizeLegacyBlockState(value)
+        if (normalized == "minecraft:structure_void") return@getOrPut null
+        val blockId = normalized.substringBefore('[')
         val block = Registries.BLOCK.getOrEmpty(Identifier(blockId)).orElse(Blocks.AIR)
         if (block == Blocks.AIR && blockId != "minecraft:air") {
             return@getOrPut fallbackState('#', 0)
         }
         var state = block.defaultState
-        val propertyText = value.substringAfter('[', "").substringBeforeLast(']', "")
+        val propertyText = normalized.substringAfter('[', "").substringBeforeLast(']', "")
         if (propertyText.isNotBlank()) {
             for (assignment in propertyText.split(',')) {
                 val propertyName = assignment.substringBefore('=').trim()
@@ -356,6 +421,33 @@ object LostCityAssetLibrary {
             }
         }
         state
+    }
+
+    private fun normalizeLegacyBlockState(value: String): String {
+        if ('@' !in value) return value
+        val block = value.substringBefore('@')
+        val meta = value.substringAfter('@').substringBefore('[').toIntOrNull() ?: return block
+        val propertyText = value.substringAfter('[', "").substringBeforeLast(']', "")
+        val normalizedBlock = when (block) {
+            "minecraft:red_sandstone" -> when (meta) {
+                1 -> "minecraft:chiseled_red_sandstone"
+                2 -> "minecraft:smooth_red_sandstone"
+                else -> "minecraft:red_sandstone"
+            }
+            "minecraft:sandstone" -> when (meta) {
+                1 -> "minecraft:chiseled_sandstone"
+                2 -> "minecraft:smooth_sandstone"
+                else -> "minecraft:sandstone"
+            }
+            "minecraft:stonebrick", "minecraft:stone_bricks" -> when (meta) {
+                1 -> "minecraft:mossy_stone_bricks"
+                2 -> "minecraft:cracked_stone_bricks"
+                3 -> "minecraft:chiseled_stone_bricks"
+                else -> "minecraft:stone_bricks"
+            }
+            else -> block
+        }
+        return if (propertyText.isBlank()) normalizedBlock else "$normalizedBlock[$propertyText]"
     }
 
     private fun variantState(variant: String, seed: Long, style: Int): BlockState {

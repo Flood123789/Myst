@@ -25,6 +25,14 @@ object AgeBookIntegrity {
         stack.item === ModItems.DESCRIPTIVE_BOOK
 
     @JvmStatic
+    fun isLinkingBook(stack: ItemStack): Boolean =
+        stack.item === ModItems.LINKING_BOOK
+
+    @JvmStatic
+    fun isAnchorableBook(stack: ItemStack): Boolean =
+        isDescriptiveBook(stack) || isLinkingBook(stack)
+
+    @JvmStatic
     fun ensureTrackedLinkedBook(stack: ItemStack): String? {
         val identity = linkedIdentity(stack) ?: return null
         val existing = identity.lineageId
@@ -41,7 +49,7 @@ object AgeBookIntegrity {
 
     @JvmStatic
     fun shouldAnchorDroppedBook(world: World, stack: ItemStack): Boolean {
-        if (!isDescriptiveBook(stack)) return false
+        if (!isAnchorableBook(stack)) return false
         val releaseUntil = stack.nbt?.getLong(ANCHOR_RELEASE_UNTIL) ?: return true
         return world.time >= releaseUntil
     }

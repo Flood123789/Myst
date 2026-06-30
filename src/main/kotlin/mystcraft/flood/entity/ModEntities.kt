@@ -15,8 +15,8 @@ object ModEntities {
         Identifier(MystcraftReforged.MOD_ID, "descriptive_book_anchor"),
         FabricEntityTypeBuilder.create(SpawnGroup.MISC, ::DescriptiveBookEntity)
             .dimensions(EntityDimensions.fixed(0.5f, 0.65f))
-            .trackRangeBlocks(8)
-            .trackedUpdateRate(20)
+            .trackRangeBlocks(32)
+            .trackedUpdateRate(10)
             .build()
     )
 

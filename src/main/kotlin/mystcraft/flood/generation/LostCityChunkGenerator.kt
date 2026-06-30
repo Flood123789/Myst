@@ -35,10 +35,12 @@ class LostCityChunkGenerator(
 ) : ChunkGenerator(cityBiomeSource) {
 
     companion object {
-        private const val CITY_CELL_CHUNKS = 48
-        private const val CITY_RADIUS_CHUNKS = 21
-        private const val CITY_CENTER_JITTER_CHUNKS = 4
+        private const val CITY_CELL_CHUNKS = 64
+        private const val CITY_MIN_RADIUS_CHUNKS = 18
+        private const val CITY_RADIUS_VARIANCE_CHUNKS = 12
+        private const val CITY_CENTER_JITTER_CHUNKS = 18
         private const val CITY_GROUND_Y = 72
+        private const val CITY_EDGE_FEATHER_CHUNKS = 5
         private const val ROAD_GRID_CHUNKS = 4
         private const val AVENUE_GRID_CHUNKS = 8
         private const val RAIL_GRID_CHUNKS = 20
@@ -72,6 +74,8 @@ class LostCityChunkGenerator(
         val centerChunkX: Int,
         val centerChunkZ: Int,
         val radiusChunks: Int,
+        val groundY: Int,
+        val active: Boolean,
         val style: Int
     )
 
@@ -88,10 +92,12 @@ class LostCityChunkGenerator(
         val subwayNS: Boolean,
         val subwayEW: Boolean,
         val highwayNS: Boolean,
-        val highwayEW: Boolean
+        val highwayEW: Boolean,
+        val buildingName: String?
     ) {
         val inCity: Boolean = cityFactor > 0.0
-        val groundY: Int = CITY_GROUND_Y
+        val groundY: Int = anchor.groundY
+        val isSurfaceRoad: Boolean = kind == CityChunkKind.ROAD || kind == CityChunkKind.AVENUE || kind == CityChunkKind.STATION
     }
 
     override fun getCodec(): Codec<out ChunkGenerator> = CODEC
@@ -150,7 +156,7 @@ class LostCityChunkGenerator(
         if (!plan.inCity && !plan.highwayEW && !plan.highwayNS) {
             return delegateHeight
         }
-        val cityHeight = if (plan.inCity) plan.groundY + 1 else delegateHeight
+        val cityHeight = if (plan.inCity) estimatedChunkTop(plan) else delegateHeight
         val highwayHeight = if (plan.highwayEW || plan.highwayNS) {
             HIGHWAY_Y + LostCityAssetLibrary.partHeight("highway_open") + 1
         } else {
@@ -174,6 +180,19 @@ class LostCityChunkGenerator(
     }
 
     override fun getSpawnHeight(world: HeightLimitView): Int = CITY_GROUND_Y + 2
+
+    private fun estimatedChunkTop(plan: CityPlan): Int {
+        return when (plan.kind) {
+            CityChunkKind.BUILDING -> {
+                val floors = (2 + (plan.cityFactor * 7.0).toInt() + positiveHash(plan.chunkX, plan.chunkZ, 103L) % 3)
+                    .coerceIn(2, 11)
+                plan.groundY + floors * 6 + 12
+            }
+            CityChunkKind.STATION -> plan.groundY + 12
+            CityChunkKind.AVENUE, CityChunkKind.ROAD, CityChunkKind.PLAZA, CityChunkKind.PARK -> plan.groundY + 3
+            else -> plan.groundY + 1
+        }
+    }
 
     private fun generateCityChunk(chunk: Chunk) {
         val chunkX = chunk.pos.x
@@ -210,13 +229,13 @@ class LostCityChunkGenerator(
         val localChunkX = chunkX - anchor.centerChunkX
         val localChunkZ = chunkZ - anchor.centerChunkZ
         val distance = hypot(localChunkX.toDouble(), localChunkZ.toDouble())
-        val cityFactor = ((anchor.radiusChunks - distance) / 5.0).coerceIn(0.0, 1.0)
+        val cityFactor = ((anchor.radiusChunks - distance) / CITY_EDGE_FEATHER_CHUNKS.toDouble()).coerceIn(0.0, 1.0)
         val inCity = cityFactor > 0.0
 
-        val railX = Math.floorMod(chunkX + 1, RAIL_GRID_CHUNKS)
-        val railZ = Math.floorMod(chunkZ + 1, RAIL_GRID_CHUNKS)
+        val railX = Math.floorMod(localChunkX + 1, RAIL_GRID_CHUNKS)
+        val railZ = Math.floorMod(localChunkZ + 1, RAIL_GRID_CHUNKS)
         val railArea = distance <= anchor.radiusChunks + 12
-        val subwayNS = railArea && (railX == 5 || railX == 15)
+        val subwayNS = railArea && (railX == 0 || railX == RAIL_GRID_CHUNKS / 2)
         val subwayEW = railArea && (railZ == 0 || railZ == RAIL_GRID_CHUNKS / 2)
         val station = inCity && cityFactor > 0.15 && (
             railX == 0 && railZ == RAIL_GRID_CHUNKS / 2 ||
@@ -224,21 +243,25 @@ class LostCityChunkGenerator(
                 railX == RAIL_GRID_CHUNKS / 2 && railZ == RAIL_GRID_CHUNKS / 2
             )
 
-        val highwayEW = distance <= anchor.radiusChunks + 10 && abs(localChunkZ) <= 1
-        val highwayNS = distance <= anchor.radiusChunks + 10 && abs(localChunkX) <= 1
+        val corridorKind = highwayKind(chunkX, chunkZ, anchor, distance)
+        val highwayEW = corridorKind == CityChunkKind.HIGHWAY_EW
+        val highwayNS = corridorKind == CityChunkKind.HIGHWAY_NS
 
-        val roadNS = inCity && (Math.floorMod(localChunkX, ROAD_GRID_CHUNKS) == 0 || station || highwayNS)
-        val roadEW = inCity && (Math.floorMod(localChunkZ, ROAD_GRID_CHUNKS) == 0 || station || highwayEW)
+        val roadNS = inCity && (Math.floorMod(localChunkX, ROAD_GRID_CHUNKS) == 0 || station)
+        val roadEW = inCity && (Math.floorMod(localChunkZ, ROAD_GRID_CHUNKS) == 0 || station)
         val avenue = roadNS && Math.floorMod(localChunkX, AVENUE_GRID_CHUNKS) == 0 ||
             roadEW && Math.floorMod(localChunkZ, AVENUE_GRID_CHUNKS) == 0
 
+        val buildingName = lostCityBuildingName(chunkX, chunkZ, localChunkX, localChunkZ, anchor, cityFactor)
+        val canHostBuilding = inCity && !station && !roadNS && !roadEW && cityFactor > 0.12
         val kind = when {
             station -> CityChunkKind.STATION
+            highwayEW -> CityChunkKind.HIGHWAY_EW
+            highwayNS -> CityChunkKind.HIGHWAY_NS
             !inCity -> CityChunkKind.OUTSIDE
-            highwayEW || highwayNS -> CityChunkKind.AVENUE
             roadNS || roadEW -> if (avenue) CityChunkKind.AVENUE else CityChunkKind.ROAD
             cityFactor < 0.28 && positiveHash(chunkX, chunkZ, 11L) % 5 == 0 -> CityChunkKind.PARK
-            positiveHash(chunkX, chunkZ, 17L) % 100 < buildingChance(cityFactor) -> CityChunkKind.BUILDING
+            canHostBuilding && positiveHash(chunkX, chunkZ, 17L) % 100 < buildingChance(cityFactor) -> CityChunkKind.BUILDING
             positiveHash(chunkX, chunkZ, 23L) % 7 == 0 -> CityChunkKind.PARK
             else -> CityChunkKind.PLAZA
         }
@@ -256,7 +279,8 @@ class LostCityChunkGenerator(
             subwayNS = subwayNS,
             subwayEW = subwayEW,
             highwayNS = highwayNS,
-            highwayEW = highwayEW
+            highwayEW = highwayEW,
+            buildingName = buildingName
         )
     }
 
@@ -265,9 +289,10 @@ class LostCityChunkGenerator(
         val cellZ = Math.floorDiv(chunkZ, CITY_CELL_CHUNKS)
         var best = cityAnchor(cellX, cellZ)
         var bestDist = Double.MAX_VALUE
-        for (x in (cellX - 1)..(cellX + 1)) {
-            for (z in (cellZ - 1)..(cellZ + 1)) {
+        for (x in (cellX - 2)..(cellX + 2)) {
+            for (z in (cellZ - 2)..(cellZ + 2)) {
                 val anchor = cityAnchor(x, z)
+                if (!anchor.active) continue
                 val dist = hypot((chunkX - anchor.centerChunkX).toDouble(), (chunkZ - anchor.centerChunkZ).toDouble())
                 if (dist < bestDist) {
                     best = anchor
@@ -281,25 +306,36 @@ class LostCityChunkGenerator(
     private fun cityAnchor(cellX: Int, cellZ: Int): CityAnchor {
         val jitterX = rangedHash(cellX, cellZ, 31L, -CITY_CENTER_JITTER_CHUNKS, CITY_CENTER_JITTER_CHUNKS)
         val jitterZ = rangedHash(cellX, cellZ, 37L, -CITY_CENTER_JITTER_CHUNKS, CITY_CENTER_JITTER_CHUNKS)
+        val radius = CITY_MIN_RADIUS_CHUNKS + rangedHash(cellX, cellZ, 41L, 0, CITY_RADIUS_VARIANCE_CHUNKS)
         return CityAnchor(
             cellX = cellX,
             cellZ = cellZ,
             centerChunkX = cellX * CITY_CELL_CHUNKS + CITY_CELL_CHUNKS / 2 + jitterX,
             centerChunkZ = cellZ * CITY_CELL_CHUNKS + CITY_CELL_CHUNKS / 2 + jitterZ,
-            radiusChunks = CITY_RADIUS_CHUNKS + rangedHash(cellX, cellZ, 41L, -3, 5),
+            radiusChunks = radius,
+            groundY = CITY_GROUND_Y + rangedHash(cellX, cellZ, 47L, -1, 2) * 4,
+            active = positiveHash(cellX, cellZ, 53L) % 100 < 82,
             style = rangedHash(cellX, cellZ, 43L, 0, 3)
         )
     }
 
     private fun highwayKind(chunkX: Int, chunkZ: Int, anchor: CityAnchor, distanceToAnchor: Double): CityChunkKind? {
         if (distanceToAnchor <= anchor.radiusChunks + 3) return null
-        val east = cityAnchor(anchor.cellX + 1, anchor.cellZ)
-        val south = cityAnchor(anchor.cellX, anchor.cellZ + 1)
-        if (nearSegment(chunkX, chunkZ, anchor.centerChunkX, anchor.centerChunkZ, east.centerChunkX, east.centerChunkZ, anchor.radiusChunks, east.radiusChunks)) {
-            return CityChunkKind.HIGHWAY_EW
-        }
-        if (nearSegment(chunkX, chunkZ, anchor.centerChunkX, anchor.centerChunkZ, south.centerChunkX, south.centerChunkZ, anchor.radiusChunks, south.radiusChunks)) {
-            return CityChunkKind.HIGHWAY_NS
+        val neighbors = listOf(
+            cityAnchor(anchor.cellX - 1, anchor.cellZ),
+            cityAnchor(anchor.cellX + 1, anchor.cellZ),
+            cityAnchor(anchor.cellX, anchor.cellZ - 1),
+            cityAnchor(anchor.cellX, anchor.cellZ + 1)
+        )
+        for (neighbor in neighbors) {
+            if (!neighbor.active) continue
+            if (nearSegment(chunkX, chunkZ, anchor, neighbor)) {
+                return if (abs(neighbor.centerChunkX - anchor.centerChunkX) >= abs(neighbor.centerChunkZ - anchor.centerChunkZ)) {
+                    CityChunkKind.HIGHWAY_EW
+                } else {
+                    CityChunkKind.HIGHWAY_NS
+                }
+            }
         }
         return null
     }
@@ -307,20 +343,20 @@ class LostCityChunkGenerator(
     private fun nearSegment(
         chunkX: Int,
         chunkZ: Int,
-        x1: Int,
-        z1: Int,
-        x2: Int,
-        z2: Int,
-        radius1: Int,
-        radius2: Int
+        first: CityAnchor,
+        second: CityAnchor
     ): Boolean {
+        val x1 = first.centerChunkX
+        val z1 = first.centerChunkZ
+        val x2 = second.centerChunkX
+        val z2 = second.centerChunkZ
         val dx = x2 - x1
         val dz = z2 - z1
         val len2 = dx * dx + dz * dz
         if (len2 <= 0) return false
         val t = (((chunkX - x1) * dx + (chunkZ - z1) * dz).toDouble() / len2.toDouble()).coerceIn(0.0, 1.0)
         val along = t * kotlin.math.sqrt(len2.toDouble())
-        if (along < radius1 + 4 || along > kotlin.math.sqrt(len2.toDouble()) - radius2 - 4) return false
+        if (along < first.radiusChunks + 5 || along > kotlin.math.sqrt(len2.toDouble()) - second.radiusChunks - 5) return false
         val cx = x1 + dx * t
         val cz = z1 + dz * t
         return hypot(chunkX - cx, chunkZ - cz) <= 1.25
@@ -339,8 +375,13 @@ class LostCityChunkGenerator(
             for (z in 0..15) {
                 val wx = baseX + x
                 val wz = baseZ + z
-                for (y in (plan.groundY + 1)..CLEAR_TOP_Y) {
-                    set(chunk, wx, y, wz, Blocks.AIR.defaultState)
+                val surfaceY = chunk.sampleHeightmap(Heightmap.Type.WORLD_SURFACE_WG, x, z)
+                val clearTopY = max(surfaceY + 6, clearanceTop(plan))
+                for (y in (plan.groundY + 1)..clearTopY) {
+                    val pos = BlockPos(wx, y, wz)
+                    if (!chunk.getBlockState(pos).isAir) {
+                        chunk.setBlockState(pos, Blocks.AIR.defaultState, false)
+                    }
                 }
                 for (y in (plan.groundY - 8) until plan.groundY) {
                     val existing = chunk.getBlockState(BlockPos(wx, y, wz))
@@ -356,27 +397,18 @@ class LostCityChunkGenerator(
     private fun generateRoad(chunk: Chunk, plan: CityPlan) {
         val baseX = chunk.pos.startX
         val baseZ = chunk.pos.startZ
-        val road = if (plan.kind == CityChunkKind.AVENUE) Blocks.BLACK_CONCRETE.defaultState else Blocks.GRAY_CONCRETE.defaultState
-        val stripe = Blocks.WHITE_CONCRETE.defaultState
-        val median = Blocks.YELLOW_CONCRETE.defaultState
-
-        for (x in 0..15) {
-            for (z in 0..15) {
-                val wx = baseX + x
-                val wz = baseZ + z
-                set(chunk, wx, plan.groundY, wz, road)
-                if (plan.roadNS && (x == 7 || x == 8) && z % 4 != 0) {
-                    set(chunk, wx, plan.groundY, wz, if (plan.kind == CityChunkKind.AVENUE) median else stripe)
-                }
-                if (plan.roadEW && (z == 7 || z == 8) && x % 4 != 0) {
-                    set(chunk, wx, plan.groundY, wz, if (plan.kind == CityChunkKind.AVENUE) median else stripe)
-                }
-                val sidewalk = (x <= 1 || x >= 14 || z <= 1 || z >= 14) && plan.kind != CityChunkKind.STATION
-                if (sidewalk) {
-                    set(chunk, wx, plan.groundY, wz, Blocks.SMOOTH_STONE.defaultState)
-                }
-            }
-        }
+        val (part, rotation) = streetPartFor(plan)
+        LostCityAssetLibrary.placePart(
+            partName = part,
+            baseX = baseX,
+            baseY = plan.groundY,
+            baseZ = baseZ,
+            seed = mixedHash(plan.chunkX, plan.chunkZ, 97L),
+            style = plan.anchor.style,
+            setBlock = { x, y, z, state -> set(chunk, x, y, z, state) },
+            rotation = rotation,
+            voidAsAir = false
+        )
 
         if (plan.kind == CityChunkKind.AVENUE || plan.kind == CityChunkKind.STATION) {
             for ((lx, lz) in listOf(2 to 2, 13 to 2, 2 to 13, 13 to 13)) {
@@ -385,44 +417,96 @@ class LostCityChunkGenerator(
         }
     }
 
+    private fun streetPartFor(plan: CityPlan): Pair<String, Int> {
+        if (plan.kind == CityChunkKind.AVENUE || plan.kind == CityChunkKind.STATION) {
+            return "street_all" to 0
+        }
+
+        val north = isRoadConnection(plan.chunkX, plan.chunkZ - 1)
+        val south = isRoadConnection(plan.chunkX, plan.chunkZ + 1)
+        val west = isRoadConnection(plan.chunkX - 1, plan.chunkZ)
+        val east = isRoadConnection(plan.chunkX + 1, plan.chunkZ)
+        val count = listOf(north, south, west, east).count { it }
+
+        return when (count) {
+            4 -> "street_all" to 0
+            3 -> "street_t" to when {
+                !south -> 0
+                !west -> 1
+                !north -> 2
+                else -> 3
+            }
+            2 -> when {
+                east && west -> "street_straight" to 0
+                north && south -> "street_straight" to 1
+                north && west -> "street_bend" to 0
+                north && east -> "street_bend" to 1
+                south && east -> "street_bend" to 2
+                else -> "street_bend" to 3
+            }
+            1 -> "street_end" to when {
+                west -> 0
+                north -> 1
+                east -> 2
+                else -> 3
+            }
+            else -> "street_none" to 0
+        }
+    }
+
+    private fun isRoadConnection(chunkX: Int, chunkZ: Int): Boolean {
+        val neighbor = cityPlan(chunkX, chunkZ)
+        return neighbor.isSurfaceRoad
+    }
+
     private fun generateBuilding(chunk: Chunk, plan: CityPlan) {
         val baseX = chunk.pos.startX
         val baseZ = chunk.pos.startZ
         val hash = mixedHash(plan.chunkX, plan.chunkZ, 101L)
         val floors = (2 + (plan.cityFactor * 7.0).toInt() + positiveHash(plan.chunkX, plan.chunkZ, 103L) % 3)
             .coerceIn(2, 11)
-        LostCityAssetLibrary.placeBuilding(
-            baseX = baseX,
-            baseY = plan.groundY,
-            baseZ = baseZ,
-            floors = floors,
-            seed = hash,
-            style = plan.anchor.style
-        ) { x, y, z, state ->
-            set(chunk, x, y, z, state)
+        val placedName = plan.buildingName
+        if (placedName != null) {
+            LostCityAssetLibrary.placeBuilding(
+                buildingName = placedName,
+                baseX = baseX,
+                baseY = plan.groundY,
+                baseZ = baseZ,
+                floors = floors,
+                seed = hash,
+                style = plan.anchor.style
+            ) { x, y, z, state ->
+                set(chunk, x, y, z, state)
+            }
+        } else {
+            LostCityAssetLibrary.placeBuilding(
+                baseX = baseX,
+                baseY = plan.groundY,
+                baseZ = baseZ,
+                floors = floors,
+                seed = hash,
+                style = plan.anchor.style
+            ) { x, y, z, state ->
+                set(chunk, x, y, z, state)
+            }
         }
     }
 
     private fun generatePark(chunk: Chunk, plan: CityPlan) {
         val baseX = chunk.pos.startX
         val baseZ = chunk.pos.startZ
-        for (x in 2..13) {
-            for (z in 2..13) {
-                val dx = x - 8
-                val dz = z - 8
-                val path = abs(dx) <= 1 || abs(dz) <= 1
-                set(chunk, baseX + x, plan.groundY, baseZ + z, if (path) Blocks.SMOOTH_STONE.defaultState else Blocks.GRASS_BLOCK.defaultState)
-            }
-        }
-        for ((tx, tz) in listOf(4 to 4, 12 to 4, 4 to 12, 12 to 12)) {
-            set(chunk, baseX + tx, plan.groundY + 1, baseZ + tz, Blocks.OAK_LOG.defaultState)
-            set(chunk, baseX + tx, plan.groundY + 2, baseZ + tz, Blocks.OAK_LOG.defaultState)
-            for (dx in -1..1) {
-                for (dz in -1..1) {
-                    set(chunk, baseX + tx + dx, plan.groundY + 3, baseZ + tz + dz, Blocks.OAK_LEAVES.defaultState)
-                }
-            }
-        }
+        val parkParts = listOf("park_trees", "park_pool", "park_plants", "park_plants_pillars", "park_fountain1", "park_fountain2")
+        val part = parkParts[positiveHash(plan.chunkX, plan.chunkZ, 127L) % parkParts.size]
+        LostCityAssetLibrary.placePart(
+            partName = part,
+            baseX = baseX,
+            baseY = plan.groundY + 1,
+            baseZ = baseZ,
+            seed = mixedHash(plan.chunkX, plan.chunkZ, 129L),
+            style = plan.anchor.style,
+            setBlock = { x, y, z, state -> set(chunk, x, y, z, state) },
+            voidAsAir = false
+        )
     }
 
     private fun generatePlaza(chunk: Chunk, plan: CityPlan) {
@@ -438,7 +522,17 @@ class LostCityChunkGenerator(
             set(chunk, baseX + 11, plan.groundY, baseZ + z, accent)
         }
         if (positiveHash(plan.chunkX, plan.chunkZ, 131L) % 3 == 0) {
-            lamp(chunk, baseX + 8, plan.groundY + 1, baseZ + 8)
+            val part = listOf("fountain1", "fountain2", "fountain3")[positiveHash(plan.chunkX, plan.chunkZ, 133L) % 3]
+            LostCityAssetLibrary.placePart(
+                partName = part,
+                baseX = baseX,
+                baseY = plan.groundY + 1,
+                baseZ = baseZ,
+                seed = mixedHash(plan.chunkX, plan.chunkZ, 135L),
+                style = plan.anchor.style,
+                setBlock = { x, y, z, state -> set(chunk, x, y, z, state) },
+                voidAsAir = false
+            )
         }
     }
 
@@ -553,11 +647,10 @@ class LostCityChunkGenerator(
         if (plan.kind == CityChunkKind.STATION) {
             return "station_underground"
         }
-        val mx = Math.floorMod(plan.chunkX + 1, RAIL_GRID_CHUNKS)
-        val mz = Math.floorMod(plan.chunkZ + 1, RAIL_GRID_CHUNKS)
+        val mx = Math.floorMod(plan.localChunkX + 1, RAIL_GRID_CHUNKS)
+        val mz = Math.floorMod(plan.localChunkZ + 1, RAIL_GRID_CHUNKS)
         return when {
-            mz == RAIL_GRID_CHUNKS / 2 && (mx == 5 || mx == 15) -> "rails_3split"
-            mz == 0 && (mx == 5 || mx == 15) -> "rails_bend"
+            (mx == 0 || mx == RAIL_GRID_CHUNKS / 2) && (mz == 0 || mz == RAIL_GRID_CHUNKS / 2) -> "rails_3split"
             plan.subwayEW -> "rails_horizontal"
             plan.subwayNS -> "rails_vertical"
             else -> null
@@ -626,6 +719,55 @@ class LostCityChunkGenerator(
         1 -> Blocks.PACKED_MUD.defaultState
         2 -> Blocks.SMOOTH_QUARTZ.defaultState
         else -> Blocks.SMOOTH_STONE.defaultState
+    }
+
+    private fun lostCityBuildingName(
+        chunkX: Int,
+        chunkZ: Int,
+        localChunkX: Int,
+        localChunkZ: Int,
+        anchor: CityAnchor,
+        cityFactor: Double
+    ): String? {
+        val lotX = Math.floorMod(localChunkX, ROAD_GRID_CHUNKS)
+        val lotZ = Math.floorMod(localChunkZ, ROAD_GRID_CHUNKS)
+        val canFitTwoByTwo = lotX in 1..2 && lotZ in 1..2
+        if (canFitTwoByTwo && cityFactor > 0.42) {
+            val blockX = Math.floorDiv(localChunkX, ROAD_GRID_CHUNKS)
+            val blockZ = Math.floorDiv(localChunkZ, ROAD_GRID_CHUNKS)
+            val roll = positiveHash(anchor.centerChunkX + blockX, anchor.centerChunkZ + blockZ, 211L)
+            if (roll % 100 < if (cityFactor > 0.72) 42 else 24) {
+                val multi = when ((roll / 100) % 5) {
+                    0 -> "center"
+                    1 -> "library"
+                    2 -> "shopping"
+                    3 -> "shopping_open"
+                    else -> "townhall"
+                }
+                return LostCityAssetLibrary.multiBuildingPart(multi, lotX - 1, lotZ - 1)
+            }
+        }
+
+        return when (positiveHash(chunkX, chunkZ, 223L) % 8) {
+            0 -> "building1"
+            1 -> "building2"
+            2 -> "building3"
+            3 -> "building4"
+            4 -> "building5"
+            5 -> "building6"
+            6 -> "building7"
+            else -> "building8"
+        }
+    }
+
+    private fun clearanceTop(plan: CityPlan): Int {
+        return when (plan.kind) {
+            CityChunkKind.BUILDING -> plan.groundY + 100
+            CityChunkKind.STATION -> plan.groundY + 28
+            CityChunkKind.AVENUE, CityChunkKind.ROAD -> plan.groundY + 16
+            CityChunkKind.PARK, CityChunkKind.PLAZA -> plan.groundY + 24
+            else -> plan.groundY + 12
+        }.coerceAtMost(CLEAR_TOP_Y)
     }
 
     private fun buildingChance(cityFactor: Double): Int = when {

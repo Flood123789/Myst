@@ -215,10 +215,6 @@ object AgeBuilder {
         }
 
         val baseGenerator = NoiseChunkGenerator(biomeSource, tunedSettings)
-        return if (role == AgeDimensionRole.OVERWORLD && profile.terrainType == TerrainType.CITIES) {
-            Pair(LostCityChunkGenerator(baseGenerator, biomeSource), profile)
-        } else {
-            Pair(baseGenerator, profile)
-        }
+        return Pair(baseGenerator, profile)
     }
 }

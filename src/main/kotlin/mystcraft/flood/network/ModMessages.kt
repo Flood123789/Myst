@@ -18,8 +18,10 @@ import mystcraft.flood.item.LinkingBookItem
 import mystcraft.flood.item.ModItems
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
+import net.minecraft.item.ItemStack
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerPlayerEntity
+import net.minecraft.server.world.ServerWorld
 import net.minecraft.util.Hand
 import net.minecraft.util.Identifier
 import net.minecraft.util.math.BlockPos
@@ -39,6 +41,7 @@ object ModMessages {
     val EDITING_TABLE_APPLY = Identifier(MystcraftReforged.MOD_ID, "editing_table_apply")
     val PRINTING_TABLE_CYCLE_SELECTION = Identifier(MystcraftReforged.MOD_ID, "printing_table_cycle_selection")
     val NOTEBOOK_SET_NAME = Identifier(MystcraftReforged.MOD_ID, "notebook_set_name")
+    val BOOK_STAND_SYNC = Identifier(MystcraftReforged.MOD_ID, "book_stand_sync")
 
     fun sendDimensionSync(player: ServerPlayerEntity, ageId: Identifier, profile: AgeProfile) {
         try {
@@ -93,6 +96,15 @@ object ModMessages {
             ServerPlayNetworking.send(player, OPEN_LINKING_BOOK, buf)
         } catch (e: Exception) {
             MystcraftReforged.LOGGER.error("Open linking book packet failure: ${e.message}")
+        }
+    }
+
+    fun sendBookStandSync(world: ServerWorld, pos: BlockPos, stack: ItemStack) {
+        world.players.forEach { player ->
+            val buf = PacketByteBufs.create()
+            buf.writeBlockPos(pos)
+            buf.writeItemStack(stack.copy())
+            ServerPlayNetworking.send(player, BOOK_STAND_SYNC, buf)
         }
     }
 

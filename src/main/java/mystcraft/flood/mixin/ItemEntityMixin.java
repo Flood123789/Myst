@@ -18,7 +18,7 @@ public class ItemEntityMixin {
     private boolean mystcraft$lostBookPenaltyApplied = false;
 
     @Inject(method = "tick", at = @At("HEAD"), cancellable = true)
-    private void mystcraft$anchorDroppedDescriptiveBook(CallbackInfo ci) {
+    private void mystcraft$anchorDroppedBook(CallbackInfo ci) {
         ItemEntity entity = (ItemEntity) (Object) this;
         if (entity.getWorld().isClient()) return;
 

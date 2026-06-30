@@ -40,7 +40,7 @@ class BookStandBlock(settings: Settings) : BlockWithEntity(settings), BlockEntit
     override fun createBlockEntity(pos: BlockPos, state: BlockState): BlockEntity =
         BookStandBlockEntity(pos, state)
 
-    override fun getRenderType(state: BlockState): BlockRenderType = BlockRenderType.ENTITYBLOCK_ANIMATED
+    override fun getRenderType(state: BlockState): BlockRenderType = BlockRenderType.MODEL
 
     override fun getOutlineShape(state: BlockState, world: BlockView, pos: BlockPos, context: ShapeContext): VoxelShape =
         SHAPE

@@ -20,6 +20,7 @@ import net.minecraft.util.ActionResult
 import net.minecraft.util.Hand
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.Direction
+import net.minecraft.util.math.MathHelper
 import net.minecraft.util.math.Vec3d
 import net.minecraft.world.World
 
@@ -38,10 +39,12 @@ class DescriptiveBookEntity(
         private val HURT_TIMER: TrackedData<Int> =
             DataTracker.registerData(DescriptiveBookEntity::class.java, TrackedDataHandlerRegistry.INTEGER)
 
-        // Total hits the book can take before its stored stack is released.
-        const val MAX_HEALTH = 4
+        // Total survival hits before the anchor releases its stored stack.
+        const val MAX_HEALTH = 16
         // Visual flash duration (ticks) after each hit.
         const val HURT_FLASH_TICKS = 8
+        private const val GROUND_SCAN_RANGE = 32
+        private const val RELEASED_ITEM_PICKUP_DELAY = 30
     }
 
     constructor(world: World, pos: Vec3d, stack: ItemStack, pickupDelayTicks: Int = 0) : this(ModEntities.DESCRIPTIVE_BOOK_ANCHOR, world) {
@@ -88,20 +91,13 @@ class DescriptiveBookEntity(
     override fun isPushable(): Boolean = false
 
     override fun isInvulnerableTo(source: DamageSource): Boolean {
-        return source.isOf(DamageTypes.IN_FIRE) ||
-            source.isOf(DamageTypes.ON_FIRE) ||
-            source.isOf(DamageTypes.LAVA) ||
-            source.isOf(DamageTypes.HOT_FLOOR) ||
-            source.isOf(DamageTypes.CACTUS) ||
-            source.isOf(DamageTypes.DROWN) ||
-            source.isOf(DamageTypes.FALL) ||
+        return isWorldHazard(source) ||
             super.isInvulnerableTo(source)
     }
 
     override fun damage(source: DamageSource, amount: Float): Boolean {
         if (world.isClient || isRemoved || isInvulnerableTo(source)) return false
 
-        // Creative-instakill matches vanilla behaviour for armour stands / paintings.
         val attacker = source.attacker
         if (attacker is PlayerEntity && attacker.isCreative) {
             releaseStoredBook()
@@ -109,6 +105,7 @@ class DescriptiveBookEntity(
             discard()
             return true
         }
+        if (attacker !is PlayerEntity) return false
 
         val remaining = (dataTracker.get(HEALTH) - 1).coerceAtLeast(0)
         dataTracker.set(HEALTH, remaining)
@@ -191,7 +188,7 @@ class DescriptiveBookEntity(
     fun getStoredBook(): ItemStack = dataTracker.get(STORED_BOOK)
 
     fun setStoredBook(stack: ItemStack) {
-        dataTracker.set(STORED_BOOK, stack.copyWithCount(1))
+        dataTracker.set(STORED_BOOK, if (stack.isEmpty) ItemStack.EMPTY else stack.copyWithCount(1))
     }
 
     private var pickupDelay: Int
@@ -210,7 +207,7 @@ class DescriptiveBookEntity(
 
         val dropped = ItemEntity(world, x, y + 0.1, z, AgeBookIntegrity.markReleasedFromAnchor(storedBook, world))
         dropped.velocity = Vec3d.ZERO
-        dropped.setPickupDelay(10)
+        dropped.setPickupDelay(RELEASED_ITEM_PICKUP_DELAY)
         world.spawnEntity(dropped)
         setStoredBook(ItemStack.EMPTY)
     }
@@ -221,14 +218,36 @@ class DescriptiveBookEntity(
     }
 
     private fun findGroundY(): Double? {
-        val mutable = BlockPos.Mutable(pos.x.toInt(), (y + 0.5).toInt(), pos.z.toInt())
-        for (offset in 0..8) {
-            mutable.set(pos.x.toInt(), (y + 0.5).toInt() - offset, pos.z.toInt())
+        val blockX = MathHelper.floor(x)
+        val blockZ = MathHelper.floor(z)
+        val startY = MathHelper.floor(y + 0.5)
+        val mutable = BlockPos.Mutable(blockX, startY, blockZ)
+        for (offset in 0..GROUND_SCAN_RANGE) {
+            mutable.set(blockX, startY - offset, blockZ)
             val shape = world.getBlockState(mutable).getCollisionShape(world, mutable)
             if (!shape.isEmpty) {
                 return mutable.y + shape.getMax(Direction.Axis.Y) + 0.02
             }
         }
         return null
+    }
+
+    private fun isWorldHazard(source: DamageSource): Boolean {
+        return source.isOf(DamageTypes.IN_FIRE) ||
+            source.isOf(DamageTypes.ON_FIRE) ||
+            source.isOf(DamageTypes.LAVA) ||
+            source.isOf(DamageTypes.HOT_FLOOR) ||
+            source.isOf(DamageTypes.LIGHTNING_BOLT) ||
+            source.isOf(DamageTypes.CACTUS) ||
+            source.isOf(DamageTypes.SWEET_BERRY_BUSH) ||
+            source.isOf(DamageTypes.DROWN) ||
+            source.isOf(DamageTypes.FALL) ||
+            source.isOf(DamageTypes.FLY_INTO_WALL) ||
+            source.isOf(DamageTypes.FREEZE) ||
+            source.isOf(DamageTypes.FALLING_BLOCK) ||
+            source.isOf(DamageTypes.FALLING_ANVIL) ||
+            source.isOf(DamageTypes.FALLING_STALACTITE) ||
+            source.isOf(DamageTypes.EXPLOSION) ||
+            source.isOf(DamageTypes.PLAYER_EXPLOSION)
     }
 }

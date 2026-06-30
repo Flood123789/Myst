@@ -5,6 +5,7 @@ import net.minecraft.block.BlockState
 import net.minecraft.server.world.ServerWorld
 import net.minecraft.state.StateManager
 import net.minecraft.util.math.BlockPos
+import net.minecraft.util.math.Direction
 import net.minecraft.util.math.random.Random
 import net.minecraft.world.World
 
@@ -22,6 +23,9 @@ class WhiteDecayBlock(settings: Settings) : Block(settings) {
     }
 
     override fun hasRandomTicks(state: BlockState): Boolean = state[ACTIVE]
+
+    override fun isSideInvisible(state: BlockState, stateFrom: BlockState, direction: Direction): Boolean =
+        stateFrom.isOf(this) || super.isSideInvisible(state, stateFrom, direction)
 
     override fun neighborUpdate(
         state: BlockState,

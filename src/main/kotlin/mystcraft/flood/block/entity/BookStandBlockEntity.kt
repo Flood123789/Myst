@@ -1,5 +1,6 @@
 package mystcraft.flood.block.entity
 
+import mystcraft.flood.network.ModMessages
 import net.minecraft.block.entity.BlockEntity
 import net.minecraft.block.Block
 import net.minecraft.block.BlockState
@@ -15,6 +16,7 @@ class BookStandBlockEntity(pos: BlockPos, state: BlockState) : BlockEntity(ModBl
     override fun writeNbt(nbt: NbtCompound) {
         super.writeNbt(nbt)
         val book = inventory.getStack(0)
+        nbt.putBoolean("HasBook", !book.isEmpty)
         if (!book.isEmpty) {
             val tag = NbtCompound()
             book.writeNbt(tag)
@@ -24,7 +26,8 @@ class BookStandBlockEntity(pos: BlockPos, state: BlockState) : BlockEntity(ModBl
 
     override fun readNbt(nbt: NbtCompound) {
         super.readNbt(nbt)
-        inventory.setStack(0, if (nbt.contains("Book")) ItemStack.fromNbt(nbt.getCompound("Book")) else ItemStack.EMPTY)
+        val hasBook = if (nbt.contains("HasBook")) nbt.getBoolean("HasBook") else nbt.contains("Book")
+        inventory.setStack(0, if (hasBook && nbt.contains("Book")) ItemStack.fromNbt(nbt.getCompound("Book")) else ItemStack.EMPTY)
     }
 
     override fun toUpdatePacket(): net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket? =
@@ -52,10 +55,18 @@ class BookStandBlockEntity(pos: BlockPos, state: BlockState) : BlockEntity(ModBl
         syncVisuals()
     }
 
+    fun applySyncedBook(stack: ItemStack) {
+        inventory.setStack(0, if (stack.isEmpty) ItemStack.EMPTY else stack.copy())
+        markDirty()
+    }
+
     private fun syncVisuals() {
         markDirty()
         val currentWorld = world ?: return
         currentWorld.updateListeners(pos, cachedState, cachedState, Block.NOTIFY_ALL or 8)
-        (currentWorld as? ServerWorld)?.chunkManager?.markForUpdate(pos)
+        (currentWorld as? ServerWorld)?.let { serverWorld ->
+            serverWorld.chunkManager.markForUpdate(pos)
+            ModMessages.sendBookStandSync(serverWorld, pos, inventory.getStack(0))
+        }
     }
 }

@@ -23,7 +23,7 @@ object ModFeatures {
     val FLOATING_CASTLE: Feature<DefaultFeatureConfig> = FloatingCastleFeature(DefaultFeatureConfig.CODEC)
 
     // === NEW FEATURES ADDED HERE ===
-    val CITY_GRID: Feature<DefaultFeatureConfig> = CityGridFeature(DefaultFeatureConfig.CODEC)
+    val CITY_GRID: Feature<DefaultFeatureConfig> = BoundedLostCityFeature(DefaultFeatureConfig.CODEC)
     val BIOSPHERE: Feature<DefaultFeatureConfig> = BiosphereFeature(DefaultFeatureConfig.CODEC)
     val EXOTIC_SURFACE: Feature<DefaultFeatureConfig> = ExoticSurfaceFeature(DefaultFeatureConfig.CODEC)
     val ANCIENT_REMAINS: Feature<DefaultFeatureConfig> = AncientRemainsFeature(DefaultFeatureConfig.CODEC)

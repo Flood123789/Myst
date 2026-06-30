@@ -15,6 +15,9 @@ class DecayBlock(settings: Settings) : Block(settings) {
 
     override fun hasRandomTicks(state: BlockState): Boolean = true
 
+    override fun isSideInvisible(state: BlockState, stateFrom: BlockState, direction: Direction): Boolean =
+        stateFrom.isOf(this) || super.isSideInvisible(state, stateFrom, direction)
+
     override fun neighborUpdate(
         state: BlockState,
         world: World,
