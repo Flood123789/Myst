@@ -6,7 +6,7 @@
   "pages": [
     {
       "type": "text",
-      "text": "The pages keep to old houses: $(li)land-shaping$(li)biomes and their rulers$(li)time and weather$(li)suns, moons, and stars$(li)creature laws$(li)landmarks$(li)colors and the things they stain$(li)stranger marks such as $(thing)Random$(), $(thing)Age Effect$(), and $(thing)Low Gravity$()."
+      "text": "The pages keep to old houses: $(li)land-shaping$(li)biomes and their rulers$(li)time and weather$(li)suns, moons, and stars$(li)sky anomalies$(li)creature laws$(li)landmarks$(li)colors and the things they stain$(li)stranger marks such as $(thing)Random$(), $(thing)Age Effect$(), and $(thing)Low Gravity$()."
     },
     {
       "type": "text",

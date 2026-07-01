@@ -90,6 +90,7 @@ class BoundedLostCityFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defau
 
         val profile = AgeProfileManager.getOrGenerateProfile(serverWorld.server, serverWorld.registryKey.value)
         if (profile.terrainType != TerrainType.CITIES) return false
+        if (!LostCityAssetLibrary.canGenerateCities()) return false
 
         val origin = context.origin
         val chunkX = origin.x shr 4
@@ -297,7 +298,7 @@ class BoundedLostCityFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defau
     }
 
     private fun placeRail(world: StructureWorldAccess, origin: BlockPos, groundY: Int, plan: Plan) {
-        val railY = cityRailY(world, plan)
+        val railY = cityRailY(world, groundY)
         val part = when {
             plan.kind == Kind.STATION -> "station_underground"
             plan.subwayNS && plan.subwayEW -> "rails_3split"
@@ -777,19 +778,8 @@ class BoundedLostCityFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defau
         return (average / 2 * 2).coerceIn(world.bottomY + 16, world.topY - 48)
     }
 
-    private fun cityRailY(world: StructureWorldAccess, plan: Plan): Int {
-        var total = 0
-        var samples = 0
-        val centerX = plan.anchor.centerChunkX shl 4
-        val centerZ = plan.anchor.centerChunkZ shl 4
-        for (x in listOf(-32, 0, 32)) {
-            for (z in listOf(-32, 0, 32)) {
-                total += world.getTopY(Heightmap.Type.WORLD_SURFACE_WG, centerX + x + 8, centerZ + z + 8)
-                samples++
-            }
-        }
-        val surfaceY = if (samples == 0) 72 else total / samples
-        return (surfaceY - RAIL_DEPTH).coerceIn(world.bottomY + 10, world.topY - 64)
+    private fun cityRailY(world: StructureWorldAccess, groundY: Int): Int {
+        return (groundY - RAIL_DEPTH).coerceIn(world.bottomY + 10, world.topY - 64)
     }
 
     private fun streetPartFor(plan: Plan): Pair<String, Int> {

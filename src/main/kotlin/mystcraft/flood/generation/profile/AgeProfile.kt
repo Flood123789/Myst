@@ -97,6 +97,7 @@ data class AgeProfile(
                 profile.weather.clearTicks = 0
                 profile.weather.rainTicks = 0
                 profile.weather.thunderTicks = 0
+                profile.weather.temporaryClearTicks = 0
             } else {
                 val weather = root.getAsJsonObject("weather")
                 if (!weather.has("currentRaining")) profile.weather.currentRaining = false
@@ -104,6 +105,7 @@ data class AgeProfile(
                 if (!weather.has("clearTicks")) profile.weather.clearTicks = 0
                 if (!weather.has("rainTicks")) profile.weather.rainTicks = 0
                 if (!weather.has("thunderTicks")) profile.weather.thunderTicks = 0
+                if (!weather.has("temporaryClearTicks")) profile.weather.temporaryClearTicks = 0
             }
 
             if (!root.has("cloudHeight")) {
@@ -170,9 +172,16 @@ data class TimeSettings(
     var fixedTime: Long? = null,
     var timeScale: Float = 1.0f,
     var savedTime: Long? = null,
+    var temporaryTimeOverride: Long? = null,
     @Transient var liveTimeOfDay: Long = 6000L,
     @Transient var timeAccumulator: Float = 0f
-)
+) {
+    val visibleTimeOfDay: Long
+        get() = temporaryTimeOverride ?: fixedTime ?: liveTimeOfDay
+
+    val visibleTimeFrozen: Boolean
+        get() = temporaryTimeOverride != null || fixedTime != null
+}
 
 data class WeatherSettings(
     var isEndlessRain: Boolean,
@@ -182,17 +191,20 @@ data class WeatherSettings(
     var currentThundering: Boolean = false,
     var clearTicks: Int = 0,
     var rainTicks: Int = 0,
-    var thunderTicks: Int = 0
+    var thunderTicks: Int = 0,
+    var temporaryClearTicks: Int = 0
 ) {
     fun isNormalWeather(): Boolean = !noWeather && !isEndlessRain && !isEndlessStorm
 
     fun isCurrentlyRaining(): Boolean = when {
+        temporaryClearTicks > 0 -> false
         noWeather -> false
         isEndlessStorm || isEndlessRain -> true
         else -> currentRaining
     }
 
     fun isCurrentlyThundering(): Boolean = when {
+        temporaryClearTicks > 0 -> false
         noWeather -> false
         isEndlessStorm -> true
         isEndlessRain -> false

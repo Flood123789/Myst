@@ -1,0 +1,28 @@
+{
+  "name": "Sky Anomalies",
+  "category": "mystcraft-reforged:age_writing",
+  "icon": "mystcraft-reforged:symbol_page",
+  "sortnum": 3,
+  "pages": [
+    {
+      "type": "text",
+      "text": "$(thing)Sky anomaly pages$() describe impossible things that live in the skybox: auroras, rainbows, rifts, nebulae, glyphs, galaxies, prism rings, lanterns, fracture webs, celestial script, and stranger lights besides."
+    },
+    {
+      "type": "text",
+      "text": "These pages are mostly visual. They should not add server-heavy structures or chunk generation. A sky written with care can feel wildly different while remaining cheap for a server to carry."
+    },
+    {
+      "type": "text",
+      "text": "An authored sky anomaly is a stabilizing detail. The Age knows what mood its heavens are meant to wear, so it improvises less. Randomly gained sky anomalies can still feel chaotic, especially in sparse books."
+    },
+    {
+      "type": "text",
+      "text": "Sparse Ages are more likely to grow sky anomalies on their own. Missing terrain, biome, time, weather, sun, moon, and star pages leave silence in the book, and the ink often fills silence with spectacle."
+    },
+    {
+      "type": "text",
+      "text": "$(item)Lost Pages$() now favor sky anomaly pages more often than before. They are a good way to give an Age identity without asking the server to build another ruin, city, or floating object field."
+    }
+  ]
+}

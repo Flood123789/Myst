@@ -24,17 +24,22 @@ object ModItemGroups {
                 entries.add(ModItems.INK_VIAL)
                 entries.add(ModItems.LINK_PANEL)
                 entries.add(ModItems.PAGE)
+                entries.add(ModItems.LOST_PAGE)
                 entries.add(ModItems.GUIDE_BOOK)
                 entries.add(ModItems.DESCRIPTIVE_BOOK)
                 entries.add(ModItems.LINKING_BOOK)
                 entries.add(ModItems.NOTEBOOK)
+                entries.add(ModBlocks.BOOK_BINDER)
+                entries.add(ModBlocks.WRITING_DESK)
+                entries.add(ModBlocks.EDITING_TABLE)
+                entries.add(ModBlocks.PRINTING_TABLE)
+                entries.add(ModBlocks.BOOK_STAND)
+                entries.add(ModBlocks.BOOK_RECEPTACLE)
+                entries.add(ModBlocks.CRYSTAL_BLOCK)
+                entries.add(ModBlocks.CRYSTAL_PORTAL)
+                entries.add(ModBlocks.STAR_FISSURE)
                 entries.add(ModBlocks.BLACK_DECAY)
                 entries.add(ModBlocks.WHITE_DECAY)
-                entries.add(ModBlocks.STAR_FISSURE) // ADDED: Show the Star Fissure block in the main tab for easy access
-                entries.add(ModBlocks.CRYSTAL_BLOCK) // ADDED: Show the Crystal Block in the main tab for easy access
-                entries.add(ModBlocks.BOOK_RECEPTACLE) // ADDED: Show the Book Receptacle block in the main tab for easy access
-                entries.add(ModBlocks.BOOK_BINDER) // ADDED: Show the Book Binder block in the main tab for easy access
-                // Removed SYMBOL_PAGE from here to keep the main tab clean!
             }
             .build()
     )

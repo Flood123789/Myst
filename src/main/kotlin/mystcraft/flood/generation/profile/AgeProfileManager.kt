@@ -121,6 +121,7 @@ object AgeProfileManager {
         val activeModifiers = mutableListOf<String>()
         var selectedAgeEffectId = compiled.ageEffectId
         val explicitInstabilityFeaturePages = mutableSetOf<String>()
+        var authoredSkyPageCount = 0
 
         var hasSunPages = false
         var hasMoonPages = false
@@ -148,15 +149,25 @@ object AgeProfileManager {
                     "tendrils", "obelisks", "giant_trees", "crystal_formations", "dense_ores",
                     HistoricAgeThemes.ANCIENT_BONES, HistoricAgeThemes.FORGOTTEN_RUINS,
                     HistoricAgeThemes.COLLAPSED_OBSERVATORY, HistoricAgeThemes.ANCIENT_AQUEDUCTS, HistoricAgeThemes.GATEWAY_RUINS,
-                    AmbientAgeThemes.PAGE_STORMS, AmbientAgeThemes.MEMORY_BLOOMS, AmbientAgeThemes.STABLE_SANCTUARIES,
-                    ChaosAgeThemes.SKY_RAINBOWS, ChaosAgeThemes.SKY_AURORAS, ChaosAgeThemes.SHOOTING_STARS,
-                    ChaosAgeThemes.COMETS, ChaosAgeThemes.SKY_RIFTS, ChaosAgeThemes.BRIGHT_SKY, ChaosAgeThemes.DARK_SKY,
+                    AmbientAgeThemes.PAGE_STORMS, AmbientAgeThemes.MEMORY_BLOOMS, AmbientAgeThemes.STABLE_SANCTUARIES
+                ) + ChaosAgeThemes.SKY + listOf(
                     ChaosAgeThemes.METEOR_SHOWERS, ChaosAgeThemes.SKY_SPHERES,
                     ChaosAgeThemes.PARTICLE_MOTES, ChaosAgeThemes.PARTICLE_ASH, ChaosAgeThemes.PARTICLE_SPORES, ChaosAgeThemes.PARTICLE_VOID,
                     "spawning_no_mobs", "spawning_extra_hostile", "sun_red", "moon_extra"
                 )
                 cleanSymbol = wildcards.random(rand)
                 modifierInstability += 5
+            }
+
+            fun addSkyModifier(symbol: String, randomInstability: Int, authoredStability: Int, starMinimum: Int = 0) {
+                if (activeModifiers.contains(symbol)) return
+                activeModifiers.add(symbol)
+                modifierInstability += if (originalSymbol == "random") randomInstability else -authoredStability
+                if (originalSymbol != "random") authoredSkyPageCount++
+                if (starMinimum > 0) {
+                    starDensity = starDensity.coerceAtLeast(starMinimum)
+                    hasStarPages = true
+                }
             }
 
             when (cleanSymbol) {
@@ -181,13 +192,36 @@ object AgeProfileManager {
                 AmbientAgeThemes.PAGE_STORMS -> if (!activeModifiers.contains(AmbientAgeThemes.PAGE_STORMS)) { activeModifiers.add(AmbientAgeThemes.PAGE_STORMS); modifierInstability += 18; if (originalSymbol != "random") explicitInstabilityFeaturePages.add(AmbientAgeThemes.PAGE_STORMS) }
                 AmbientAgeThemes.MEMORY_BLOOMS -> if (!activeModifiers.contains(AmbientAgeThemes.MEMORY_BLOOMS)) { activeModifiers.add(AmbientAgeThemes.MEMORY_BLOOMS); modifierInstability += 10; if (originalSymbol != "random") explicitInstabilityFeaturePages.add(AmbientAgeThemes.MEMORY_BLOOMS) }
                 AmbientAgeThemes.STABLE_SANCTUARIES -> if (!activeModifiers.contains(AmbientAgeThemes.STABLE_SANCTUARIES)) { activeModifiers.add(AmbientAgeThemes.STABLE_SANCTUARIES); modifierInstability += 8; if (originalSymbol != "random") explicitInstabilityFeaturePages.add(AmbientAgeThemes.STABLE_SANCTUARIES) }
-                ChaosAgeThemes.SKY_RAINBOWS -> if (!activeModifiers.contains(ChaosAgeThemes.SKY_RAINBOWS)) { activeModifiers.add(ChaosAgeThemes.SKY_RAINBOWS); modifierInstability += 6 }
-                ChaosAgeThemes.SKY_AURORAS -> if (!activeModifiers.contains(ChaosAgeThemes.SKY_AURORAS)) { activeModifiers.add(ChaosAgeThemes.SKY_AURORAS); modifierInstability += 8 }
-                ChaosAgeThemes.SHOOTING_STARS -> if (!activeModifiers.contains(ChaosAgeThemes.SHOOTING_STARS)) { activeModifiers.add(ChaosAgeThemes.SHOOTING_STARS); modifierInstability += 8; starDensity = starDensity.coerceAtLeast(2); hasStarPages = true }
-                ChaosAgeThemes.COMETS -> if (!activeModifiers.contains(ChaosAgeThemes.COMETS)) { activeModifiers.add(ChaosAgeThemes.COMETS); modifierInstability += 10; starDensity = starDensity.coerceAtLeast(2); hasStarPages = true }
-                ChaosAgeThemes.SKY_RIFTS -> if (!activeModifiers.contains(ChaosAgeThemes.SKY_RIFTS)) { activeModifiers.add(ChaosAgeThemes.SKY_RIFTS); modifierInstability += 18 }
-                ChaosAgeThemes.BRIGHT_SKY -> if (!activeModifiers.contains(ChaosAgeThemes.BRIGHT_SKY)) { activeModifiers.add(ChaosAgeThemes.BRIGHT_SKY); modifierInstability += 6; if (!hasSunPages) sunNormal = sunNormal.coerceAtLeast(1) }
-                ChaosAgeThemes.DARK_SKY -> if (!activeModifiers.contains(ChaosAgeThemes.DARK_SKY)) { activeModifiers.add(ChaosAgeThemes.DARK_SKY); modifierInstability += 10; if (!hasStarPages) starDensity = starDensity.coerceAtLeast(3) }
+                ChaosAgeThemes.SKY_RAINBOWS -> addSkyModifier(ChaosAgeThemes.SKY_RAINBOWS, 6, 6)
+                ChaosAgeThemes.SKY_AURORAS -> addSkyModifier(ChaosAgeThemes.SKY_AURORAS, 8, 7)
+                ChaosAgeThemes.SHOOTING_STARS -> addSkyModifier(ChaosAgeThemes.SHOOTING_STARS, 8, 7, 2)
+                ChaosAgeThemes.COMETS -> addSkyModifier(ChaosAgeThemes.COMETS, 10, 7, 2)
+                ChaosAgeThemes.SKY_RIFTS -> addSkyModifier(ChaosAgeThemes.SKY_RIFTS, 18, 9)
+                ChaosAgeThemes.SKY_NEBULAE -> addSkyModifier(ChaosAgeThemes.SKY_NEBULAE, 9, 8, 2)
+                ChaosAgeThemes.ECLIPSE_HALOS -> addSkyModifier(ChaosAgeThemes.ECLIPSE_HALOS, 10, 7)
+                ChaosAgeThemes.STAR_GLYPHS -> addSkyModifier(ChaosAgeThemes.STAR_GLYPHS, 8, 8, 2)
+                ChaosAgeThemes.HORIZON_MIRAGES -> addSkyModifier(ChaosAgeThemes.HORIZON_MIRAGES, 6, 6)
+                ChaosAgeThemes.CRYSTAL_HALOS -> addSkyModifier(ChaosAgeThemes.CRYSTAL_HALOS, 9, 7)
+                ChaosAgeThemes.VOID_FLECKS -> addSkyModifier(ChaosAgeThemes.VOID_FLECKS, 12, 7, 2)
+                ChaosAgeThemes.SPIRAL_GALAXIES -> addSkyModifier(ChaosAgeThemes.SPIRAL_GALAXIES, 12, 8, 3)
+                ChaosAgeThemes.FALLING_SKY_SHARDS -> addSkyModifier(ChaosAgeThemes.FALLING_SKY_SHARDS, 14, 8)
+                ChaosAgeThemes.LIGHTNING_VEINS -> addSkyModifier(ChaosAgeThemes.LIGHTNING_VEINS, 12, 7)
+                ChaosAgeThemes.LUMINOUS_COLUMNS -> addSkyModifier(ChaosAgeThemes.LUMINOUS_COLUMNS, 8, 6)
+                ChaosAgeThemes.SKY_MONOLITHS -> addSkyModifier(ChaosAgeThemes.SKY_MONOLITHS, 12, 8)
+                ChaosAgeThemes.PRISM_RINGS -> addSkyModifier(ChaosAgeThemes.PRISM_RINGS, 8, 7)
+                ChaosAgeThemes.CHROMA_WAVES -> addSkyModifier(ChaosAgeThemes.CHROMA_WAVES, 7, 6)
+                ChaosAgeThemes.ORBITAL_GRID -> addSkyModifier(ChaosAgeThemes.ORBITAL_GRID, 9, 7)
+                ChaosAgeThemes.SKY_LANTERNS -> addSkyModifier(ChaosAgeThemes.SKY_LANTERNS, 6, 6)
+                ChaosAgeThemes.FRACTURE_WEB -> addSkyModifier(ChaosAgeThemes.FRACTURE_WEB, 12, 7)
+                ChaosAgeThemes.DREAM_VEILS -> addSkyModifier(ChaosAgeThemes.DREAM_VEILS, 6, 6)
+                ChaosAgeThemes.SKY_BUBBLES -> addSkyModifier(ChaosAgeThemes.SKY_BUBBLES, 5, 5)
+                ChaosAgeThemes.STARFALL_BLOOMS -> addSkyModifier(ChaosAgeThemes.STARFALL_BLOOMS, 10, 7, 2)
+                ChaosAgeThemes.HORIZON_CROWNS -> addSkyModifier(ChaosAgeThemes.HORIZON_CROWNS, 7, 6)
+                ChaosAgeThemes.CELESTIAL_SCRIPT -> addSkyModifier(ChaosAgeThemes.CELESTIAL_SCRIPT, 8, 7, 2)
+                ChaosAgeThemes.GLASS_CONSTELLATIONS -> addSkyModifier(ChaosAgeThemes.GLASS_CONSTELLATIONS, 9, 7, 2)
+                ChaosAgeThemes.RADIANT_WHIRLPOOLS -> addSkyModifier(ChaosAgeThemes.RADIANT_WHIRLPOOLS, 10, 7, 3)
+                ChaosAgeThemes.BRIGHT_SKY -> { addSkyModifier(ChaosAgeThemes.BRIGHT_SKY, 6, 5); if (!hasSunPages) sunNormal = sunNormal.coerceAtLeast(1) }
+                ChaosAgeThemes.DARK_SKY -> { addSkyModifier(ChaosAgeThemes.DARK_SKY, 10, 6); if (!hasStarPages) starDensity = starDensity.coerceAtLeast(3) }
                 ChaosAgeThemes.METEOR_SHOWERS -> if (!activeModifiers.contains(ChaosAgeThemes.METEOR_SHOWERS)) { activeModifiers.add(ChaosAgeThemes.METEOR_SHOWERS); modifierInstability += 18 }
                 ChaosAgeThemes.SKY_SPHERES -> if (!activeModifiers.contains(ChaosAgeThemes.SKY_SPHERES)) { activeModifiers.add(ChaosAgeThemes.SKY_SPHERES); modifierInstability += 14 }
                 ChaosAgeThemes.PARTICLE_MOTES -> if (!activeModifiers.contains(ChaosAgeThemes.PARTICLE_MOTES)) { activeModifiers.add(ChaosAgeThemes.PARTICLE_MOTES); modifierInstability += 4 }
@@ -362,6 +396,7 @@ object AgeProfileManager {
         if (activeModifiers.contains(ChaosAgeThemes.BRIGHT_SKY) && activeModifiers.contains(ChaosAgeThemes.DARK_SKY)) finalInstability += 20
         if (biomesList.size > 3) finalInstability += (biomesList.size - 3) * 10
         finalInstability -= explicitInstabilityFeaturePages.size * 24
+        finalInstability -= authoredSkyPageCount * 3
 
         if (isSingleBiomeAge) finalInstability -= 14
         if (finalBiomeMode == BiomeMode.VANILLA_DISTRIBUTION) finalInstability -= 10
@@ -512,17 +547,31 @@ object AgeProfileManager {
             }
         }
 
-        if (activeModifiers.none { it in ChaosAgeThemes.SKY }) {
-            val skyPersonalityChance = when {
-                usedRandomPage -> 0.78f
-                sparseAge -> 0.46f
-                partiallyDefinedAge -> 0.26f
-                finalInstability >= 65 -> 0.38f
-                finalInstability >= 30 -> 0.18f
-                else -> 0.08f
-            }
-            if (rand.nextFloat() < skyPersonalityChance) {
-                activeModifiers.add(ChaosAgeThemes.randomSky(rand))
+        run {
+            val existingSkyCount = activeModifiers.count { it in ChaosAgeThemes.SKY }
+            val missingSkyPressure = missingBasicCount +
+                if (usedRandomPage) 3 else 0 +
+                if (sparseAge) 2 else 0 +
+                if (finalInstability >= 60) 1 else 0
+            val desiredSkyPages = when {
+                usedRandomPage -> rand.nextInt(3, 6)
+                missingSkyPressure >= 8 -> rand.nextInt(3, 6)
+                missingSkyPressure >= 6 -> rand.nextInt(2, 5)
+                missingSkyPressure >= 4 -> if (rand.nextFloat() < 0.78f) rand.nextInt(1, 4) else 0
+                missingSkyPressure >= 2 -> if (rand.nextFloat() < 0.42f) 1 else 0
+                finalInstability >= 55 -> if (rand.nextFloat() < 0.36f) 1 else 0
+                else -> if (rand.nextFloat() < 0.10f) 1 else 0
+            }.coerceAtMost(if (usedRandomPage || sparseAge) 5 else 3)
+
+            var skyCount = existingSkyCount
+            var attempts = 0
+            while (skyCount < desiredSkyPages && attempts < ChaosAgeThemes.SKY.size * 2) {
+                attempts++
+                val candidate = ChaosAgeThemes.randomSky(rand)
+                if (candidate !in activeModifiers) {
+                    activeModifiers.add(candidate)
+                    skyCount++
+                }
             }
         }
 
@@ -611,7 +660,7 @@ object AgeProfileManager {
                 moonCount = moonCount,
                 moonSize = rand.nextFloat() * 1.5f + 0.5f,
                 starDensity = starDensity,
-                fixedTime = if (timeMode == "fixed") rand.nextLong(0, 24000) else null,
+                fixedTime = if (timeMode == "fixed") compiled.fixedTimeOfDay ?: rand.nextLong(0, 24000) else null,
                 timeScale = when(timeMode) {
                     "fast" -> 5.0f * compiled.timeScaleMultiplier
                     "slow" -> 0.2f * compiled.timeScaleMultiplier
@@ -660,7 +709,16 @@ object AgeProfileManager {
     private fun writeProfile(server: MinecraftServer, ageId: Identifier, profile: AgeProfile) {
         val dir = server.getSavePath(WorldSavePath.ROOT).resolve("mystcraft_profiles")
         if (!Files.exists(dir)) Files.createDirectories(dir)
-        Files.writeString(profileFile(server, ageId), profile.toJson())
+        val temporaryTimeOverride = profile.time.temporaryTimeOverride
+        val temporaryClearTicks = profile.weather.temporaryClearTicks
+        try {
+            profile.time.temporaryTimeOverride = null
+            profile.weather.temporaryClearTicks = 0
+            Files.writeString(profileFile(server, ageId), profile.toJson())
+        } finally {
+            profile.time.temporaryTimeOverride = temporaryTimeOverride
+            profile.weather.temporaryClearTicks = temporaryClearTicks
+        }
     }
 
     private fun profileFile(server: MinecraftServer, ageId: Identifier) =
@@ -700,6 +758,7 @@ object AgeProfileManager {
         target.time.fixedTime = refreshed.time.fixedTime
         target.time.timeScale = refreshed.time.timeScale
         target.time.savedTime = refreshed.time.savedTime
+        target.time.temporaryTimeOverride = refreshed.time.temporaryTimeOverride
         target.time.liveTimeOfDay = refreshed.time.liveTimeOfDay
         target.time.timeAccumulator = refreshed.time.timeAccumulator
         target.weather.isEndlessRain = refreshed.weather.isEndlessRain
@@ -710,6 +769,7 @@ object AgeProfileManager {
         target.weather.clearTicks = refreshed.weather.clearTicks
         target.weather.rainTicks = refreshed.weather.rainTicks
         target.weather.thunderTicks = refreshed.weather.thunderTicks
+        target.weather.temporaryClearTicks = refreshed.weather.temporaryClearTicks
         target.biomes.mode = refreshed.biomes.mode
         target.biomes.biomes = refreshed.biomes.biomes.map { it.copy() }.toMutableList()
         target.spawning.noMobs = refreshed.spawning.noMobs

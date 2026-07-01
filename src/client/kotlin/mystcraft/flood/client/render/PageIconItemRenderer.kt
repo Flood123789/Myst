@@ -92,7 +92,15 @@ object PageIconItemRenderer : BuiltinItemRendererRegistry.DynamicItemRenderer {
             clean == "page_storms" -> drawPageStorm(matrices, providers, light, overlay)
             clean == "memory_blooms" -> drawMemoryBloom(matrices, providers, light, overlay)
             clean == "stable_sanctuaries" -> drawSanctuary(matrices, providers, light, overlay)
-            clean in setOf("sky_rainbows", "sky_auroras", "shooting_stars", "comets", "sky_rifts", "bright_sky", "dark_sky") ->
+            clean in setOf(
+                "sky_rainbows", "sky_auroras", "shooting_stars", "comets", "sky_rifts",
+                "sky_nebulae", "eclipse_halos", "star_glyphs", "horizon_mirages", "crystal_halos",
+                "void_flecks", "spiral_galaxies", "falling_sky_shards", "lightning_veins",
+                "luminous_columns", "sky_monoliths", "prism_rings", "chroma_waves", "orbital_grid",
+                "sky_lanterns", "fracture_web", "dream_veils", "sky_bubbles", "starfall_blooms",
+                "horizon_crowns", "celestial_script", "glass_constellations", "radiant_whirlpools",
+                "bright_sky", "dark_sky"
+            ) ->
                 drawChaosSkySymbol(clean, matrices, providers, light, overlay)
             clean == "meteor_showers" -> drawMeteor(matrices, providers, light, overlay)
             clean == "sky_spheres" -> drawSkySphere(matrices, providers, light, overlay)

@@ -1,5 +1,6 @@
 {
   "type": "minecraft:crafting_shaped",
+  "category": "misc",
   "pattern": [
     "ICI",
     "IWI",
@@ -16,7 +17,7 @@
       "item": "mystcraft-reforged:writingdesk"
     },
     "P": {
-      "item": "minecraft:oak_planks"
+      "tag": "minecraft:planks"
     }
   },
   "result": {

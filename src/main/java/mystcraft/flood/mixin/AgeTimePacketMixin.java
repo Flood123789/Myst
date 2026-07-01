@@ -33,8 +33,8 @@ public class AgeTimePacketMixin {
             if (world.getRegistryKey().getValue().getNamespace().equals("mystcraft-reforged")) {
                 AgeProfile profile = AgeProfileManager.INSTANCE.getOrGenerateProfile(world.getServer(), world.getRegistryKey().getValue());
                 
-                boolean isFixed = profile.getTime().getFixedTime() != null;
-                long targetTime = isFixed ? profile.getTime().getFixedTime() : profile.getTime().getLiveTimeOfDay();
+                boolean isFixed = profile.getTime().getVisibleTimeFrozen();
+                long targetTime = profile.getTime().getVisibleTimeOfDay();
                 
                 // We construct a replacement packet. 
                 // Passing '!isFixed' natively tells the client renderer to freeze the sun.

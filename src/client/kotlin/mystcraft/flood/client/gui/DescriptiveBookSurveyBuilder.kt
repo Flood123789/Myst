@@ -106,7 +106,11 @@ object DescriptiveBookSurveyBuilder {
                     celestialParagraph(profile),
                     timeParagraph(profile),
                     "The upper sky is stained ${formatColor(profile.colors.sky)}, while the higher banks of cloud are colored ${formatColor(profile.colors.cloud)}."
-                ) + skyPersonalityParagraphs(profile)
+                )
+            ),
+            DescriptiveBookSurveyPage(
+                "Sky Anomalies",
+                skyAnomalyParagraphs(profile)
             ),
             DescriptiveBookSurveyPage(
                 "Omens And Drift",
@@ -185,6 +189,10 @@ object DescriptiveBookSurveyBuilder {
     private fun draftSurvey(displayName: String, symbols: List<String>, stack: ItemStack): DescriptiveBookSurvey {
         val compiled = AgeCompiler.compile(symbols)
         val tuning = TerrainTuningBookData.get(stack)
+        val draftSkySymbols = symbols
+            .map { it.lowercase().substringAfter(':') }
+            .filter { it in ChaosAgeThemes.SKY }
+            .distinct()
         val title = displayName.ifBlank { "Unfixed Descriptive Book" }
         val unresolved = mutableListOf<String>()
         if (compiled.terrainType == null) unresolved += "terrain"
@@ -261,6 +269,16 @@ object DescriptiveBookSurveyBuilder {
                 listOf(
                     "These matters remain unwritten and would be left to chance on first opening: ${summarizeList(unresolved, 6)}.",
                     "A first crossing would settle those silences into fact, after which the archivist's ledger could be read in full."
+                )
+            )
+        }
+
+        if (draftSkySymbols.isNotEmpty()) {
+            draftPages += DescriptiveBookSurveyPage(
+                "Sky Anomalies",
+                listOf(
+                    "The draft gives the sky its own strange vocabulary: ${summarizeList(draftSkySymbols.map(::prettifySymbol), 10)}.",
+                    "Such pages are descriptive detail rather than empty noise. When written deliberately, they help the Age understand what sort of impossible sky it is meant to wear."
                 )
             )
         }
@@ -413,7 +431,7 @@ object DescriptiveBookSurveyBuilder {
             "Marked anomalies: ${summarizeList(profile.modifiers.map(::prettifySymbol), 10)}"
         }
 
-    private fun skyPersonalityParagraphs(profile: AgeProfile): List<String> = buildList {
+    private fun skyAnomalyParagraphs(profile: AgeProfile): List<String> = buildList {
         if (profile.modifiers.contains(ChaosAgeThemes.BRIGHT_SKY)) {
             add("The whole vault of heaven is written bright, lending the Age a pale luminous cast.")
         }
@@ -434,6 +452,78 @@ object DescriptiveBookSurveyBuilder {
         }
         if (profile.modifiers.contains(ChaosAgeThemes.SKY_RIFTS)) {
             add("Long luminous wounds appear in the sky, as though the Age were showing its binding through the clouds.")
+        }
+        if (profile.modifiers.contains(ChaosAgeThemes.SKY_NEBULAE)) {
+            add("Soft colored nebulae gather in the high air like bruised light behind glass.")
+        }
+        if (profile.modifiers.contains(ChaosAgeThemes.ECLIPSE_HALOS)) {
+            add("Cold eclipse rings are marked above, dim centers circled by pale blue fire.")
+        }
+        if (profile.modifiers.contains(ChaosAgeThemes.STAR_GLYPHS)) {
+            add("Constellations here can lock into deliberate glyphs before loosening back into scattered stars.")
+        }
+        if (profile.modifiers.contains(ChaosAgeThemes.HORIZON_MIRAGES)) {
+            add("Mirage bands shimmer low on the horizon, bending the edge of the world.")
+        }
+        if (profile.modifiers.contains(ChaosAgeThemes.CRYSTAL_HALOS)) {
+            add("Angular crystal halos turn overhead with a faceted, impossible symmetry.")
+        }
+        if (profile.modifiers.contains(ChaosAgeThemes.VOID_FLECKS)) {
+            add("Black flecks drift across the sky where small pieces of light seem to be missing.")
+        }
+        if (profile.modifiers.contains(ChaosAgeThemes.SPIRAL_GALAXIES)) {
+            add("Spiral galaxies burn close enough to feel painted onto the vault.")
+        }
+        if (profile.modifiers.contains(ChaosAgeThemes.FALLING_SKY_SHARDS)) {
+            add("Glass-bright shards hang in descent, as if the sky is slowly shedding splinters.")
+        }
+        if (profile.modifiers.contains(ChaosAgeThemes.LIGHTNING_VEINS)) {
+            add("Thin lightning veins crawl through the upper dark without needing a storm.")
+        }
+        if (profile.modifiers.contains(ChaosAgeThemes.LUMINOUS_COLUMNS)) {
+            add("Faint luminous columns stand around the horizon like distant searchlights.")
+        }
+        if (profile.modifiers.contains(ChaosAgeThemes.SKY_MONOLITHS)) {
+            add("Deep blue monoliths, glass cubes, and tiny colored lights drift in a geometric night above the Age.")
+        }
+        if (profile.modifiers.contains(ChaosAgeThemes.PRISM_RINGS)) {
+            add("Prismatic rings overlap in the distance, each turning with a slightly different color and pitch.")
+        }
+        if (profile.modifiers.contains(ChaosAgeThemes.CHROMA_WAVES)) {
+            add("Bands of chromatic wave-light pass through the horizon like colored sound made visible.")
+        }
+        if (profile.modifiers.contains(ChaosAgeThemes.ORBITAL_GRID)) {
+            add("A faint orbital lattice crosses the sky, as though another machine were measuring the heavens.")
+        }
+        if (profile.modifiers.contains(ChaosAgeThemes.SKY_LANTERNS)) {
+            add("Soft lantern lights drift high overhead, gathering and parting with no visible wind.")
+        }
+        if (profile.modifiers.contains(ChaosAgeThemes.FRACTURE_WEB)) {
+            add("A web of fine fractures threads the sky, each crack catching color at its edge.")
+        }
+        if (profile.modifiers.contains(ChaosAgeThemes.DREAM_VEILS)) {
+            add("Dream-veils wash over the vault in thin translucent sheets of changing color.")
+        }
+        if (profile.modifiers.contains(ChaosAgeThemes.SKY_BUBBLES)) {
+            add("Transparent bubbles rise through the high air, briefly lensing stars and clouds behind them.")
+        }
+        if (profile.modifiers.contains(ChaosAgeThemes.STARFALL_BLOOMS)) {
+            add("Starfall blooms open in the dark: small bursts that blossom, fade, and leave no ash.")
+        }
+        if (profile.modifiers.contains(ChaosAgeThemes.HORIZON_CROWNS)) {
+            add("Crown-like rays stand along the horizon, giving the far world a ceremonial edge.")
+        }
+        if (profile.modifiers.contains(ChaosAgeThemes.CELESTIAL_SCRIPT)) {
+            add("Loose script strokes write themselves across the constellations before dissolving.")
+        }
+        if (profile.modifiers.contains(ChaosAgeThemes.GLASS_CONSTELLATIONS)) {
+            add("Glass constellations join stars into panes and facets, bright lines over a darker vault.")
+        }
+        if (profile.modifiers.contains(ChaosAgeThemes.RADIANT_WHIRLPOOLS)) {
+            add("Radiant whirlpools turn in the upper sky, drawing colored starlight into slow spirals.")
+        }
+        if (isEmpty()) {
+            add("No dedicated sky anomalies were recorded beyond ordinary light, weather, and celestial motion.")
         }
     }
 

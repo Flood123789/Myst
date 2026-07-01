@@ -1,5 +1,6 @@
 package mystcraft.flood.item
 
+import mystcraft.flood.generation.ChaosAgeThemes
 import mystcraft.flood.registry.ModSymbols
 import net.minecraft.registry.Registries
 import net.minecraft.entity.player.PlayerEntity
@@ -58,6 +59,7 @@ class LostPageItem(settings: Settings) : Item(settings) {
     private fun weightFor(symbol: net.minecraft.util.Identifier): Int {
         if (symbol == ModSymbols.AGE_EFFECT_SYMBOL) return 1
         if (Registries.STATUS_EFFECT.containsId(symbol)) return 3
+        if (symbol.path in ChaosAgeThemes.SKY) return 12
 
         return when (symbol.path) {
             "terrain_void" -> 1
@@ -65,9 +67,9 @@ class LostPageItem(settings: Settings) : Item(settings) {
             "curse_cleansing" -> 3
             "ancient_bones" -> 3
             "meteor_showers", "sky_spheres" -> 3
-            "forgotten_ruins", "collapsed_observatory", "gateway_ruins", "page_storms", "stable_sanctuaries", "sky_rifts", "comets" -> 4
+            "forgotten_ruins", "collapsed_observatory", "gateway_ruins", "page_storms", "stable_sanctuaries", "sky_rifts", "comets",
+            "void_flecks", "falling_sky_shards", "lightning_veins" -> 4
             "ancient_aqueducts", "memory_blooms", "terrain_alpha" -> 5
-            "sky_rainbows", "sky_auroras", "shooting_stars", "bright_sky", "dark_sky",
             "particle_motes", "particle_ash", "particle_spores", "particle_void" -> 7
             "terrain_caves", "terrain_floating_islands", "terrain_beta", "terrain_flat", "giant_trees", "crystal_formations", "tendrils",
             "obelisks", "terrain_amplified", "weather_endless_storm", "weather_normal", "stars_dense", "no_stars", "sun_red", "sun_blue", "low_gravity",

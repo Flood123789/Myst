@@ -21,8 +21,7 @@ public class WorldDayNightMixin {
             if (serverWorld.getRegistryKey().getValue().getNamespace().equals("mystcraft-reforged")) {
                 AgeProfile profile = AgeProfileManager.INSTANCE.getOrGenerateProfile(serverWorld.getServer(), serverWorld.getRegistryKey().getValue());
                 
-                boolean isFixed = profile.getTime().getFixedTime() != null;
-                long time = isFixed ? profile.getTime().getFixedTime() : profile.getTime().getLiveTimeOfDay();
+                long time = profile.getTime().getVisibleTimeOfDay();
                 
                 long timeOfDay = time % 24000L;
                 boolean isDaytime = timeOfDay < 13000L || timeOfDay >= 23000L;
@@ -39,8 +38,7 @@ public class WorldDayNightMixin {
         if (!world.isClient() && world instanceof ServerWorld serverWorld) {
             if (serverWorld.getRegistryKey().getValue().getNamespace().equals("mystcraft-reforged")) {
                 AgeProfile profile = AgeProfileManager.INSTANCE.getOrGenerateProfile(serverWorld.getServer(), serverWorld.getRegistryKey().getValue());
-                boolean isFixed = profile.getTime().getFixedTime() != null;
-                cir.setReturnValue(isFixed ? profile.getTime().getFixedTime() : profile.getTime().getLiveTimeOfDay());
+                cir.setReturnValue(profile.getTime().getVisibleTimeOfDay());
             }
         }
     }
@@ -54,8 +52,7 @@ public class WorldDayNightMixin {
             if (serverWorld.getRegistryKey().getValue().getNamespace().equals("mystcraft-reforged")) {
                 AgeProfile profile = AgeProfileManager.INSTANCE.getOrGenerateProfile(serverWorld.getServer(), serverWorld.getRegistryKey().getValue());
                 
-                boolean isFixed = profile.getTime().getFixedTime() != null;
-                long time = isFixed ? profile.getTime().getFixedTime() : profile.getTime().getLiveTimeOfDay();
+                long time = profile.getTime().getVisibleTimeOfDay();
                 
                 long timeOfDay = time % 24000L;
                 boolean isDaytime = timeOfDay < 13000L || timeOfDay >= 23000L;

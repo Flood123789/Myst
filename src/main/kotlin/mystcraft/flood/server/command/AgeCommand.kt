@@ -8,13 +8,17 @@ import mystcraft.flood.access.DimensionInjector
 import mystcraft.flood.generation.AgeCurseManager
 import mystcraft.flood.generation.AgeLifecycleManager
 import mystcraft.flood.generation.AgeSubdimensionManager
+import mystcraft.flood.generation.AgeWeatherController
+import mystcraft.flood.generation.profile.AgeProfile
 import mystcraft.flood.generation.profile.AgeProfileManager
 import mystcraft.flood.network.ModMessages
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback
 import net.fabricmc.fabric.api.dimension.v1.FabricDimensions
 import net.minecraft.command.argument.DimensionArgumentType
+import net.minecraft.network.packet.s2c.play.WorldTimeUpdateS2CPacket
 import net.minecraft.server.command.CommandManager
 import net.minecraft.server.command.ServerCommandSource
+import net.minecraft.server.world.ServerWorld
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
 import net.minecraft.util.math.Vec3d
@@ -77,14 +81,33 @@ object AgeCommand {
                                 .executes { setAgeTime(it, IntegerArgumentType.getInteger(it, "ticks").toLong()) }
                             )
                         )
+                        .then(CommandManager.literal("resume").executes { resumeAgeTime(it) })
+                        .then(CommandManager.literal("permanent")
+                            .then(CommandManager.literal("set")
+                                .then(CommandManager.literal("day").executes { setPermanentAgeTime(it, 1000L) })
+                                .then(CommandManager.literal("noon").executes { setPermanentAgeTime(it, 6000L) })
+                                .then(CommandManager.literal("night").executes { setPermanentAgeTime(it, 13000L) })
+                                .then(CommandManager.literal("midnight").executes { setPermanentAgeTime(it, 18000L) })
+                                .then(CommandManager.argument("ticks", IntegerArgumentType.integer(0))
+                                    .executes { setPermanentAgeTime(it, IntegerArgumentType.getInteger(it, "ticks").toLong()) }
+                                )
+                            )
+                        )
                     )
                     
                     // === 4. WEATHER COMMAND ===
                     .then(CommandManager.literal("weather")
-                        .then(CommandManager.literal("clear").executes { setAgeWeather(it, "clear") })
+                        .then(CommandManager.literal("clear").executes { clearAgeWeather(it) })
+                        .then(CommandManager.literal("resume").executes { resumeAgeWeather(it) })
                         .then(CommandManager.literal("normal").executes { setAgeWeather(it, "normal") })
                         .then(CommandManager.literal("rain").executes { setAgeWeather(it, "rain") })
                         .then(CommandManager.literal("thunder").executes { setAgeWeather(it, "thunder") })
+                        .then(CommandManager.literal("permanent")
+                            .then(CommandManager.literal("clear").executes { setAgeWeather(it, "clear") })
+                            .then(CommandManager.literal("normal").executes { setAgeWeather(it, "normal") })
+                            .then(CommandManager.literal("rain").executes { setAgeWeather(it, "rain") })
+                            .then(CommandManager.literal("thunder").executes { setAgeWeather(it, "thunder") })
+                        )
                     )
 
                     // === 5. INSTABILITY COMMAND ===
@@ -129,25 +152,71 @@ object AgeCommand {
         val source = context.source
         val world = source.world
         val id = world.registryKey.value
+        val timeOfDay = normalizeTimeOfDay(time)
 
         if (id.namespace != MystcraftReforged.MOD_ID) {
             source.sendError(Text.literal("You must be in a Mystcraft Age to change its time!"))
             return 0
         }
 
-        // Pass emptyList() here too if getOrGenerateProfile requires it as a fallback, 
-        // though our AgeProfileManager implementation made it default to emptyList() so it shouldn't strictly need it.
         val profile = AgeProfileManager.getOrGenerateProfile(world.server, id)
-        
-        // If the age is frozen, update the frozen time. Otherwise, update the live clock.
+
         if (profile.time.fixedTime != null) {
-            profile.time.fixedTime = time
-            source.sendFeedback({ Text.literal("Fixed time updated to $time for Age: $id") }, true)
+            profile.time.temporaryTimeOverride = timeOfDay
+            source.sendFeedback({ Text.literal("Temporary visible time set to $timeOfDay for Age: $id") }, true)
         } else {
-            profile.time.liveTimeOfDay = time
-            source.sendFeedback({ Text.literal("Live time set to $time for Age: $id") }, true)
+            val currentDayStart = profile.time.liveTimeOfDay - (profile.time.liveTimeOfDay % 24000L)
+            profile.time.liveTimeOfDay = currentDayStart + timeOfDay
+            profile.time.temporaryTimeOverride = null
+            source.sendFeedback({ Text.literal("Live time set to $timeOfDay for Age: $id") }, true)
         }
-        
+
+        syncAgeTime(world, profile)
+        return 1
+    }
+
+    private fun setPermanentAgeTime(context: CommandContext<ServerCommandSource>, time: Long): Int {
+        val source = context.source
+        val world = source.world
+        val id = world.registryKey.value
+        val timeOfDay = normalizeTimeOfDay(time)
+
+        if (id.namespace != MystcraftReforged.MOD_ID) {
+            source.sendError(Text.literal("You must be in a Mystcraft Age to permanently change its time!"))
+            return 0
+        }
+
+        val profile = AgeProfileManager.getOrGenerateProfile(world.server, id)
+        profile.time.temporaryTimeOverride = null
+
+        if (profile.time.fixedTime != null) {
+            profile.time.fixedTime = timeOfDay
+            source.sendFeedback({ Text.literal("Fixed time permanently updated to $timeOfDay for Age: $id") }, true)
+        } else {
+            val currentDayStart = profile.time.liveTimeOfDay - (profile.time.liveTimeOfDay % 24000L)
+            profile.time.liveTimeOfDay = currentDayStart + timeOfDay
+            source.sendFeedback({ Text.literal("Live time permanently set to $timeOfDay for Age: $id") }, true)
+        }
+
+        AgeProfileManager.save(world.server, id)
+        syncAgeTime(world, profile)
+        return 1
+    }
+
+    private fun resumeAgeTime(context: CommandContext<ServerCommandSource>): Int {
+        val source = context.source
+        val world = source.world
+        val id = world.registryKey.value
+
+        if (id.namespace != MystcraftReforged.MOD_ID) {
+            source.sendError(Text.literal("You must be in a Mystcraft Age to resume its authored time!"))
+            return 0
+        }
+
+        val profile = AgeProfileManager.getOrGenerateProfile(world.server, id)
+        profile.time.temporaryTimeOverride = null
+        syncAgeTime(world, profile)
+        source.sendFeedback({ Text.literal("Temporary time override cleared for Age: $id") }, true)
         return 1
     }
 
@@ -162,6 +231,7 @@ object AgeCommand {
         }
 
         val profile = AgeProfileManager.getOrGenerateProfile(world.server, id)
+        profile.weather.temporaryClearTicks = 0
         
         when (weatherType) {
             "clear" -> {
@@ -211,8 +281,70 @@ object AgeCommand {
             ModMessages.sendDimensionSync(player, id, profile)
         }
 
+        AgeProfileManager.save(world.server, id)
         source.sendFeedback({ Text.literal("Age weather permanently set to $weatherType for Age: $id") }, true)
         return 1
+    }
+
+    private fun clearAgeWeather(context: CommandContext<ServerCommandSource>): Int {
+        val source = context.source
+        val world = source.world
+        val id = world.registryKey.value
+
+        if (id.namespace != MystcraftReforged.MOD_ID) {
+            source.sendError(Text.literal("You must be in a Mystcraft Age to clear its weather!"))
+            return 0
+        }
+
+        val profile = AgeProfileManager.getOrGenerateProfile(world.server, id)
+        profile.weather.temporaryClearTicks = 12000
+        profile.weather.currentRaining = false
+        profile.weather.currentThundering = false
+        profile.weather.clearTicks = profile.weather.clearTicks.coerceAtLeast(12000)
+        profile.weather.rainTicks = 0
+        profile.weather.thunderTicks = 0
+
+        world.players.forEach { player ->
+            ModMessages.sendDimensionSync(player, id, profile)
+        }
+
+        source.sendFeedback({ Text.literal("Weather temporarily cleared for Age: $id") }, true)
+        return 1
+    }
+
+    private fun resumeAgeWeather(context: CommandContext<ServerCommandSource>): Int {
+        val source = context.source
+        val world = source.world
+        val id = world.registryKey.value
+
+        if (id.namespace != MystcraftReforged.MOD_ID) {
+            source.sendError(Text.literal("You must be in a Mystcraft Age to resume its weather!"))
+            return 0
+        }
+
+        val profile = AgeProfileManager.getOrGenerateProfile(world.server, id)
+        profile.weather.temporaryClearTicks = 0
+        AgeWeatherController.tick(world, profile)
+        world.players.forEach { player ->
+            ModMessages.sendDimensionSync(player, id, profile)
+        }
+
+        source.sendFeedback({ Text.literal("Temporary weather override cleared for Age: $id") }, true)
+        return 1
+    }
+
+    private fun normalizeTimeOfDay(time: Long): Long = ((time % 24000L) + 24000L) % 24000L
+
+    private fun syncAgeTime(world: ServerWorld, profile: AgeProfile) {
+        world.players.forEach { player ->
+            player.networkHandler.sendPacket(
+                WorldTimeUpdateS2CPacket(
+                    world.time,
+                    profile.time.visibleTimeOfDay,
+                    !profile.time.visibleTimeFrozen
+                )
+            )
+        }
     }
 
     private fun toggleAgeInstability(context: CommandContext<ServerCommandSource>): Int {

@@ -1,13 +1,14 @@
 {
   "type": "minecraft:crafting_shaped",
+  "category": "misc",
   "pattern": [
-    " G ",
-    "GBG",
-    " G "
+    " C ",
+    "CBC",
+    " C "
   ],
   "key": {
-    "G": {
-      "item": "minecraft:glass"
+    "C": {
+      "item": "mystcraft-reforged:crystal_block"
     },
     "B": {
       "item": "minecraft:book"

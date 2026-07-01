@@ -53,33 +53,29 @@ class FloatingCastleFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defaul
                 val placementData = net.minecraft.structure.StructurePlacementData()
                     .setMirror(castle.mirror)
                     .setRotation(castle.rotation)
-                    .setIgnoreEntities(false)
+                    .setIgnoreEntities(true)
 
                 val bounds = template.calculateBoundingBox(placementData, castle.origin)
                 if (!intersectsChunk(bounds, chunkPos)) continue
 
-                val list = template.getInfosForBlock(castle.origin, placementData, Blocks.AIR)
-                for (info in list) {
-                    if (isPosInCurrentChunk(info.pos, chunkPos)) {
-                        world.setBlockState(info.pos, info.state, 2 or 16)
-                        blocksPlacedInThisChunk++
-
-                        if (info.state.isOf(Blocks.CHEST) || info.state.isOf(Blocks.TRAPPED_CHEST)) {
-                            val blockEntity = world.getBlockEntity(info.pos)
-                            if (blockEntity is ChestBlockEntity && blockEntity.isEmpty) {
-                                val pageCount = 2 + random.nextInt(4)
-                                for (i in 0 until pageCount) {
-                                    blockEntity.setStack(random.nextInt(blockEntity.size()), ItemStack(ModItems.LOST_PAGE))
-                                }
-                            }
-                        }
-                    }
+                val chunkBounds = BlockBox(
+                    chunkPos.startX,
+                    world.bottomY,
+                    chunkPos.startZ,
+                    chunkPos.endX,
+                    world.topY - 1,
+                    chunkPos.endZ
+                )
+                val clippedPlacementData = placementData.copy().setBoundingBox(chunkBounds)
+                if (template.place(world, castle.origin, castle.origin, clippedPlacementData, random, 2 or 16)) {
+                    blocksPlacedInThisChunk++
+                    fillCastleChests(world, template, castle.origin, clippedPlacementData, chunkPos, random)
                 }
             }
         }
 
         if (blocksPlacedInThisChunk > 0) {
-            MystcraftReforged.LOGGER.info("Generated $blocksPlacedInThisChunk castle blocks for chunk $chunkPos")
+            MystcraftReforged.LOGGER.debug("Generated floating castle section for chunk $chunkPos")
             return true
         }
 
@@ -115,6 +111,28 @@ class FloatingCastleFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defaul
 
     private fun isPosInCurrentChunk(pos: BlockPos, chunkPos: ChunkPos): Boolean {
         return (pos.x shr 4 == chunkPos.x) && (pos.z shr 4 == chunkPos.z)
+    }
+
+    private fun fillCastleChests(
+        world: net.minecraft.world.StructureWorldAccess,
+        template: net.minecraft.structure.StructureTemplate,
+        origin: BlockPos,
+        placementData: net.minecraft.structure.StructurePlacementData,
+        chunkPos: ChunkPos,
+        random: net.minecraft.util.math.random.Random
+    ) {
+        val chests = template.getInfosForBlock(origin, placementData, Blocks.CHEST) +
+            template.getInfosForBlock(origin, placementData, Blocks.TRAPPED_CHEST)
+        for (info in chests) {
+            if (!isPosInCurrentChunk(info.pos, chunkPos)) continue
+            val blockEntity = world.getBlockEntity(info.pos)
+            if (blockEntity is ChestBlockEntity && blockEntity.isEmpty) {
+                val pageCount = 2 + random.nextInt(4)
+                repeat(pageCount) {
+                    blockEntity.setStack(random.nextInt(blockEntity.size()), ItemStack(ModItems.LOST_PAGE))
+                }
+            }
+        }
     }
 
     private fun intersectsChunk(bounds: BlockBox, chunkPos: ChunkPos): Boolean {

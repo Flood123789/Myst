@@ -9,6 +9,7 @@ data class CompiledAgeData(
     val biomes: MutableList<String> = mutableListOf(),
     var biomeController: String? = null, // <--- Added Biome Controller
     var timeMode: String? = null,
+    var fixedTimeOfDay: Long? = null,
     var timeScaleMultiplier: Float = 1.0f,
     var weatherMode: String? = null,
     
@@ -55,9 +56,8 @@ object AgeCompiler {
                     "red", "purple", "black", "green",
                     "biome_checkerboard", "biome_vanilla", "low_gravity",
                     HistoricAgeThemes.COLLAPSED_OBSERVATORY, HistoricAgeThemes.ANCIENT_AQUEDUCTS, HistoricAgeThemes.GATEWAY_RUINS,
-                    AmbientAgeThemes.PAGE_STORMS, AmbientAgeThemes.MEMORY_BLOOMS, AmbientAgeThemes.STABLE_SANCTUARIES,
-                    ChaosAgeThemes.SKY_RAINBOWS, ChaosAgeThemes.SKY_AURORAS, ChaosAgeThemes.SHOOTING_STARS,
-                    ChaosAgeThemes.COMETS, ChaosAgeThemes.SKY_RIFTS, ChaosAgeThemes.BRIGHT_SKY, ChaosAgeThemes.DARK_SKY,
+                    AmbientAgeThemes.PAGE_STORMS, AmbientAgeThemes.MEMORY_BLOOMS, AmbientAgeThemes.STABLE_SANCTUARIES
+                ) + ChaosAgeThemes.SKY + listOf(
                     ChaosAgeThemes.METEOR_SHOWERS, ChaosAgeThemes.SKY_SPHERES,
                     ChaosAgeThemes.PARTICLE_MOTES, ChaosAgeThemes.PARTICLE_ASH, ChaosAgeThemes.PARTICLE_SPORES, ChaosAgeThemes.PARTICLE_VOID
                 )
@@ -128,7 +128,11 @@ object AgeCompiler {
                 // === TIME MODES ===
                 clean.contains("time_fast") -> times.add("fast")
                 clean.contains("time_slow") -> times.add("slow")
-                clean.contains("time_fixed") || clean.contains("time_day") || clean.contains("time_night") -> times.add("fixed")
+                clean.contains("time_day") -> times.add("fixed:1000")
+                clean.contains("time_noon") -> times.add("fixed:6000")
+                clean.contains("time_night") -> times.add("fixed:13000")
+                clean.contains("time_midnight") -> times.add("fixed:18000")
+                clean.contains("time_fixed") -> times.add("fixed")
                 
                 // === WEATHER MODES ===
                 clean.contains("weather_rain") -> weathers.add("endless_rain")
@@ -200,11 +204,12 @@ object AgeCompiler {
         }
         
         // Time Conflict: Fast + Slow fighting? Chaos.
-        val fastCount = times.count { it == "fast" }
-        val slowCount = times.count { it == "slow" }
+        val timeModes = times.map { it.substringBefore(":") }
+        val fastCount = timeModes.count { it == "fast" }
+        val slowCount = timeModes.count { it == "slow" }
         
         if (times.isNotEmpty()) {
-            val distinctTimes = times.distinct()
+            val distinctTimes = timeModes.distinct()
             if (distinctTimes.size > 1) {
                 data.conflictInstability += (distinctTimes.size - 1) * 20
             }
@@ -212,7 +217,11 @@ object AgeCompiler {
                 data.conflictInstability += 50 // Massive shear!
             }
 
-            data.timeMode = times.last()
+            data.timeMode = timeModes.last()
+            data.fixedTimeOfDay = times.last()
+                .substringAfter(":", "")
+                .takeIf { it.isNotBlank() }
+                ?.toLongOrNull()
             when (data.timeMode) {
                 "fast" -> {
                     data.timeScaleMultiplier = fastCount.toFloat()

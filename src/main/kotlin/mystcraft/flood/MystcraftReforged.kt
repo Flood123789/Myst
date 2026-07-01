@@ -42,6 +42,7 @@ import mystcraft.flood.generation.AgeTravelSafety
 import mystcraft.flood.generation.AgeLifecycleManager
 import mystcraft.flood.generation.AgeSubdimensionManager
 import mystcraft.flood.generation.AgeWeatherController
+import mystcraft.flood.generation.LostCityAssetLibrary
 import mystcraft.flood.player.PlayerSpawnMemory
 
 object MystcraftReforged : ModInitializer {
@@ -72,6 +73,7 @@ object MystcraftReforged : ModInitializer {
         ModWorldgenCodecs.register()
         ModFeatures.register()
         DeferredTreePlacer.register()
+        LostCityAssetLibrary.validateAssetsForServer()
 
         // 3. Inject Features into Biomes
         BiomeModifications.addFeature(

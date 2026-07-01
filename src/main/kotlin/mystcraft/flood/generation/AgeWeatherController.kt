@@ -10,6 +10,15 @@ object AgeWeatherController {
         val beforeRaining = weather.currentRaining
         val beforeThundering = weather.currentThundering
 
+        if (weather.temporaryClearTicks > 0) {
+            weather.temporaryClearTicks--
+            weather.currentRaining = false
+            weather.currentThundering = false
+            weather.rainTicks = 0
+            weather.thunderTicks = 0
+            return beforeRaining || beforeThundering || weather.temporaryClearTicks == 0
+        }
+
         when {
             weather.noWeather -> {
                 weather.currentRaining = false

@@ -3,13 +3,17 @@ package mystcraft.flood.generation
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import mystcraft.flood.MystcraftReforged
+import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.block.BlockState
 import net.minecraft.block.Blocks
 import net.minecraft.registry.Registries
 import net.minecraft.util.BlockRotation
 import net.minecraft.util.Identifier
+import java.io.InputStream
 import java.io.InputStreamReader
 import java.nio.charset.StandardCharsets
+import java.nio.file.Files
 import kotlin.math.abs
 
 object LostCityAssetLibrary {
@@ -79,6 +83,40 @@ object LostCityAssetLibrary {
         "glass_side_variant_street"
     )
 
+    private val generatedMultiBuildingNames = listOf(
+        "center",
+        "library",
+        "shopping",
+        "shopping_open",
+        "townhall"
+    )
+
+    private val directGeneratedPartNames = listOf(
+        "street_all",
+        "street_t",
+        "street_straight",
+        "street_bend",
+        "street_end",
+        "street_none",
+        "park_trees",
+        "park_pool",
+        "park_plants",
+        "park_plants_pillars",
+        "park_fountain1",
+        "park_fountain2",
+        "fountain1",
+        "fountain2",
+        "fountain3",
+        "station_underground",
+        "station_underground_stairs",
+        "station_openroof",
+        "rails_3split",
+        "rails_vertical",
+        "rails_horizontal",
+        "highway_open",
+        "highway_open_bi"
+    )
+
     private const val PLACE_CELLARS = false
 
     private val parts = mutableMapOf<String, LostCityPart>()
@@ -86,6 +124,9 @@ object LostCityAssetLibrary {
     private val multiBuildings = mutableMapOf<String, LostCityMultiBuilding>()
     private val paletteFiles = mutableMapOf<String, Map<Char, PaletteEntry>>()
     private val blockStates = mutableMapOf<String, BlockState?>()
+    private val warnedAssetFailures = mutableSetOf<String>()
+    @Volatile
+    private var cityGenerationEnabled = true
 
     private data class LostCityPart(
         val name: String,
@@ -116,6 +157,14 @@ object LostCityAssetLibrary {
         val buildings: List<List<String>>
     )
 
+    private data class AssetValidationReport(
+        val errors: List<String>,
+        val buildingCount: Int,
+        val multiBuildingCount: Int,
+        val partCount: Int,
+        val paletteCount: Int
+    )
+
     private data class PaletteEntry(
         val block: String? = null,
         val variant: String? = null,
@@ -124,6 +173,137 @@ object LostCityAssetLibrary {
     )
 
     private data class WeightedBlock(val block: String, val weight: Int)
+
+    fun canGenerateCities(): Boolean = cityGenerationEnabled
+
+    fun validateAssetsForServer() {
+        val report = validateAssets()
+        cityGenerationEnabled = report.errors.isEmpty()
+        if (cityGenerationEnabled) {
+            MystcraftReforged.LOGGER.info(
+                "Validated Lost Cities assets: ${report.buildingCount} buildings, " +
+                    "${report.multiBuildingCount} multibuildings, ${report.partCount} parts, ${report.paletteCount} palettes."
+            )
+        } else {
+            MystcraftReforged.LOGGER.error(
+                "Lost Cities asset validation found ${report.errors.size} issue(s). " +
+                    "Mystcraft city generation is disabled for server stability."
+            )
+            report.errors.take(40).forEach { error ->
+                MystcraftReforged.LOGGER.error("Lost Cities asset issue: $error")
+            }
+            if (report.errors.size > 40) {
+                MystcraftReforged.LOGGER.error("...and ${report.errors.size - 40} more Lost Cities asset issue(s).")
+            }
+        }
+    }
+
+    private fun validateAssets(): AssetValidationReport {
+        val errors = mutableListOf<String>()
+        val requiredBuildings = linkedSetOf<String>()
+        val requiredMultiBuildings = linkedSetOf<String>()
+        val requiredParts = linkedSetOf<String>()
+        val requiredPalettes = linkedSetOf<String>()
+
+        requiredBuildings += buildingNames
+        requiredBuildings += (1..8).map { "building$it" }
+        requiredMultiBuildings += generatedMultiBuildingNames
+        requiredParts += directGeneratedPartNames
+        requiredPalettes += "default"
+        requiredPalettes += "default_desert"
+        requiredPalettes += "common"
+        requiredPalettes += brickPalettes
+        requiredPalettes += glassPalettes
+        requiredPalettes += sidePalettes
+
+        for (multiName in requiredMultiBuildings) {
+            val json = readJsonForValidation("$ROOT/multibuildings/$multiName.json", errors) ?: continue
+            val rows = json.get("buildings")
+            if (rows == null || !rows.isJsonArray) {
+                errors += "multibuildings/$multiName.json is missing a buildings array"
+                continue
+            }
+            for (rowElement in rows.asJsonArray) {
+                if (!rowElement.isJsonArray) {
+                    errors += "multibuildings/$multiName.json contains a non-array building row"
+                    continue
+                }
+                for (buildingElement in rowElement.asJsonArray) {
+                    val buildingName = runCatching { buildingElement.asString }.getOrNull()?.takeIf { it.isNotBlank() } ?: continue
+                    requiredBuildings += buildingName
+                }
+            }
+        }
+
+        for (buildingName in requiredBuildings.toList()) {
+            val json = readJsonForValidation("$ROOT/buildings/$buildingName.json", errors) ?: continue
+            collectBuildingParts(buildingName, json, "parts", requiredParts, errors)
+            collectBuildingParts(buildingName, json, "parts2", requiredParts, errors)
+        }
+
+        for (partName in requiredParts.toList()) {
+            val json = readJsonForValidation("$ROOT/parts/$partName.json", errors) ?: continue
+            val slices = json.get("slices")
+            if (slices == null || !slices.isJsonArray || slices.asJsonArray.size() == 0) {
+                errors += "parts/$partName.json is missing a non-empty slices array"
+            }
+            val refPalette = runCatching { json.get("refpalette")?.asString }.getOrNull()
+            if (!refPalette.isNullOrBlank()) {
+                requiredPalettes += refPalette
+            }
+        }
+
+        for (paletteName in requiredPalettes.toList()) {
+            val json = readJsonForValidation("$ROOT/palettes/$paletteName.json", errors) ?: continue
+            val palette = json.get("palette")
+            if (palette == null || !palette.isJsonArray) {
+                errors += "palettes/$paletteName.json is missing a palette array"
+            }
+        }
+
+        return AssetValidationReport(
+            errors = errors,
+            buildingCount = requiredBuildings.size,
+            multiBuildingCount = requiredMultiBuildings.size,
+            partCount = requiredParts.size,
+            paletteCount = requiredPalettes.size
+        )
+    }
+
+    private fun collectBuildingParts(
+        buildingName: String,
+        json: JsonObject,
+        memberName: String,
+        requiredParts: MutableSet<String>,
+        errors: MutableList<String>
+    ) {
+        val element = json.get(memberName) ?: return
+        if (!element.isJsonArray) {
+            errors += "buildings/$buildingName.json has a non-array $memberName member"
+            return
+        }
+        for (partElement in element.asJsonArray) {
+            if (!partElement.isJsonObject) {
+                errors += "buildings/$buildingName.json has a non-object $memberName entry"
+                continue
+            }
+            val partName = runCatching { partElement.asJsonObject.get("part")?.asString }.getOrNull()
+            if (partName.isNullOrBlank()) {
+                errors += "buildings/$buildingName.json has a $memberName entry without a part name"
+            } else {
+                requiredParts += partName
+            }
+        }
+    }
+
+    private fun readJsonForValidation(path: String, errors: MutableList<String>): JsonObject? {
+        return try {
+            readJson(path)
+        } catch (error: Exception) {
+            errors += "$path (${error.message})"
+            null
+        }
+    }
 
     private fun pickBuilding(seed: Long): LostCityBuilding {
         val name = buildingNames[floorMod(seed, buildingNames.size)]
@@ -237,79 +417,130 @@ object LostCityAssetLibrary {
     }
 
     private fun part(name: String): LostCityPart = parts.getOrPut(name) {
-        val json = readJson("$ROOT/parts/$name.json")
-        val slices = json.getAsJsonArray("slices").map { sliceElement ->
-            sliceElement.asJsonArray.map { it.asString }
+        try {
+            val json = readJson("$ROOT/parts/$name.json")
+            val slices = json.getAsJsonArray("slices").map { sliceElement ->
+                sliceElement.asJsonArray.map { it.asString }
+            }
+            LostCityPart(
+                name = name,
+                xSize = json.get("xsize")?.asInt ?: 16,
+                zSize = json.get("zsize")?.asInt ?: 16,
+                refPalette = json.get("refpalette")?.asString,
+                inlinePalette = json.getAsJsonObject("palette")?.let(::parsePaletteObject) ?: emptyMap(),
+                slices = slices
+            )
+        } catch (error: Exception) {
+            warnAssetLoadFailure("part", name, error)
+            emptyPart(name)
         }
+    }
+
+    private fun emptyPart(name: String): LostCityPart =
         LostCityPart(
             name = name,
-            xSize = json.get("xsize")?.asInt ?: 16,
-            zSize = json.get("zsize")?.asInt ?: 16,
-            refPalette = json.get("refpalette")?.asString,
-            inlinePalette = json.getAsJsonObject("palette")?.let(::parsePaletteObject) ?: emptyMap(),
-            slices = slices
+            xSize = 16,
+            zSize = 16,
+            refPalette = null,
+            inlinePalette = emptyMap(),
+            slices = emptyList()
         )
+
+    private fun warnAssetLoadFailure(type: String, name: String, error: Exception) {
+        if (warnedAssetFailures.add("$type:$name")) {
+            MystcraftReforged.LOGGER.warn("Skipping Lost Cities $type '$name' because it could not be loaded: ${error.message}")
+        }
     }
 
     private fun building(name: String): LostCityBuilding = buildings.getOrPut(name) {
-        val json = readJson("$ROOT/buildings/$name.json")
-        val floorParts = mutableListOf<String>()
-        val groundParts = mutableListOf<String>()
-        val topParts = mutableListOf<String>()
-        val cellarParts = mutableListOf<String>()
+        try {
+            val json = readJson("$ROOT/buildings/$name.json")
+            val floorParts = mutableListOf<String>()
+            val groundParts = mutableListOf<String>()
+            val topParts = mutableListOf<String>()
+            val cellarParts = mutableListOf<String>()
 
-        val partsArray = json.getAsJsonArray("parts") ?: JsonArray()
-        for (element in partsArray) {
-            val partObject = element.asJsonObject
-            val partName = partObject.get("part")?.asString ?: continue
-            when {
-                partObject.get("cellar")?.asBoolean == true -> cellarParts += partName
-                partObject.get("top")?.asBoolean == true -> topParts += partName
-                partObject.get("ground")?.asBoolean == true || partObject.get("floor")?.asInt == 0 -> groundParts += partName
-                else -> floorParts += partName
+            val partsArray = json.getAsJsonArray("parts") ?: JsonArray()
+            for (element in partsArray) {
+                val partObject = element.asJsonObject
+                val partName = partObject.get("part")?.asString ?: continue
+                when {
+                    partObject.get("cellar")?.asBoolean == true -> cellarParts += partName
+                    partObject.get("top")?.asBoolean == true -> topParts += partName
+                    partObject.get("ground")?.asBoolean == true || partObject.get("floor")?.asInt == 0 -> groundParts += partName
+                    else -> floorParts += partName
+                }
             }
-        }
 
-        val interiorParts = json.getAsJsonArray("parts2")
-        if (interiorParts != null) {
-            for (element in interiorParts) {
-                val partName = element.asJsonObject.get("part")?.asString ?: continue
-                floorParts += partName
+            val interiorParts = json.getAsJsonArray("parts2")
+            if (interiorParts != null) {
+                for (element in interiorParts) {
+                    val partName = element.asJsonObject.get("part")?.asString ?: continue
+                    floorParts += partName
+                }
             }
-        }
 
-        val inlinePalette = json.getAsJsonObject("palette")?.let(::parsePaletteObject) ?: emptyMap()
-        val defaultMax = when {
-            name.startsWith("town") -> 4
-            name.startsWith("shopping") -> 6
-            name.startsWith("center") || name.startsWith("library") -> 8
-            else -> 9
-        }
+            val inlinePalette = json.getAsJsonObject("palette")?.let(::parsePaletteObject) ?: emptyMap()
+            val defaultMax = when {
+                name.startsWith("town") -> 4
+                name.startsWith("shopping") -> 6
+                name.startsWith("center") || name.startsWith("library") -> 8
+                else -> 9
+            }
 
+            LostCityBuilding(
+                name = name,
+                floorParts = floorParts,
+                groundParts = groundParts,
+                topParts = topParts,
+                cellarParts = cellarParts,
+                minFloors = json.get("minfloors")?.asInt ?: 2,
+                maxFloors = json.get("maxfloors")?.asInt ?: defaultMax,
+                inlinePalette = inlinePalette
+            )
+        } catch (error: Exception) {
+            warnAssetLoadFailure("building", name, error)
+            emptyBuilding(name)
+        }
+    }
+
+    private fun emptyBuilding(name: String): LostCityBuilding =
         LostCityBuilding(
             name = name,
-            floorParts = floorParts,
-            groundParts = groundParts,
-            topParts = topParts,
-            cellarParts = cellarParts,
-            minFloors = json.get("minfloors")?.asInt ?: 2,
-            maxFloors = json.get("maxfloors")?.asInt ?: defaultMax,
-            inlinePalette = inlinePalette
+            floorParts = emptyList(),
+            groundParts = emptyList(),
+            topParts = emptyList(),
+            cellarParts = emptyList(),
+            minFloors = 0,
+            maxFloors = 0,
+            inlinePalette = emptyMap()
         )
-    }
 
     private fun multiBuilding(name: String): LostCityMultiBuilding = multiBuildings.getOrPut(name) {
-        val json = readJson("$ROOT/multibuildings/$name.json")
-        val rows = json.getAsJsonArray("buildings")?.map { row ->
-            row.asJsonArray.map { it.asString }
-        } ?: emptyList()
+        try {
+            val json = readJson("$ROOT/multibuildings/$name.json")
+            val rows = json.getAsJsonArray("buildings")?.map { row ->
+                row.asJsonArray.map { it.asString }
+            } ?: emptyList()
+            LostCityMultiBuilding(
+                name = name,
+                dimX = json.get("dimx")?.asInt ?: rows.size,
+                dimZ = json.get("dimz")?.asInt ?: rows.firstOrNull()?.size ?: 0,
+                buildings = rows
+            )
+        } catch (error: Exception) {
+            warnAssetLoadFailure("multibuilding", name, error)
+            emptyMultiBuilding(name)
+        }
+    }
+
+    private fun emptyMultiBuilding(name: String): LostCityMultiBuilding =
         LostCityMultiBuilding(
             name = name,
-            dimX = json.get("dimx")?.asInt ?: rows.size,
-            dimZ = json.get("dimz")?.asInt ?: rows.firstOrNull()?.size ?: 0,
-            buildings = rows
+            dimX = 0,
+            dimZ = 0,
+            buildings = emptyList()
         )
-    }
 
     private fun paletteFor(
         refPalette: String?,
@@ -337,8 +568,13 @@ object LostCityAssetLibrary {
     }
 
     private fun paletteFile(name: String): Map<Char, PaletteEntry> = paletteFiles.getOrPut(name) {
-        val json = readJson("$ROOT/palettes/$name.json")
-        parsePaletteObject(json)
+        try {
+            val json = readJson("$ROOT/palettes/$name.json")
+            parsePaletteObject(json)
+        } catch (error: Exception) {
+            warnAssetLoadFailure("palette", name, error)
+            emptyMap()
+        }
     }
 
     private fun parsePaletteObject(json: JsonObject): Map<Char, PaletteEntry> {
@@ -497,11 +733,22 @@ object LostCityAssetLibrary {
     }
 
     private fun readJson(path: String): JsonObject {
-        val stream = LostCityAssetLibrary::class.java.classLoader.getResourceAsStream(path)
+        val stream = openAssetStream(path)
             ?: error("Missing Lost Cities asset: $path")
         return InputStreamReader(stream, StandardCharsets.UTF_8).use { reader ->
             JsonParser.parseReader(reader).asJsonObject
         }
+    }
+
+    private fun openAssetStream(path: String): InputStream? {
+        val normalizedPath = path.trimStart('/')
+        val modPath = FabricLoader.getInstance()
+            .getModContainer(MystcraftReforged.MOD_ID)
+            .flatMap { container -> container.findPath(normalizedPath) }
+        if (modPath.isPresent) {
+            return Files.newInputStream(modPath.get())
+        }
+        return LostCityAssetLibrary::class.java.classLoader.getResourceAsStream(normalizedPath)
     }
 
     private fun <T> List<T>.pick(seed: Long): T? {

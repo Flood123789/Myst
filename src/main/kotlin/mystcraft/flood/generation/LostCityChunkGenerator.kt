@@ -152,6 +152,9 @@ class LostCityChunkGenerator(
         noiseConfig: NoiseConfig
     ): Int {
         val delegateHeight = delegate.getHeight(x, z, heightmap, world, noiseConfig)
+        if (!LostCityAssetLibrary.canGenerateCities()) {
+            return delegateHeight
+        }
         val plan = cityPlan(Math.floorDiv(x, 16), Math.floorDiv(z, 16))
         if (!plan.inCity && !plan.highwayEW && !plan.highwayNS) {
             return delegateHeight
@@ -195,6 +198,8 @@ class LostCityChunkGenerator(
     }
 
     private fun generateCityChunk(chunk: Chunk) {
+        if (!LostCityAssetLibrary.canGenerateCities()) return
+
         val chunkX = chunk.pos.x
         val chunkZ = chunk.pos.z
         val plan = cityPlan(chunkX, chunkZ)

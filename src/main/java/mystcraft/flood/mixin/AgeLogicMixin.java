@@ -29,10 +29,10 @@ public class AgeLogicMixin {
         ServerWorld world = (ServerWorld) (Object) this;
         if (world.getRegistryKey().getValue().getNamespace().equals("mystcraft-reforged")) {
             AgeProfile profile = AgeProfileManager.INSTANCE.getOrGenerateProfile(world.getServer(), world.getRegistryKey().getValue());
+            long requestedTimeOfDay = timeOfDay % 24000L;
             
             if (profile.getTime().getFixedTime() == null) {
                 // Extract what time of day vanilla WANTS it to be
-                long requestedTimeOfDay = timeOfDay % 24000L;
                 long currentAgeTime = profile.getTime().getLiveTimeOfDay();
                 long currentDayStart = currentAgeTime - (currentAgeTime % 24000L);
                 
@@ -46,11 +46,18 @@ public class AgeLogicMixin {
 
                 // Update our custom profile
                 profile.getTime().setLiveTimeOfDay(newTime);
+                profile.getTime().setTemporaryTimeOverride(null);
+            } else {
+                profile.getTime().setTemporaryTimeOverride(requestedTimeOfDay);
+            }
                 
-                // Force a network sync so the client sky instantly jumps to morning
-                for (ServerPlayerEntity player : world.getPlayers()) {
-                    player.networkHandler.sendPacket(new WorldTimeUpdateS2CPacket(world.getTime(), newTime, true));
-                }
+            // Force a network sync so the client sky instantly jumps.
+            for (ServerPlayerEntity player : world.getPlayers()) {
+                player.networkHandler.sendPacket(new WorldTimeUpdateS2CPacket(
+                    world.getTime(),
+                    profile.getTime().getVisibleTimeOfDay(),
+                    !profile.getTime().getVisibleTimeFrozen()
+                ));
             }
             
             // Cancel the event so vanilla doesn't overwrite our frozen LevelProperties
