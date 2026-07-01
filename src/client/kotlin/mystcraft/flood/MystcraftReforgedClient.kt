@@ -17,10 +17,12 @@ import mystcraft.flood.client.render.AgePlantTintHelper
 import mystcraft.flood.client.render.BookStandBlockEntityRenderer
 import mystcraft.flood.client.render.BookReceptacleBlockEntityRenderer
 import mystcraft.flood.client.render.ClientRenderCompatibility
+import mystcraft.flood.client.render.CustomSkyPainter
 import mystcraft.flood.client.render.DescriptiveBookEntityRenderer
 import mystcraft.flood.client.render.ModEntityModelLayers
 import mystcraft.flood.client.render.MystcraftDimensionEffects
 import mystcraft.flood.client.render.PageIconItemRenderer
+import mystcraft.flood.compat.DistantHorizonsCompat
 import mystcraft.flood.entity.ModEntities
 import mystcraft.flood.gui.ModScreens
 import mystcraft.flood.item.NotebookItem
@@ -32,14 +34,17 @@ import net.fabricmc.fabric.api.client.rendering.v1.BuiltinItemRendererRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.ColorProviderRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.DimensionRenderingRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents
 import net.minecraft.client.gui.screen.ingame.HandledScreens
 import net.minecraft.client.item.ModelPredicateProviderRegistry
 import net.minecraft.client.render.RenderLayer
 import net.minecraft.client.render.block.entity.BlockEntityRendererFactories
 import net.minecraft.client.render.block.entity.EndPortalBlockEntityRenderer
+import net.minecraft.client.util.math.MatrixStack
 import net.minecraft.block.Blocks
 import net.minecraft.util.Identifier
 import mystcraft.flood.item.ModItems
+import org.joml.Matrix4f
 
 class MystcraftReforgedClient : ClientModInitializer {
     
@@ -49,6 +54,22 @@ class MystcraftReforgedClient : ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register { client ->
             AgeTravelSoundSuppressor.INSTANCE.tick(client)
             AgeAmbientParticlePainter.tick(client)
+            DistantHorizonsCompat.tick()
+        }
+
+        WorldRenderEvents.LAST.register { context ->
+            if (!ClientRenderCompatibility.canUseShaderFallbackSkyOverlay()) return@register
+            val world = context.world() ?: return@register
+            if (world.registryKey.value.namespace != MystcraftReforged.MOD_ID) return@register
+
+            val viewMatrix = Matrix4f(context.matrixStack().peek().positionMatrix)
+            viewMatrix.m30(0.0f)
+            viewMatrix.m31(0.0f)
+            viewMatrix.m32(0.0f)
+
+            val matrices = MatrixStack()
+            matrices.peek().positionMatrix.set(viewMatrix)
+            CustomSkyPainter.paintShaderFallbackSky(matrices, context.projectionMatrix(), context.tickDelta())
         }
         
         HandledScreens.register(ModScreens.BOOK_BINDER_HANDLER, ::BookBinderScreen)
@@ -66,6 +87,7 @@ class MystcraftReforgedClient : ClientModInitializer {
         
         ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
             ClientAgeCache.clear()
+            DistantHorizonsCompat.clear()
             MystcraftReforged.LOGGER.info("Cleared Age Cache on disconnect.")
         }
         

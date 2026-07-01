@@ -10,12 +10,14 @@ import net.minecraft.world.gen.GenerationStep
 import mystcraft.flood.generation.profile.AgeProfileManager
 import mystcraft.flood.generation.profile.TerrainType
 import mystcraft.flood.generation.BiosphereFeature
+import mystcraft.flood.compat.DistantHorizonsCompat
 import mystcraft.flood.item.ModItemGroups
 import mystcraft.flood.item.ModItems
 import mystcraft.flood.network.ModMessages
 import mystcraft.flood.registry.ModSymbols
 import mystcraft.flood.server.command.AgeCommand
 import net.fabricmc.api.ModInitializer
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents
@@ -204,6 +206,14 @@ object MystcraftReforged : ModInitializer {
         )
 
         // 4. Server Events (Time, Syncing, Unloading)
+        ServerTickEvents.END_SERVER_TICK.register {
+            DistantHorizonsCompat.tick()
+        }
+
+        ServerLifecycleEvents.SERVER_STOPPED.register {
+            DistantHorizonsCompat.clear()
+        }
+
         ServerTickEvents.END_WORLD_TICK.register { world ->
             val id = world.registryKey.value
             if (id.namespace == MOD_ID) {

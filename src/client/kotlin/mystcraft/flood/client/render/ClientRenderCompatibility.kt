@@ -23,7 +23,10 @@ object ClientRenderCompatibility {
     fun canUseRenderSystemWeatherTint(): Boolean = !shaderRendererLoaded
 
     @JvmStatic
-    fun canUseCustomSkyOverlay(): Boolean = true
+    fun canUseCustomSkyOverlay(): Boolean = !shaderRendererLoaded
+
+    @JvmStatic
+    fun canUseShaderFallbackSkyOverlay(): Boolean = shaderRendererLoaded
 
     @JvmStatic
     fun canUseCustomCloudHeight(): Boolean = !shaderRendererLoaded && !distantHorizonsLoaded

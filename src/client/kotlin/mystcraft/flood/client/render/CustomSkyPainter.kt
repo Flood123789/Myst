@@ -78,7 +78,13 @@ object CustomSkyPainter {
         VertexBuffer.unbind()
     }
 
-    fun paintSkyTint(matrices: MatrixStack, projectionMatrix: Matrix4f) {
+    @JvmOverloads
+    fun paintSkyTint(
+        matrices: MatrixStack,
+        projectionMatrix: Matrix4f,
+        alpha: Float = 0.72f,
+        depthTestSky: Boolean = false
+    ) {
         val client = MinecraftClient.getInstance()
         val world = client.world ?: return
         val ageId = world.registryKey.value
@@ -89,39 +95,55 @@ object CustomSkyPainter {
         val red = ((sky shr 16) and 0xFF) / 255.0f
         val green = ((sky shr 8) and 0xFF) / 255.0f
         val blue = (sky and 0xFF) / 255.0f
-        val alpha = 0.72f
+        val tintAlpha = alpha.coerceIn(0.0f, 1.0f)
 
         RenderSystem.enableBlend()
         RenderSystem.defaultBlendFunc()
         RenderSystem.disableCull()
-        RenderSystem.disableDepthTest()
+        if (depthTestSky) {
+            RenderSystem.enableDepthTest()
+        } else {
+            RenderSystem.disableDepthTest()
+        }
         RenderSystem.depthMask(false)
         RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f)
         RenderSystem.setShader(GameRenderer::getPositionColorProgram)
+        try {
+            val tessellator = Tessellator.getInstance()
+            val buffer = tessellator.buffer
+            val matrix = matrices.peek().positionMatrix
+            val size = 100.0f
+            val bottom = -100.0f
+            val top = 100.0f
 
-        val tessellator = Tessellator.getInstance()
-        val buffer = tessellator.buffer
-        val matrix = matrices.peek().positionMatrix
-        val size = 100.0f
-        val bottom = -100.0f
-        val top = 100.0f
-
-        buffer.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR)
-        tintQuad(buffer, matrix, -size, top, -size, size, top, -size, size, top, size, -size, top, size, red, green, blue, alpha)
-        tintQuad(buffer, matrix, -size, bottom, -size, -size, top, -size, -size, top, size, -size, bottom, size, red, green, blue, alpha)
-        tintQuad(buffer, matrix, size, bottom, size, size, top, size, size, top, -size, size, bottom, -size, red, green, blue, alpha)
-        tintQuad(buffer, matrix, -size, bottom, size, -size, top, size, size, top, size, size, bottom, size, red, green, blue, alpha)
-        tintQuad(buffer, matrix, size, bottom, -size, size, top, -size, -size, top, -size, -size, bottom, -size, red, green, blue, alpha)
-        tessellator.draw()
-
-        RenderSystem.depthMask(true)
-        RenderSystem.enableDepthTest()
-        RenderSystem.enableCull()
-        RenderSystem.disableBlend()
-        RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f)
+            buffer.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR)
+            tintQuad(buffer, matrix, -size, top, -size, size, top, -size, size, top, size, -size, top, size, red, green, blue, tintAlpha)
+            tintQuad(buffer, matrix, -size, bottom, -size, -size, top, -size, -size, top, size, -size, bottom, size, red, green, blue, tintAlpha)
+            tintQuad(buffer, matrix, size, bottom, size, size, top, size, size, top, -size, size, bottom, -size, red, green, blue, tintAlpha)
+            tintQuad(buffer, matrix, -size, bottom, size, -size, top, size, size, top, size, size, bottom, size, red, green, blue, tintAlpha)
+            tintQuad(buffer, matrix, size, bottom, -size, size, top, -size, -size, top, -size, -size, bottom, -size, red, green, blue, tintAlpha)
+            tessellator.draw()
+        } finally {
+            RenderSystem.depthMask(true)
+            RenderSystem.enableDepthTest()
+            RenderSystem.enableCull()
+            RenderSystem.disableBlend()
+            RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f)
+        }
     }
 
-    fun paintExtraSky(matrices: MatrixStack, projectionMatrix: Matrix4f, tickDelta: Float) {
+    fun paintShaderFallbackSky(matrices: MatrixStack, projectionMatrix: Matrix4f, tickDelta: Float) {
+        paintSkyTint(matrices, projectionMatrix, 0.18f, depthTestSky = true)
+        paintExtraSky(matrices, projectionMatrix, tickDelta, depthTestSky = true)
+    }
+
+    @JvmOverloads
+    fun paintExtraSky(
+        matrices: MatrixStack,
+        projectionMatrix: Matrix4f,
+        tickDelta: Float,
+        depthTestSky: Boolean = false
+    ) {
         val client = MinecraftClient.getInstance()
         val world = client.world ?: return
         val ageId = world.registryKey.value
@@ -130,8 +152,13 @@ object CustomSkyPainter {
         val rand = Random(profile.seed)
 
         RenderSystem.enableBlend()
+        RenderSystem.disableCull()
         RenderSystem.depthMask(false)
-        RenderSystem.disableDepthTest()
+        if (depthTestSky) {
+            RenderSystem.enableDepthTest()
+        } else {
+            RenderSystem.disableDepthTest()
+        }
         try {
             // KILL THE BOXES: Use Additive Blending for everything!
             // This makes black pixels in sun/moon textures transparent.
@@ -197,16 +224,12 @@ object CustomSkyPainter {
             }
 
             RenderSystem.defaultBlendFunc()
-            RenderSystem.disableCull()
-            try {
-                val effectTicks = (Util.getMeasuringTimeMs().toDouble() / 50.0).toFloat()
-                drawChaosSky(matrices, buffer, tessellator, profile.modifiers, profile.seed, effectTicks)
-            } finally {
-                RenderSystem.enableCull()
-            }
+            val effectTicks = (Util.getMeasuringTimeMs().toDouble() / 50.0).toFloat()
+            drawChaosSky(matrices, buffer, tessellator, profile.modifiers, profile.seed, effectTicks)
         } finally {
             RenderSystem.depthMask(true)
             RenderSystem.enableDepthTest()
+            RenderSystem.enableCull()
             RenderSystem.defaultBlendFunc()
             RenderSystem.disableBlend()
             RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f)
