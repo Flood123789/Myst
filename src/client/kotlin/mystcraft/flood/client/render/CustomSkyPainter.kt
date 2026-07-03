@@ -13,6 +13,7 @@ import net.minecraft.util.Identifier
 import net.minecraft.util.math.RotationAxis
 import net.minecraft.util.math.random.Random as MCRandom
 import org.joml.Matrix4f
+import javax.imageio.ImageIO
 import kotlin.random.Random
 
 object CustomSkyPainter {
@@ -22,6 +23,7 @@ object CustomSkyPainter {
     private val RIFT_TEXTURE = Identifier("mystcraft-reforged", "textures/environment/rift.png")
     private val STREAK_TEXTURE = Identifier("mystcraft-reforged", "textures/environment/streak.png")
     private var starBuffer: VertexBuffer? = null
+    private var sunTiles: List<SunTile>? = null
 
     private data class SkyBasis(
         val centerX: Float,
@@ -33,6 +35,17 @@ object CustomSkyPainter {
         val upX: Float,
         val upY: Float,
         val upZ: Float
+    )
+
+    private data class SunTile(
+        val x0: Float,
+        val z0: Float,
+        val x1: Float,
+        val z1: Float,
+        val red: Float,
+        val green: Float,
+        val blue: Float,
+        val alpha: Float
     )
 
     private fun initStars() {
@@ -112,16 +125,9 @@ object CustomSkyPainter {
             val tessellator = Tessellator.getInstance()
             val buffer = tessellator.buffer
             val matrix = matrices.peek().positionMatrix
-            val size = 100.0f
-            val bottom = -100.0f
-            val top = 100.0f
 
             buffer.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR)
-            tintQuad(buffer, matrix, -size, top, -size, size, top, -size, size, top, size, -size, top, size, red, green, blue, tintAlpha)
-            tintQuad(buffer, matrix, -size, bottom, -size, -size, top, -size, -size, top, size, -size, bottom, size, red, green, blue, tintAlpha)
-            tintQuad(buffer, matrix, size, bottom, size, size, top, size, size, top, -size, size, bottom, -size, red, green, blue, tintAlpha)
-            tintQuad(buffer, matrix, -size, bottom, size, -size, top, size, size, top, size, size, bottom, size, red, green, blue, tintAlpha)
-            tintQuad(buffer, matrix, size, bottom, -size, size, top, -size, -size, top, -size, -size, bottom, -size, red, green, blue, tintAlpha)
+            drawTintDome(buffer, matrix, 98.0f, red, green, blue, tintAlpha)
             tessellator.draw()
         } finally {
             RenderSystem.depthMask(true)
@@ -160,14 +166,8 @@ object CustomSkyPainter {
             RenderSystem.disableDepthTest()
         }
         try {
-            // KILL THE BOXES: Use Additive Blending for everything!
-            // This makes black pixels in sun/moon textures transparent.
-            RenderSystem.blendFuncSeparate(
-                GlStateManager.SrcFactor.SRC_ALPHA, GlStateManager.DstFactor.ONE, 
-                GlStateManager.SrcFactor.ONE, GlStateManager.DstFactor.ZERO
-            )
-
             // 1. STARS
+            RenderSystem.defaultBlendFunc()
             val skyAngle = world.getSkyAngle(tickDelta)
             var brightness = 1.0f - (kotlin.math.cos(skyAngle * (kotlin.math.PI.toFloat() * 2.0f)) * 2.0f + 0.25f)
             brightness = brightness.coerceIn(0.0f, 1.0f)
@@ -191,6 +191,7 @@ object CustomSkyPainter {
             }
 
             // 2. CELESTIAL BODIES (Suns then Moons)
+            RenderSystem.blendFunc(GlStateManager.SrcFactor.SRC_ALPHA, GlStateManager.DstFactor.ONE)
             RenderSystem.setShader(GameRenderer::getPositionTexColorProgram)
             RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f)
 
@@ -1847,30 +1848,41 @@ object CustomSkyPainter {
         buffer.vertex(matrix, x, y, z).color(red, green, blue, alpha).next()
     }
 
-    private fun tintQuad(
+    private fun drawTintDome(
         buffer: BufferBuilder,
         matrix: Matrix4f,
-        x1: Float,
-        y1: Float,
-        z1: Float,
-        x2: Float,
-        y2: Float,
-        z2: Float,
-        x3: Float,
-        y3: Float,
-        z3: Float,
-        x4: Float,
-        y4: Float,
-        z4: Float,
+        radius: Float,
         red: Float,
         green: Float,
         blue: Float,
         alpha: Float
     ) {
-        buffer.vertex(matrix, x1, y1, z1).color(red, green, blue, alpha).next()
-        buffer.vertex(matrix, x2, y2, z2).color(red, green, blue, alpha).next()
-        buffer.vertex(matrix, x3, y3, z3).color(red, green, blue, alpha).next()
-        buffer.vertex(matrix, x4, y4, z4).color(red, green, blue, alpha).next()
+        fun point(yawDegrees: Float, altitudeDegrees: Float, vertexAlpha: Float) {
+            val yaw = Math.toRadians(yawDegrees.toDouble())
+            val altitude = Math.toRadians(altitudeDegrees.toDouble())
+            val cosAlt = kotlin.math.cos(altitude).toFloat()
+            val x = kotlin.math.sin(yaw).toFloat() * cosAlt * radius
+            val y = kotlin.math.sin(altitude).toFloat() * radius
+            val z = -kotlin.math.cos(yaw).toFloat() * cosAlt * radius
+            buffer.vertex(matrix, x, y, z).color(red, green, blue, vertexAlpha.coerceIn(0f, 1f)).next()
+        }
+
+        val altitudeStops = floatArrayOf(-18f, -8f, 4f, 18f, 34f, 52f, 70f, 86f)
+        val yawSegments = 96
+        for (band in 0 until altitudeStops.lastIndex) {
+            val a0 = altitudeStops[band]
+            val a1 = altitudeStops[band + 1]
+            val alpha0 = alpha * (0.22f + band * 0.075f).coerceAtMost(0.78f)
+            val alpha1 = alpha * (0.22f + (band + 1) * 0.075f).coerceAtMost(0.78f)
+            for (segment in 0 until yawSegments) {
+                val yaw0 = segment / yawSegments.toFloat() * 360f
+                val yaw1 = (segment + 1) / yawSegments.toFloat() * 360f
+                point(yaw0, a0, alpha0)
+                point(yaw1, a0, alpha0)
+                point(yaw1, a1, alpha1)
+                point(yaw0, a1, alpha1)
+            }
+        }
     }
 
     private fun drawCelestialBody(
@@ -1883,16 +1895,27 @@ object CustomSkyPainter {
         matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(orbitOffsetPitch))
         matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(timeAngle * 360.0f))
 
-        RenderSystem.setShaderTexture(0, texture)
         val matrix = matrices.peek().positionMatrix
         val scale = 30.0f * size
 
+        if (texture == SUN_TEXTURE) {
+            drawMaskedMinecraftSun(buffer, tessellator, matrix, scale, r, g, b, a)
+            matrices.pop()
+            return
+        }
+
+        RenderSystem.setShaderTexture(0, texture)
         var u0 = 0.0f; var u1 = 1.0f; var v0 = 0.0f; var v1 = 1.0f
         if (isMoon) {
-            val phase = (timeAngle * 8.0f).toInt() % 8
-            val col = phase % 4; val row = phase / 4
-            u0 = col / 4.0f; u1 = (col + 1) / 4.0f
-            v0 = row / 2.0f; v1 = (row + 1) / 2.0f
+            val phase = (((timeAngle * 8.0f).toInt() % 8) + 8) % 8
+            val col = phase % 4
+            val row = phase / 4
+            val uInset = 0.002f
+            val vInset = 0.004f
+            u0 = col / 4.0f + uInset
+            u1 = (col + 1) / 4.0f - uInset
+            v0 = row / 2.0f + vInset
+            v1 = (row + 1) / 2.0f - vInset
         }
 
         buffer.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE_COLOR)
@@ -1903,5 +1926,86 @@ object CustomSkyPainter {
         buffer.vertex(matrix, -scale, 100.0f, scale).texture(u0, v1).color(r, g, b, a).next()
         tessellator.draw()
         matrices.pop()
+    }
+
+    private fun drawMaskedMinecraftSun(
+        buffer: BufferBuilder,
+        tessellator: Tessellator,
+        matrix: Matrix4f,
+        scale: Float,
+        tintRed: Float,
+        tintGreen: Float,
+        tintBlue: Float,
+        alpha: Float
+    ) {
+        RenderSystem.setShader(GameRenderer::getPositionColorProgram)
+        val tiles = getSunTiles()
+        buffer.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR)
+        for (tile in tiles) {
+            val x0 = tile.x0 * scale
+            val x1 = tile.x1 * scale
+            val z0 = tile.z0 * scale
+            val z1 = tile.z1 * scale
+            val red = (tile.red * tintRed).coerceIn(0f, 1f)
+            val green = (tile.green * tintGreen).coerceIn(0f, 1f)
+            val blue = (tile.blue * tintBlue).coerceIn(0f, 1f)
+            val tileAlpha = (tile.alpha * alpha).coerceIn(0f, 1f)
+            buffer.vertex(matrix, x0, 100.0f, z0).color(red, green, blue, tileAlpha).next()
+            buffer.vertex(matrix, x1, 100.0f, z0).color(red, green, blue, tileAlpha).next()
+            buffer.vertex(matrix, x1, 100.0f, z1).color(red, green, blue, tileAlpha).next()
+            buffer.vertex(matrix, x0, 100.0f, z1).color(red, green, blue, tileAlpha).next()
+        }
+        tessellator.draw()
+    }
+
+    private fun getSunTiles(): List<SunTile> {
+        sunTiles?.let { return it }
+
+        val loaded = runCatching {
+            val resource = MinecraftClient.getInstance().resourceManager.getResource(SUN_TEXTURE).orElse(null)
+                ?: return@runCatching fallbackSunTiles()
+            resource.inputStream.use { stream ->
+                val image = ImageIO.read(stream) ?: return@use fallbackSunTiles()
+                val tiles = mutableListOf<SunTile>()
+                val width = image.width.coerceAtLeast(1)
+                val height = image.height.coerceAtLeast(1)
+                for (y in 0 until height) {
+                    for (x in 0 until width) {
+                        val argb = image.getRGB(x, y)
+                        val sourceAlpha = ((argb ushr 24) and 0xFF) / 255.0f
+                        val red = ((argb ushr 16) and 0xFF) / 255.0f
+                        val green = ((argb ushr 8) and 0xFF) / 255.0f
+                        val blue = (argb and 0xFF) / 255.0f
+                        val brightness = maxOf(red, green, blue)
+                        if (sourceAlpha < 0.05f || brightness < 0.16f) continue
+
+                        val x0 = -1.0f + (x / width.toFloat()) * 2.0f
+                        val x1 = -1.0f + ((x + 1) / width.toFloat()) * 2.0f
+                        val z0 = -1.0f + (y / height.toFloat()) * 2.0f
+                        val z1 = -1.0f + ((y + 1) / height.toFloat()) * 2.0f
+                        val tileAlpha = ((brightness - 0.12f) / 0.88f).coerceIn(0.14f, 1.0f) * sourceAlpha
+                        tiles.add(SunTile(x0, z0, x1, z1, red, green, blue, tileAlpha))
+                    }
+                }
+                if (tiles.isEmpty()) fallbackSunTiles() else tiles
+            }
+        }.getOrElse { fallbackSunTiles() }
+
+        sunTiles = loaded
+        return loaded
+    }
+
+    private fun fallbackSunTiles(): List<SunTile> {
+        val tiles = mutableListOf<SunTile>()
+        for (y in 10 until 22) {
+            for (x in 10 until 22) {
+                val x0 = -1.0f + (x / 32.0f) * 2.0f
+                val x1 = -1.0f + ((x + 1) / 32.0f) * 2.0f
+                val z0 = -1.0f + (y / 32.0f) * 2.0f
+                val z1 = -1.0f + ((y + 1) / 32.0f) * 2.0f
+                tiles.add(SunTile(x0, z0, x1, z1, 1.0f, 0.84f, 0.28f, 1.0f))
+            }
+        }
+        return tiles
     }
 }

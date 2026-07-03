@@ -42,7 +42,7 @@ public class WorldRendererMixin {
 
     @Inject(method = "renderClouds", at = @At("HEAD"))
     private void mystcraft$tintAgeClouds(MatrixStack matrices, Matrix4f projectionMatrix, float tickDelta, double x, double y, double z, CallbackInfo ci) {
-        if (!ClientRenderCompatibility.canUseRenderSystemWeatherTint()) return;
+        if (!ClientRenderCompatibility.canUseRenderSystemCloudTint()) return;
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.world == null) return;
         if (!client.world.getRegistryKey().getValue().getNamespace().equals("mystcraft-reforged")) return;

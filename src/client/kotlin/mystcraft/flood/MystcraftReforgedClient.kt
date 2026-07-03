@@ -57,19 +57,22 @@ class MystcraftReforgedClient : ClientModInitializer {
             DistantHorizonsCompat.tick()
         }
 
-        WorldRenderEvents.LAST.register { context ->
+        WorldRenderEvents.AFTER_SETUP.register { context ->
             if (!ClientRenderCompatibility.canUseShaderFallbackSkyOverlay()) return@register
             val world = context.world() ?: return@register
             if (world.registryKey.value.namespace != MystcraftReforged.MOD_ID) return@register
 
-            val viewMatrix = Matrix4f(context.matrixStack().peek().positionMatrix)
-            viewMatrix.m30(0.0f)
-            viewMatrix.m31(0.0f)
-            viewMatrix.m32(0.0f)
+            val skyView = Matrix4f(context.matrixStack().peek().positionMatrix)
+            skyView.m30(0.0f)
+            skyView.m31(0.0f)
+            skyView.m32(0.0f)
 
-            val matrices = MatrixStack()
-            matrices.peek().positionMatrix.set(viewMatrix)
-            CustomSkyPainter.paintShaderFallbackSky(matrices, context.projectionMatrix(), context.tickDelta())
+            val skyMatrices = MatrixStack()
+            skyMatrices.peek().positionMatrix.set(skyView)
+            // Shaderpacks often replace the vanilla sky pass. Draw the fallback before terrain
+            // and DH LOD chunks so they can occlude sky anomalies like normal distant scenery.
+            skyMatrices.scale(3.0f, 3.0f, 3.0f)
+            CustomSkyPainter.paintShaderFallbackSky(skyMatrices, context.projectionMatrix(), context.tickDelta())
         }
         
         HandledScreens.register(ModScreens.BOOK_BINDER_HANDLER, ::BookBinderScreen)

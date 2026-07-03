@@ -15,6 +15,7 @@ public class SpawnHelperMixin {
     
     // Safety lock to prevent infinite recursive loops when we multiply spawns
     private static boolean mystcraft$isMultiplying = false;
+    private static final int MAX_EXTRA_SPAWN_PASSES = 1;
 
     @Inject(method = "spawn(Lnet/minecraft/server/world/ServerWorld;Lnet/minecraft/world/chunk/WorldChunk;Lnet/minecraft/world/SpawnHelper$Info;ZZZ)V", 
             at = @At("HEAD"), cancellable = true)
@@ -31,26 +32,29 @@ public class SpawnHelperMixin {
                 return;
             }
 
-            // 2. The Horde! (Spawn Multipliers)
-            int extraHostiles = (int) profile.getSpawning().getHostileMultiplier() - 1;
-            int extraPassives = (int) profile.getSpawning().getPassiveMultiplier() - 1;
+            // 2. The Horde! Keep this to a small bonus pass so one page cannot
+            // multiply the entire vanilla spawn sweep several times per chunk.
+            int extraHostiles = Math.min(Math.max((int) Math.ceil(profile.getSpawning().getHostileMultiplier()) - 1, 0), MAX_EXTRA_SPAWN_PASSES);
+            int extraPassives = Math.min(Math.max((int) Math.ceil(profile.getSpawning().getPassiveMultiplier()) - 1, 0), MAX_EXTRA_SPAWN_PASSES);
 
             if (extraHostiles > 0 || extraPassives > 0) {
                 mystcraft$isMultiplying = true; // Lock the recursive loop
-                
-                int maxPasses = Math.max(extraHostiles, extraPassives);
-                
-                // Vanilla is about to do 1 pass. We force it to do extra passes!
-                for (int i = 0; i < maxPasses; i++) {
-                    boolean doHostile = i < extraHostiles && spawnMonsters;
-                    boolean doPassive = i < extraPassives && spawnAnimals;
-                    
-                    if (doHostile || doPassive) {
-                        SpawnHelper.spawn(world, chunk, info, doPassive, doHostile, rareSpawn);
+
+                try {
+                    int maxPasses = Math.max(extraHostiles, extraPassives);
+
+                    // Vanilla is about to do 1 pass. We force it to do a bounded bonus pass.
+                    for (int i = 0; i < maxPasses; i++) {
+                        boolean doHostile = i < extraHostiles && spawnMonsters;
+                        boolean doPassive = i < extraPassives && spawnAnimals;
+
+                        if (doHostile || doPassive) {
+                            SpawnHelper.spawn(world, chunk, info, doPassive, doHostile, rareSpawn);
+                        }
                     }
+                } finally {
+                    mystcraft$isMultiplying = false; // Unlock for the next tick
                 }
-                
-                mystcraft$isMultiplying = false; // Unlock for the next tick
             }
         }
     }
