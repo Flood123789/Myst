@@ -9,6 +9,7 @@ import mystcraft.flood.generation.AgeCurseManager
 import mystcraft.flood.generation.AgeLifecycleManager
 import mystcraft.flood.generation.AgeSubdimensionManager
 import mystcraft.flood.generation.AgeWeatherController
+import mystcraft.flood.generation.ImmersivePortalsCompat
 import mystcraft.flood.generation.profile.AgeProfile
 import mystcraft.flood.generation.profile.AgeProfileManager
 import mystcraft.flood.network.ModMessages
@@ -336,14 +337,18 @@ object AgeCommand {
     private fun normalizeTimeOfDay(time: Long): Long = ((time % 24000L) + 24000L) % 24000L
 
     private fun syncAgeTime(world: ServerWorld, profile: AgeProfile) {
+        world.server.playerManager.playerList.forEach { player ->
+            ModMessages.sendDimensionTimeSync(player, world.registryKey.value, profile)
+        }
         world.players.forEach { player ->
-            player.networkHandler.sendPacket(
-                WorldTimeUpdateS2CPacket(
-                    world.time,
-                    profile.time.visibleTimeOfDay,
-                    !profile.time.visibleTimeFrozen
-                )
+            val packet = WorldTimeUpdateS2CPacket(
+                world.time,
+                profile.time.visibleTimeOfDay,
+                !profile.time.visibleTimeFrozen
             )
+            if (!ImmersivePortalsCompat.trySendWorldPacket(player, world, packet)) {
+                player.networkHandler.sendPacket(packet)
+            }
         }
     }
 

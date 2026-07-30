@@ -8,6 +8,7 @@ import net.minecraft.client.MinecraftClient
 import net.minecraft.client.gl.VertexBuffer
 import net.minecraft.client.render.*
 import net.minecraft.client.util.math.MatrixStack
+import net.minecraft.client.world.ClientWorld
 import net.minecraft.util.Util
 import net.minecraft.util.Identifier
 import net.minecraft.util.math.RotationAxis
@@ -93,13 +94,12 @@ object CustomSkyPainter {
 
     @JvmOverloads
     fun paintSkyTint(
+        world: ClientWorld,
         matrices: MatrixStack,
         projectionMatrix: Matrix4f,
         alpha: Float = 0.72f,
         depthTestSky: Boolean = false
     ) {
-        val client = MinecraftClient.getInstance()
-        val world = client.world ?: return
         val ageId = world.registryKey.value
         if (ageId.namespace != "mystcraft-reforged") return
 
@@ -138,20 +138,19 @@ object CustomSkyPainter {
         }
     }
 
-    fun paintShaderFallbackSky(matrices: MatrixStack, projectionMatrix: Matrix4f, tickDelta: Float) {
-        paintSkyTint(matrices, projectionMatrix, 0.18f, depthTestSky = true)
-        paintExtraSky(matrices, projectionMatrix, tickDelta, depthTestSky = true)
+    fun paintShaderFallbackSky(world: ClientWorld, matrices: MatrixStack, projectionMatrix: Matrix4f, tickDelta: Float) {
+        paintSkyTint(world, matrices, projectionMatrix, 0.18f, depthTestSky = true)
+        paintExtraSky(world, matrices, projectionMatrix, tickDelta, depthTestSky = false)
     }
 
     @JvmOverloads
     fun paintExtraSky(
+        world: ClientWorld,
         matrices: MatrixStack,
         projectionMatrix: Matrix4f,
         tickDelta: Float,
         depthTestSky: Boolean = false
     ) {
-        val client = MinecraftClient.getInstance()
-        val world = client.world ?: return
         val ageId = world.registryKey.value
         if (ageId.namespace != "mystcraft-reforged") return
         val profile = ClientAgeCache.getProperties(ageId) ?: return
@@ -263,37 +262,43 @@ object CustomSkyPainter {
             }
         }
         if (modifiers.contains(ChaosAgeThemes.SKY_RIFTS)) {
-            repeat(3) { index ->
-                val yaw = ((seed ushr ((index * 11) % 48)).toInt() and 359).toFloat() + index * 83f
-                val altitude = 32f + (((seed ushr ((index * 7 + 5) % 48)).toInt() and 31).toFloat())
-                val roll = -34f + (((seed ushr ((index * 5 + 9) % 48)).toInt() and 68).toFloat())
-                drawFallenSkyRift(
-                    matrices,
-                    buffer,
-                    tessellator,
-                    yaw,
-                    altitude,
-                    roll,
-                    34f + index * 8f,
-                    17f + index * 4f,
-                    seed + index * 7919L,
-                    effectTicks
-                )
-            }
-            repeat(2) { index ->
-                drawTexturedSkySprite(
-                    matrices,
-                    buffer,
-                    tessellator,
-                    RIFT_TEXTURE,
-                    45f + index * 130f + (seed % 37).toFloat(),
-                    48f,
-                    -18f + index * 8f,
-                    24f,
-                    11f,
-                    0xB287FF,
-                    0.48f
-                )
+            RenderSystem.disableDepthTest()
+            RenderSystem.depthMask(false)
+            try {
+                repeat(3) { index ->
+                    val yaw = ((seed ushr ((index * 11) % 48)).toInt() and 359).toFloat() + index * 83f
+                    val altitude = 32f + (((seed ushr ((index * 7 + 5) % 48)).toInt() and 31).toFloat())
+                    val roll = -34f + (((seed ushr ((index * 5 + 9) % 48)).toInt() and 68).toFloat())
+                    drawFallenSkyRift(
+                        matrices,
+                        buffer,
+                        tessellator,
+                        yaw,
+                        altitude,
+                        roll,
+                        34f + index * 8f,
+                        17f + index * 4f,
+                        seed + index * 7919L,
+                        effectTicks
+                    )
+                }
+                repeat(2) { index ->
+                    drawTexturedSkySprite(
+                        matrices,
+                        buffer,
+                        tessellator,
+                        RIFT_TEXTURE,
+                        45f + index * 130f + (seed % 37).toFloat(),
+                        48f,
+                        -18f + index * 8f,
+                        24f,
+                        11f,
+                        0xB287FF,
+                        0.48f
+                    )
+                }
+            } finally {
+                RenderSystem.enableDepthTest()
             }
         }
         if (modifiers.contains(ChaosAgeThemes.SHOOTING_STARS)) {

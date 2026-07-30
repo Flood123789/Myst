@@ -10,6 +10,8 @@ import net.minecraft.block.entity.BlockEntity
 import net.minecraft.entity.ItemEntity
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.item.ItemPlacementContext
+import net.minecraft.item.Items
+import net.minecraft.text.Text
 import net.minecraft.state.StateManager
 import net.minecraft.state.property.Properties
 import net.minecraft.util.ActionResult
@@ -85,6 +87,31 @@ class BookReceptacleBlock(settings: Settings) : BlockWithEntity(settings) {
         val stackInHand = player.getStackInHand(hand)
 
         if (be.hasBook()) {
+            if (stackInHand.isOf(Items.SHEARS)) {
+                val visible = be.togglePortalSurfaceVisibility()
+                if (visible == null) {
+                    player.sendMessage(Text.literal("No Immersive Portal surface to clear"), true)
+                } else {
+                    if (!player.isCreative) {
+                        stackInHand.damage(1, player) { it.sendToolBreakStatus(hand) }
+                    }
+                    player.sendMessage(
+                        Text.literal(if (visible) "Portal surface restored" else "Portal surface cleared"),
+                        true
+                    )
+                }
+                return ActionResult.SUCCESS
+            }
+
+            if (stackInHand.isOf(ModBlocks.CRYSTAL_BLOCK.asItem())) {
+                val quarterTurns = be.rotateDestinationClockwise()
+                player.sendMessage(
+                    Text.literal("Portal destination facing: ${quarterTurns * 90}\u00b0 clockwise"),
+                    true
+                )
+                return ActionResult.SUCCESS
+            }
+
             val extractedBook = be.removeBook() 
             
             // Pop the book outward using full 3D facing velocity!

@@ -75,4 +75,9 @@ public class InGameOverlayRendererMixin {
     private static void mystcraft$afterFireOverlay(MinecraftClient client, MatrixStack matrices, CallbackInfo ci) {
         RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
     }
+
+    @Inject(method = "renderFireOverlay", at = @At("TAIL"))
+    private static void mystcraft$afterFireOverlayTail(MinecraftClient client, MatrixStack matrices, CallbackInfo ci) {
+        RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+    }
 }

@@ -5,6 +5,7 @@ import mystcraft.flood.block.entity.CrystalPortalBlockEntity
 import mystcraft.flood.generation.AgeTravelEffects
 import mystcraft.flood.generation.AgeTravelSafety
 import mystcraft.flood.generation.BiosphereFeature
+import mystcraft.flood.generation.ImmersivePortalsCompat
 import mystcraft.flood.generation.profile.AgeProfileManager
 import mystcraft.flood.generation.profile.TerrainType
 import net.fabricmc.fabric.api.dimension.v1.FabricDimensions
@@ -17,11 +18,14 @@ import net.minecraft.block.entity.BlockEntity
 import net.minecraft.entity.Entity
 import net.minecraft.entity.LivingEntity
 import net.minecraft.server.network.ServerPlayerEntity
+import net.minecraft.server.world.ServerWorld
 import net.minecraft.state.StateManager
+import net.minecraft.state.property.BooleanProperty
 import net.minecraft.state.property.Properties
 import net.minecraft.util.Identifier
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.Direction
+import net.minecraft.util.math.MathHelper
 import net.minecraft.util.math.Vec3d
 import net.minecraft.registry.RegistryKey
 import net.minecraft.registry.RegistryKeys
@@ -35,11 +39,13 @@ import net.minecraft.util.shape.VoxelShapes
 class CrystalPortalBlock(settings: Settings) : BlockWithEntity(settings) {
 
     init {
-        defaultState = stateManager.defaultState.with(Properties.AXIS, Direction.Axis.Z)
+        defaultState = stateManager.defaultState
+            .with(Properties.AXIS, Direction.Axis.Z)
+            .with(SURFACE_VISIBLE, true)
     }
 
     override fun appendProperties(builder: StateManager.Builder<Block, BlockState>) {
-        builder.add(Properties.AXIS)
+        builder.add(Properties.AXIS, SURFACE_VISIBLE)
     }
 
     override fun createBlockEntity(pos: BlockPos, state: BlockState): BlockEntity {
@@ -48,7 +54,7 @@ class CrystalPortalBlock(settings: Settings) : BlockWithEntity(settings) {
 
     @Deprecated("Deprecated in Java")
     override fun getRenderType(state: BlockState): BlockRenderType {
-        return BlockRenderType.MODEL
+        return if (state.get(SURFACE_VISIBLE)) BlockRenderType.MODEL else BlockRenderType.INVISIBLE
     }
 
     // === NEW: Makes the hitbox a thin slice based on the Axis! ===
@@ -102,10 +108,24 @@ class CrystalPortalBlock(settings: Settings) : BlockWithEntity(settings) {
 
     @Deprecated("Deprecated in Java")
     override fun onEntityCollision(state: BlockState, world: World, pos: BlockPos, entity: Entity) {
+        val className = entity.javaClass.name
+        if (className.contains("imm_ptl") || className.contains("Portal") || entity.type.toString().contains("portal")) {
+            return
+        }
         if (!world.isClient && !entity.hasVehicle() && !entity.hasPassengers()) {
+            val be = world.getBlockEntity(pos) as? CrystalPortalBlockEntity ?: return
+            if (ImmersivePortalsCompat.isAvailable &&
+                (be.immersivePortalActive || ImmersivePortalsCompat.hasPortalAt(world as ServerWorld, pos))
+            ) {
+                if (!be.immersivePortalActive) {
+                    // Migrate portals created before the compatibility marker existed.
+                    be.immersivePortalActive = true
+                    be.markDirty()
+                }
+                return
+            }
             if (entity.portalCooldown > 0) return
 
-            val be = world.getBlockEntity(pos) as? CrystalPortalBlockEntity ?: return
             if (be.destinationAge.isEmpty()) return
 
             val targetKey = RegistryKey.of(RegistryKeys.WORLD, Identifier(be.destinationAge))
@@ -145,9 +165,19 @@ class CrystalPortalBlock(settings: Settings) : BlockWithEntity(settings) {
                 }
 
                 AgeTravelEffects.playDeparture(world as net.minecraft.server.world.ServerWorld, entity.pos)
+                val destinationYaw = be.targetYaw?.let {
+                    MathHelper.wrapDegrees(it + be.destinationRotationQuarterTurns * 90.0f)
+                }
+                val exitYaw = destinationYaw ?: MathHelper.wrapDegrees(
+                    entity.yaw + be.destinationRotationQuarterTurns * 90.0f
+                )
+                val yawDelta = MathHelper.wrapDegrees(exitYaw - entity.yaw)
+                val rotatedVelocity = entity.velocity.rotateY(-Math.toRadians(yawDelta.toDouble()).toFloat())
                 val result = FabricDimensions.teleport(entity, targetWorld, TeleportTarget(
                     destVec, 
-                    entity.velocity, entity.yaw, entity.pitch
+                    rotatedVelocity,
+                    exitYaw,
+                    entity.pitch
                 ))
                 if (result != null) {
                     AgeTravelEffects.playArrival(targetWorld, destVec)
@@ -163,5 +193,9 @@ class CrystalPortalBlock(settings: Settings) : BlockWithEntity(settings) {
         }
 
         return (surfaceY + 24).coerceIn(96, 160)
+    }
+
+    companion object {
+        val SURFACE_VISIBLE: BooleanProperty = BooleanProperty.of("surface_visible")
     }
 }

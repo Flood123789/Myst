@@ -60,6 +60,16 @@ object AgePortalRouting {
         val teleportTarget = resolveNetherTeleportTarget(entity, serverWorld, targetWorld, pos, state, preferredPos, sourceAxis, targetRole == AgeDimensionRole.NETHER)
             ?: return false
 
+        ImmersivePortalsCompat.trySpawnAgeNetherPortal(
+            serverWorld,
+            Vec3d(pos.x + 0.5, pos.y + 1.0, pos.z + 0.5),
+            targetWorld,
+            teleportTarget.position,
+            sourceAxis,
+            2.0,
+            3.0
+        )
+
         return performPortalTeleport(entity, serverWorld, targetWorld, teleportTarget)
     }
 
@@ -100,6 +110,12 @@ object AgePortalRouting {
                 TeleportTarget(AgeTravelSafety.sanitizeArrival(targetWorld, preferredPos), entity.velocity, entity.yaw, entity.pitch)
             }
         }
+        ImmersivePortalsCompat.trySpawnAgeEndPortal(
+            serverWorld,
+            entity.pos,
+            targetWorld,
+            teleportTarget.position
+        )
         return performPortalTeleport(entity, serverWorld, targetWorld, teleportTarget)
     }
 

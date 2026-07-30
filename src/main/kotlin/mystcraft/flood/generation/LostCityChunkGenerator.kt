@@ -2,12 +2,10 @@ package mystcraft.flood.generation
 
 import com.mojang.serialization.Codec
 import com.mojang.serialization.codecs.RecordCodecBuilder
+import mystcraft.flood.MystcraftReforged
 import net.minecraft.block.BlockState
 import net.minecraft.block.Blocks
 import net.minecraft.block.LadderBlock
-import net.minecraft.block.PoweredRailBlock
-import net.minecraft.block.enums.RailShape
-import net.minecraft.state.property.Properties
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.Direction
 import net.minecraft.world.ChunkRegion
@@ -24,37 +22,32 @@ import net.minecraft.world.gen.chunk.VerticalBlockSample
 import net.minecraft.world.gen.noise.NoiseConfig
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
-import kotlin.math.abs
-import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
 
 class LostCityChunkGenerator(
     private val delegate: ChunkGenerator,
-    private val cityBiomeSource: BiomeSource
+    private val cityBiomeSource: BiomeSource,
+    private val seed: Long = 0L
 ) : ChunkGenerator(cityBiomeSource) {
 
     companion object {
-        private const val CITY_CELL_CHUNKS = 64
-        private const val CITY_MIN_RADIUS_CHUNKS = 18
-        private const val CITY_RADIUS_VARIANCE_CHUNKS = 12
-        private const val CITY_CENTER_JITTER_CHUNKS = 18
-        private const val CITY_GROUND_Y = 72
-        private const val CITY_EDGE_FEATHER_CHUNKS = 5
-        private const val ROAD_GRID_CHUNKS = 4
-        private const val AVENUE_GRID_CHUNKS = 8
-        private const val RAIL_GRID_CHUNKS = 20
+        private const val CITY_GROUND_Y = LostCityLayout.CITY_GROUND_Y
+        private const val ROAD_GRID_CHUNKS = LostCityLayout.ROAD_GRID_CHUNKS
+        private const val AVENUE_GRID_CHUNKS = LostCityLayout.AVENUE_GRID_CHUNKS
         private const val RAIL_Y = 28
         private const val HIGHWAY_Y = 86
-        private const val CLEAR_TOP_Y = 190
 
         val CODEC: Codec<LostCityChunkGenerator> = RecordCodecBuilder.create { instance ->
             instance.group(
                 ChunkGenerator.CODEC.fieldOf("delegate").forGetter(LostCityChunkGenerator::delegate),
-                BiomeSource.CODEC.fieldOf("biome_source").forGetter(LostCityChunkGenerator::cityBiomeSource)
+                BiomeSource.CODEC.fieldOf("biome_source").forGetter(LostCityChunkGenerator::cityBiomeSource),
+                Codec.LONG.optionalFieldOf("seed", 0L).forGetter(LostCityChunkGenerator::seed)
             ).apply(instance, ::LostCityChunkGenerator)
         }
     }
+
+    private val layout = LostCityLayout(seed)
 
     private enum class CityChunkKind {
         OUTSIDE,
@@ -68,21 +61,10 @@ class LostCityChunkGenerator(
         PARK
     }
 
-    private data class CityAnchor(
-        val cellX: Int,
-        val cellZ: Int,
-        val centerChunkX: Int,
-        val centerChunkZ: Int,
-        val radiusChunks: Int,
-        val groundY: Int,
-        val active: Boolean,
-        val style: Int
-    )
-
     private data class CityPlan(
         val chunkX: Int,
         val chunkZ: Int,
-        val anchor: CityAnchor,
+        val anchor: LostCityLayout.Anchor,
         val localChunkX: Int,
         val localChunkZ: Int,
         val cityFactor: Double,
@@ -112,6 +94,18 @@ class LostCityChunkGenerator(
         carverStep: GenerationStep.Carver
     ) {
         delegate.carve(region, seed, noiseConfig, biomeAccess, structureAccessor, chunk, carverStep)
+        if (carverStep == GenerationStep.Carver.AIR) {
+            try {
+                generateCityChunk(chunk)
+            } catch (error: Exception) {
+                MystcraftReforged.LOGGER.error(
+                    "Skipping failed Lost City chunk {},{} so world generation can continue",
+                    chunk.pos.x,
+                    chunk.pos.z,
+                    error
+                )
+            }
+        }
     }
 
     override fun buildSurface(
@@ -121,7 +115,6 @@ class LostCityChunkGenerator(
         chunk: Chunk
     ) {
         delegate.buildSurface(region, structures, noiseConfig, chunk)
-        generateCityChunk(chunk)
     }
 
     override fun populateEntities(region: ChunkRegion) {
@@ -230,27 +223,17 @@ class LostCityChunkGenerator(
     }
 
     private fun cityPlan(chunkX: Int, chunkZ: Int): CityPlan {
-        val anchor = nearestAnchor(chunkX, chunkZ)
-        val localChunkX = chunkX - anchor.centerChunkX
-        val localChunkZ = chunkZ - anchor.centerChunkZ
-        val distance = hypot(localChunkX.toDouble(), localChunkZ.toDouble())
-        val cityFactor = ((anchor.radiusChunks - distance) / CITY_EDGE_FEATHER_CHUNKS.toDouble()).coerceIn(0.0, 1.0)
-        val inCity = cityFactor > 0.0
-
-        val railX = Math.floorMod(localChunkX + 1, RAIL_GRID_CHUNKS)
-        val railZ = Math.floorMod(localChunkZ + 1, RAIL_GRID_CHUNKS)
-        val railArea = distance <= anchor.radiusChunks + 12
-        val subwayNS = railArea && (railX == 0 || railX == RAIL_GRID_CHUNKS / 2)
-        val subwayEW = railArea && (railZ == 0 || railZ == RAIL_GRID_CHUNKS / 2)
-        val station = inCity && cityFactor > 0.15 && (
-            railX == 0 && railZ == RAIL_GRID_CHUNKS / 2 ||
-                railX == RAIL_GRID_CHUNKS / 2 && railZ == 0 ||
-                railX == RAIL_GRID_CHUNKS / 2 && railZ == RAIL_GRID_CHUNKS / 2
-            )
-
-        val corridorKind = highwayKind(chunkX, chunkZ, anchor, distance)
-        val highwayEW = corridorKind == CityChunkKind.HIGHWAY_EW
-        val highwayNS = corridorKind == CityChunkKind.HIGHWAY_NS
+        val chunkLayout = layout.plan(chunkX, chunkZ)
+        val anchor = chunkLayout.anchor
+        val localChunkX = chunkLayout.localChunkX
+        val localChunkZ = chunkLayout.localChunkZ
+        val cityFactor = chunkLayout.cityFactor
+        val inCity = chunkLayout.inCity
+        val subwayNS = chunkLayout.subway.northSouth
+        val subwayEW = chunkLayout.subway.eastWest
+        val station = chunkLayout.station
+        val highwayEW = chunkLayout.highway.eastWest
+        val highwayNS = chunkLayout.highway.northSouth
 
         val roadNS = inCity && (Math.floorMod(localChunkX, ROAD_GRID_CHUNKS) == 0 || station)
         val roadEW = inCity && (Math.floorMod(localChunkZ, ROAD_GRID_CHUNKS) == 0 || station)
@@ -289,84 +272,6 @@ class LostCityChunkGenerator(
         )
     }
 
-    private fun nearestAnchor(chunkX: Int, chunkZ: Int): CityAnchor {
-        val cellX = Math.floorDiv(chunkX, CITY_CELL_CHUNKS)
-        val cellZ = Math.floorDiv(chunkZ, CITY_CELL_CHUNKS)
-        var best = cityAnchor(cellX, cellZ)
-        var bestDist = Double.MAX_VALUE
-        for (x in (cellX - 2)..(cellX + 2)) {
-            for (z in (cellZ - 2)..(cellZ + 2)) {
-                val anchor = cityAnchor(x, z)
-                if (!anchor.active) continue
-                val dist = hypot((chunkX - anchor.centerChunkX).toDouble(), (chunkZ - anchor.centerChunkZ).toDouble())
-                if (dist < bestDist) {
-                    best = anchor
-                    bestDist = dist
-                }
-            }
-        }
-        return best
-    }
-
-    private fun cityAnchor(cellX: Int, cellZ: Int): CityAnchor {
-        val jitterX = rangedHash(cellX, cellZ, 31L, -CITY_CENTER_JITTER_CHUNKS, CITY_CENTER_JITTER_CHUNKS)
-        val jitterZ = rangedHash(cellX, cellZ, 37L, -CITY_CENTER_JITTER_CHUNKS, CITY_CENTER_JITTER_CHUNKS)
-        val radius = CITY_MIN_RADIUS_CHUNKS + rangedHash(cellX, cellZ, 41L, 0, CITY_RADIUS_VARIANCE_CHUNKS)
-        return CityAnchor(
-            cellX = cellX,
-            cellZ = cellZ,
-            centerChunkX = cellX * CITY_CELL_CHUNKS + CITY_CELL_CHUNKS / 2 + jitterX,
-            centerChunkZ = cellZ * CITY_CELL_CHUNKS + CITY_CELL_CHUNKS / 2 + jitterZ,
-            radiusChunks = radius,
-            groundY = CITY_GROUND_Y + rangedHash(cellX, cellZ, 47L, -1, 2) * 4,
-            active = positiveHash(cellX, cellZ, 53L) % 100 < 82,
-            style = rangedHash(cellX, cellZ, 43L, 0, 3)
-        )
-    }
-
-    private fun highwayKind(chunkX: Int, chunkZ: Int, anchor: CityAnchor, distanceToAnchor: Double): CityChunkKind? {
-        if (distanceToAnchor <= anchor.radiusChunks + 3) return null
-        val neighbors = listOf(
-            cityAnchor(anchor.cellX - 1, anchor.cellZ),
-            cityAnchor(anchor.cellX + 1, anchor.cellZ),
-            cityAnchor(anchor.cellX, anchor.cellZ - 1),
-            cityAnchor(anchor.cellX, anchor.cellZ + 1)
-        )
-        for (neighbor in neighbors) {
-            if (!neighbor.active) continue
-            if (nearSegment(chunkX, chunkZ, anchor, neighbor)) {
-                return if (abs(neighbor.centerChunkX - anchor.centerChunkX) >= abs(neighbor.centerChunkZ - anchor.centerChunkZ)) {
-                    CityChunkKind.HIGHWAY_EW
-                } else {
-                    CityChunkKind.HIGHWAY_NS
-                }
-            }
-        }
-        return null
-    }
-
-    private fun nearSegment(
-        chunkX: Int,
-        chunkZ: Int,
-        first: CityAnchor,
-        second: CityAnchor
-    ): Boolean {
-        val x1 = first.centerChunkX
-        val z1 = first.centerChunkZ
-        val x2 = second.centerChunkX
-        val z2 = second.centerChunkZ
-        val dx = x2 - x1
-        val dz = z2 - z1
-        val len2 = dx * dx + dz * dz
-        if (len2 <= 0) return false
-        val t = (((chunkX - x1) * dx + (chunkZ - z1) * dz).toDouble() / len2.toDouble()).coerceIn(0.0, 1.0)
-        val along = t * kotlin.math.sqrt(len2.toDouble())
-        if (along < first.radiusChunks + 5 || along > kotlin.math.sqrt(len2.toDouble()) - second.radiusChunks - 5) return false
-        val cx = x1 + dx * t
-        val cz = z1 + dz * t
-        return hypot(chunkX - cx, chunkZ - cz) <= 1.25
-    }
-
     private fun flattenCityChunk(chunk: Chunk, plan: CityPlan) {
         val baseX = chunk.pos.startX
         val baseZ = chunk.pos.startZ
@@ -376,25 +281,62 @@ class LostCityChunkGenerator(
             else -> Blocks.SMOOTH_STONE.defaultState
         }
 
+        val topY = minimumY + worldHeight - 1
+        val mutablePos = BlockPos.Mutable()
+        val airState = Blocks.AIR.defaultState
+        val stoneState = Blocks.STONE.defaultState
+
         for (x in 0..15) {
             for (z in 0..15) {
                 val wx = baseX + x
                 val wz = baseZ + z
-                val surfaceY = chunk.sampleHeightmap(Heightmap.Type.WORLD_SURFACE_WG, x, z)
-                val clearTopY = max(surfaceY + 6, clearanceTop(plan))
-                for (y in (plan.groundY + 1)..clearTopY) {
-                    val pos = BlockPos(wx, y, wz)
-                    if (!chunk.getBlockState(pos).isAir) {
-                        chunk.setBlockState(pos, Blocks.AIR.defaultState, false)
+                val surfaceY = min(topY, max(plan.groundY + 2, chunk.sampleHeightmap(Heightmap.Type.WORLD_SURFACE_WG, x, z) + 4))
+                for (y in (plan.groundY + 1)..surfaceY) {
+                    mutablePos.set(wx, y, wz)
+                    if (!chunk.getBlockState(mutablePos).isAir) {
+                        chunk.setBlockState(mutablePos, airState, false)
                     }
                 }
-                for (y in (plan.groundY - 8) until plan.groundY) {
-                    val existing = chunk.getBlockState(BlockPos(wx, y, wz))
+                for (y in (RAIL_Y - 1) until plan.groundY) {
+                    mutablePos.set(wx, y, wz)
+                    val existing = chunk.getBlockState(mutablePos)
                     if (existing.isAir || existing.block == Blocks.WATER || existing.block == Blocks.LAVA) {
-                        set(chunk, wx, y, wz, Blocks.STONE.defaultState)
+                        chunk.setBlockState(mutablePos, stoneState, false)
                     }
                 }
                 set(chunk, wx, plan.groundY, wz, floor)
+            }
+        }
+
+        generateBorderRetainingWalls(chunk, plan)
+    }
+
+    private fun generateBorderRetainingWalls(chunk: Chunk, plan: CityPlan) {
+        val baseX = chunk.pos.startX
+        val baseZ = chunk.pos.startZ
+        val wallState = Blocks.STONE_BRICKS.defaultState
+
+        val northBorder = !cityPlan(plan.chunkX, plan.chunkZ - 1).inCity
+        val southBorder = !cityPlan(plan.chunkX, plan.chunkZ + 1).inCity
+        val westBorder = !cityPlan(plan.chunkX - 1, plan.chunkZ).inCity
+        val eastBorder = !cityPlan(plan.chunkX + 1, plan.chunkZ).inCity
+
+        if (!northBorder && !southBorder && !westBorder && !eastBorder) return
+
+        for (x in 0..15) {
+            if (northBorder) {
+                set(chunk, baseX + x, plan.groundY + 1, baseZ, wallState)
+            }
+            if (southBorder) {
+                set(chunk, baseX + x, plan.groundY + 1, baseZ + 15, wallState)
+            }
+        }
+        for (z in 0..15) {
+            if (westBorder) {
+                set(chunk, baseX, plan.groundY + 1, baseZ + z, wallState)
+            }
+            if (eastBorder) {
+                set(chunk, baseX + 15, plan.groundY + 1, baseZ + z, wallState)
             }
         }
     }
@@ -574,7 +516,7 @@ class LostCityChunkGenerator(
     private fun generateSubway(chunk: Chunk, plan: CityPlan) {
         val baseX = chunk.pos.startX
         val baseZ = chunk.pos.startZ
-        val railPart = railPart(plan) ?: return
+        val (railPart, rotation) = railPart(plan) ?: return
         LostCityAssetLibrary.placePart(
             partName = railPart,
             baseX = baseX,
@@ -583,6 +525,7 @@ class LostCityChunkGenerator(
             seed = mixedHash(plan.chunkX, plan.chunkZ, 173L),
             style = plan.anchor.style,
             setBlock = { x, y, z, state -> set(chunk, x, y, z, state) },
+            rotation = rotation,
             voidAsAir = true
         )
     }
@@ -648,44 +591,15 @@ class LostCityChunkGenerator(
         lamp(chunk, baseX + 11, RAIL_Y + 4, baseZ + 11)
     }
 
-    private fun railPart(plan: CityPlan): String? {
+    private fun railPart(plan: CityPlan): Pair<String, Int>? {
         if (plan.kind == CityChunkKind.STATION) {
-            return "station_underground"
+            return "station_underground" to 0
         }
-        val mx = Math.floorMod(plan.localChunkX + 1, RAIL_GRID_CHUNKS)
-        val mz = Math.floorMod(plan.localChunkZ + 1, RAIL_GRID_CHUNKS)
         return when {
-            (mx == 0 || mx == RAIL_GRID_CHUNKS / 2) && (mz == 0 || mz == RAIL_GRID_CHUNKS / 2) -> "rails_3split"
-            plan.subwayEW -> "rails_horizontal"
-            plan.subwayNS -> "rails_vertical"
+            plan.subwayEW && plan.subwayNS -> "rails_3split" to 0
+            plan.subwayEW -> "rails_horizontal" to 0
+            plan.subwayNS -> "rails_vertical" to 0
             else -> null
-        }
-    }
-
-    private fun tunnelCell(chunk: Chunk, x: Int, z: Int, wall: Boolean) {
-        for (y in (RAIL_Y - 1)..(RAIL_Y + 4)) {
-            val state = when {
-                y == RAIL_Y - 1 || y == RAIL_Y + 4 || wall -> Blocks.STONE_BRICKS.defaultState
-                else -> Blocks.AIR.defaultState
-            }
-            set(chunk, x, y, z, state)
-        }
-    }
-
-    private fun rail(chunk: Chunk, x: Int, y: Int, z: Int, shape: RailShape, powered: Boolean) {
-        if (powered) {
-            set(
-                chunk,
-                x,
-                y,
-                z,
-                Blocks.POWERED_RAIL.defaultState
-                    .with(PoweredRailBlock.POWERED, true)
-                    .with(Properties.STRAIGHT_RAIL_SHAPE, shape)
-            )
-            set(chunk, x, y - 1, z, Blocks.REDSTONE_BLOCK.defaultState)
-        } else {
-            set(chunk, x, y, z, Blocks.RAIL.defaultState.with(Properties.RAIL_SHAPE, shape))
         }
     }
 
@@ -706,20 +620,6 @@ class LostCityChunkGenerator(
         set(chunk, x, y + 2, z, Blocks.SEA_LANTERN.defaultState)
     }
 
-    private data class BuildingPalette(
-        val foundation: BlockState,
-        val floor: BlockState,
-        val frame: BlockState,
-        val window: BlockState
-    )
-
-    private fun buildingPalette(plan: CityPlan): BuildingPalette = when (plan.anchor.style) {
-        0 -> BuildingPalette(Blocks.STONE_BRICKS.defaultState, Blocks.SMOOTH_STONE.defaultState, Blocks.DEEPSLATE_BRICKS.defaultState, Blocks.BLUE_STAINED_GLASS.defaultState)
-        1 -> BuildingPalette(Blocks.BRICKS.defaultState, Blocks.BRICKS.defaultState, Blocks.TERRACOTTA.defaultState, Blocks.LIGHT_BLUE_STAINED_GLASS.defaultState)
-        2 -> BuildingPalette(Blocks.POLISHED_DIORITE.defaultState, Blocks.SMOOTH_QUARTZ.defaultState, Blocks.WHITE_CONCRETE.defaultState, Blocks.GRAY_STAINED_GLASS.defaultState)
-        else -> BuildingPalette(Blocks.DEEPSLATE_TILES.defaultState, Blocks.POLISHED_DEEPSLATE.defaultState, Blocks.GRAY_CONCRETE.defaultState, Blocks.CYAN_STAINED_GLASS.defaultState)
-    }
-
     private fun lotBlock(plan: CityPlan): BlockState = when (plan.anchor.style) {
         1 -> Blocks.PACKED_MUD.defaultState
         2 -> Blocks.SMOOTH_QUARTZ.defaultState
@@ -731,7 +631,7 @@ class LostCityChunkGenerator(
         chunkZ: Int,
         localChunkX: Int,
         localChunkZ: Int,
-        anchor: CityAnchor,
+        anchor: LostCityLayout.Anchor,
         cityFactor: Double
     ): String? {
         val lotX = Math.floorMod(localChunkX, ROAD_GRID_CHUNKS)
@@ -765,16 +665,6 @@ class LostCityChunkGenerator(
         }
     }
 
-    private fun clearanceTop(plan: CityPlan): Int {
-        return when (plan.kind) {
-            CityChunkKind.BUILDING -> plan.groundY + 100
-            CityChunkKind.STATION -> plan.groundY + 28
-            CityChunkKind.AVENUE, CityChunkKind.ROAD -> plan.groundY + 16
-            CityChunkKind.PARK, CityChunkKind.PLAZA -> plan.groundY + 24
-            else -> plan.groundY + 12
-        }.coerceAtMost(CLEAR_TOP_Y)
-    }
-
     private fun buildingChance(cityFactor: Double): Int = when {
         cityFactor > 0.78 -> 92
         cityFactor > 0.52 -> 76
@@ -784,25 +674,17 @@ class LostCityChunkGenerator(
 
     private fun set(chunk: Chunk, x: Int, y: Int, z: Int, state: BlockState) {
         if (y < minimumY || y >= minimumY + worldHeight) return
+        val startX = chunk.pos.startX
+        val startZ = chunk.pos.startZ
+        if (x < startX || x > startX + 15 || z < startZ || z > startZ + 15) return
         chunk.setBlockState(BlockPos(x, y, z), state, false)
     }
 
     private fun positiveHash(x: Int, z: Int, salt: Long): Int {
-        val value = mixedHash(x, z, salt).toInt()
-        return if (value == Int.MIN_VALUE) 0 else abs(value)
-    }
-
-    private fun rangedHash(x: Int, z: Int, salt: Long, minValue: Int, maxValue: Int): Int {
-        if (maxValue <= minValue) return minValue
-        val span = maxValue - minValue + 1
-        return minValue + Math.floorMod(mixedHash(x, z, salt), span.toLong()).toInt()
+        return layout.positiveHash(x, z, salt)
     }
 
     private fun mixedHash(x: Int, z: Int, salt: Long): Long {
-        var hash = x.toLong() * 341873128712L + z.toLong() * 132897987541L + salt * 31L
-        hash = hash xor (hash ushr 29)
-        hash *= 0x9E3779B1L
-        hash = hash xor (hash ushr 26)
-        return hash
+        return layout.mixedHash(x, z, salt)
     }
 }

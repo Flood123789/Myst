@@ -28,6 +28,7 @@ import net.minecraft.util.math.BlockPos
 
 object ModMessages {
     val DIMENSION_SYNC = Identifier(MystcraftReforged.MOD_ID, "dimension_sync")
+    val DIMENSION_TIME_SYNC = Identifier(MystcraftReforged.MOD_ID, "dimension_time_sync")
     val OPEN_DESCRIPTIVE_BOOK = Identifier(MystcraftReforged.MOD_ID, "open_descriptive_book")
     val OPEN_LINKING_BOOK = Identifier(MystcraftReforged.MOD_ID, "open_linking_book")
     val ACTIVATE_DESCRIPTIVE_BOOK = Identifier(MystcraftReforged.MOD_ID, "activate_descriptive_book")
@@ -49,10 +50,28 @@ object ModMessages {
             val buf = PacketByteBufs.create()
             buf.writeIdentifier(ageId)
             buf.writeString(profile.toJson(), 32767) // Max string length
+            writeAgeTime(buf, profile)
             ServerPlayNetworking.send(player, DIMENSION_SYNC, buf)
         } catch (e: Exception) {
             MystcraftReforged.LOGGER.error("Packet failure: ${e.message}")
         }
+    }
+
+    fun sendDimensionTimeSync(player: ServerPlayerEntity, ageId: Identifier, profile: AgeProfile) {
+        try {
+            val buf = PacketByteBufs.create()
+            buf.writeIdentifier(ageId)
+            writeAgeTime(buf, profile)
+            ServerPlayNetworking.send(player, DIMENSION_TIME_SYNC, buf)
+        } catch (e: Exception) {
+            MystcraftReforged.LOGGER.error("Age time packet failure for $ageId: ${e.message}")
+        }
+    }
+
+    private fun writeAgeTime(buf: net.minecraft.network.PacketByteBuf, profile: AgeProfile) {
+        buf.writeLong(profile.time.visibleTimeOfDay)
+        buf.writeFloat(profile.time.timeScale)
+        buf.writeBoolean(profile.time.visibleTimeFrozen)
     }
 
     fun sendOpenDescriptiveBook(

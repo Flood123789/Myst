@@ -3,6 +3,7 @@ package mystcraft.flood.client.network
 import mystcraft.flood.MystcraftReforged
 import mystcraft.flood.block.entity.BookStandBlockEntity
 import mystcraft.flood.client.cache.ClientAgeCache
+import mystcraft.flood.client.cache.ClientAgeTimeCache
 import mystcraft.flood.client.gui.DescriptiveBookScreen
 import mystcraft.flood.client.gui.LinkingBookScreen
 import mystcraft.flood.generation.profile.AgeProfile
@@ -21,6 +22,9 @@ object ClientMessages {
             val ageId = buf.readIdentifier()
             val json = buf.readString(32767)
             val profile = AgeProfile.fromJson(json)
+            val visibleTime = buf.readLong()
+            val timeScale = buf.readFloat()
+            val timeFrozen = buf.readBoolean()
             
             val worldKey = RegistryKey.of(RegistryKeys.WORLD, ageId)
             
@@ -28,6 +32,7 @@ object ClientMessages {
                 try {
                     // 1. Store the JSON profile in our client-side cache
                     ClientAgeCache.update(ageId, profile)
+                    ClientAgeTimeCache.update(ageId, visibleTime, timeScale, timeFrozen)
                     
                     // 2. Inject into the client's locked world list so the renderer doesn't panic
                     val accessor = handler as ClientPlayNetworkHandlerAccessor
@@ -43,6 +48,17 @@ object ClientMessages {
                     MystcraftReforged.LOGGER.error("[CLIENT-NET] FATAL ERROR during injection: ${e.message}")
                     e.printStackTrace()
                 }
+            }
+        }
+
+        ClientPlayNetworking.registerGlobalReceiver(ModMessages.DIMENSION_TIME_SYNC) { client, _, buf, _ ->
+            val ageId = buf.readIdentifier()
+            val visibleTime = buf.readLong()
+            val timeScale = buf.readFloat()
+            val timeFrozen = buf.readBoolean()
+
+            client.execute {
+                ClientAgeTimeCache.update(ageId, visibleTime, timeScale, timeFrozen)
             }
         }
 

@@ -52,8 +52,17 @@ class LinkingBookItem(settings: Settings) : Item(settings) {
                 if (!AgeLifecycleManager.mayEnterAge(user, dimId, linkStyleMessage = true)) {
                     return
                 }
-                val targetPos = Vec3d(nbt.getDouble("PosX"), nbt.getDouble("PosY"), nbt.getDouble("PosZ"))
-                val teleportTarget = TeleportTarget(targetPos, Vec3d.ZERO, nbt.getFloat("Yaw"), nbt.getFloat("Pitch"))
+                val targetPos = Vec3d(
+                    nbt.getDouble("PosX"),
+                    LinkingBookTarget.resolveArrivalY(targetWorld, nbt),
+                    nbt.getDouble("PosZ")
+                )
+                val teleportTarget = TeleportTarget(
+                    targetPos,
+                    Vec3d.ZERO,
+                    LinkingBookTarget.resolveCardinalYaw(nbt),
+                    nbt.getFloat("Pitch")
+                )
                 AgeTravelEffects.playDeparture(user.serverWorld, user)
                 val result = FabricDimensions.teleport(user, targetWorld, teleportTarget)
                 if (result != null) {
@@ -93,9 +102,8 @@ class LinkingBookItem(settings: Settings) : Item(settings) {
         val nbt = stack.orCreateNbt
         nbt.putString("Dimension", world.registryKey.value.toString())
         nbt.putDouble("PosX", user.x)
-        nbt.putDouble("PosY", user.y)
+        LinkingBookTarget.writeStandingAnchor(world, user, nbt)
         nbt.putDouble("PosZ", user.z)
-        nbt.putFloat("Yaw", user.yaw)
         nbt.putFloat("Pitch", user.pitch)
         world.server?.let { BookPreviewData.refreshForStack(it, stack) }
         user.sendMessage(Text.literal("Linking Book bound to current location.").formatted(Formatting.GREEN), true)

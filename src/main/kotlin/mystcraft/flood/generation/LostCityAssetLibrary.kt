@@ -14,6 +14,7 @@ import java.io.InputStream
 import java.io.InputStreamReader
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.abs
 
 object LostCityAssetLibrary {
@@ -119,12 +120,14 @@ object LostCityAssetLibrary {
 
     private const val PLACE_CELLARS = false
 
-    private val parts = mutableMapOf<String, LostCityPart>()
-    private val buildings = mutableMapOf<String, LostCityBuilding>()
-    private val multiBuildings = mutableMapOf<String, LostCityMultiBuilding>()
-    private val paletteFiles = mutableMapOf<String, Map<Char, PaletteEntry>>()
-    private val blockStates = mutableMapOf<String, BlockState?>()
-    private val warnedAssetFailures = mutableSetOf<String>()
+    // Dedicated servers generate several chunks at once. These caches are read by those
+    // worker threads, so ordinary HashMaps can be corrupted while assets are loaded lazily.
+    private val parts = ConcurrentHashMap<String, LostCityPart>()
+    private val buildings = ConcurrentHashMap<String, LostCityBuilding>()
+    private val multiBuildings = ConcurrentHashMap<String, LostCityMultiBuilding>()
+    private val paletteFiles = ConcurrentHashMap<String, Map<Char, PaletteEntry>>()
+    private val blockStates = ConcurrentHashMap<String, BlockState>()
+    private val warnedAssetFailures = ConcurrentHashMap.newKeySet<String>()
     @Volatile
     private var cityGenerationEnabled = true
 
@@ -180,6 +183,7 @@ object LostCityAssetLibrary {
         val report = validateAssets()
         cityGenerationEnabled = report.errors.isEmpty()
         if (cityGenerationEnabled) {
+            warmRuntimeCaches()
             MystcraftReforged.LOGGER.info(
                 "Validated Lost Cities assets: ${report.buildingCount} buildings, " +
                     "${report.multiBuildingCount} multibuildings, ${report.partCount} parts, ${report.paletteCount} palettes."
@@ -195,6 +199,50 @@ object LostCityAssetLibrary {
             if (report.errors.size > 40) {
                 MystcraftReforged.LOGGER.error("...and ${report.errors.size - 40} more Lost Cities asset issue(s).")
             }
+        }
+    }
+
+    /**
+     * Match Lost Cities' registry-first lifecycle: parse the complete asset graph during mod
+     * initialization instead of making the first city chunks race to populate it.
+     */
+    private fun warmRuntimeCaches() {
+        val allBuildingNames = linkedSetOf<String>().apply { addAll(buildingNames) }
+        for (multiName in generatedMultiBuildingNames) {
+            val multi = multiBuilding(multiName)
+            multi.buildings.forEach { row -> allBuildingNames.addAll(row) }
+        }
+        allBuildingNames.forEach(::building)
+
+        val allPartNames = linkedSetOf<String>().apply { addAll(directGeneratedPartNames) }
+        buildings.values.forEach { building ->
+            allPartNames.addAll(building.floorParts)
+            allPartNames.addAll(building.groundParts)
+            allPartNames.addAll(building.topParts)
+            allPartNames.addAll(building.cellarParts)
+        }
+        allPartNames.forEach(::part)
+
+        val allPaletteNames = linkedSetOf(
+            "default",
+            "default_desert",
+            "common"
+        ).apply {
+            addAll(brickPalettes)
+            addAll(glassPalettes)
+            addAll(sidePalettes)
+            parts.values.mapNotNullTo(this) { it.refPalette }
+        }
+        allPaletteNames.forEach(::paletteFile)
+
+        val paletteEntries = buildList {
+            paletteFiles.values.forEach { addAll(it.values) }
+            parts.values.forEach { addAll(it.inlinePalette.values) }
+            buildings.values.forEach { addAll(it.inlinePalette.values) }
+        }
+        paletteEntries.forEach { entry ->
+            entry.block?.let(::parseBlockState)
+            entry.options.forEach { parseBlockState(it.block) }
         }
     }
 
@@ -416,7 +464,7 @@ object LostCityAssetLibrary {
         }
     }
 
-    private fun part(name: String): LostCityPart = parts.getOrPut(name) {
+    private fun part(name: String): LostCityPart = parts.computeIfAbsent(name) {
         try {
             val json = readJson("$ROOT/parts/$name.json")
             val slices = json.getAsJsonArray("slices").map { sliceElement ->
@@ -452,7 +500,7 @@ object LostCityAssetLibrary {
         }
     }
 
-    private fun building(name: String): LostCityBuilding = buildings.getOrPut(name) {
+    private fun building(name: String): LostCityBuilding = buildings.computeIfAbsent(name) {
         try {
             val json = readJson("$ROOT/buildings/$name.json")
             val floorParts = mutableListOf<String>()
@@ -516,7 +564,7 @@ object LostCityAssetLibrary {
             inlinePalette = emptyMap()
         )
 
-    private fun multiBuilding(name: String): LostCityMultiBuilding = multiBuildings.getOrPut(name) {
+    private fun multiBuilding(name: String): LostCityMultiBuilding = multiBuildings.computeIfAbsent(name) {
         try {
             val json = readJson("$ROOT/multibuildings/$name.json")
             val rows = json.getAsJsonArray("buildings")?.map { row ->
@@ -567,7 +615,7 @@ object LostCityAssetLibrary {
         return palette
     }
 
-    private fun paletteFile(name: String): Map<Char, PaletteEntry> = paletteFiles.getOrPut(name) {
+    private fun paletteFile(name: String): Map<Char, PaletteEntry> = paletteFiles.computeIfAbsent(name) {
         try {
             val json = readJson("$ROOT/palettes/$name.json")
             parsePaletteObject(json)
@@ -638,25 +686,27 @@ object LostCityAssetLibrary {
         return options.last()
     }
 
-    private fun parseBlockState(value: String): BlockState? = blockStates.getOrPut(value) {
+    private fun parseBlockState(value: String): BlockState? {
         val normalized = normalizeLegacyBlockState(value)
-        if (normalized == "minecraft:structure_void") return@getOrPut null
-        val blockId = normalized.substringBefore('[')
-        val block = Registries.BLOCK.getOrEmpty(Identifier(blockId)).orElse(Blocks.AIR)
-        if (block == Blocks.AIR && blockId != "minecraft:air") {
-            return@getOrPut fallbackState('#', 0)
-        }
-        var state = block.defaultState
-        val propertyText = normalized.substringAfter('[', "").substringBeforeLast(']', "")
-        if (propertyText.isNotBlank()) {
-            for (assignment in propertyText.split(',')) {
-                val propertyName = assignment.substringBefore('=').trim()
-                val propertyValue = assignment.substringAfter('=', "").trim()
-                val property = state.properties.firstOrNull { it.name == propertyName } ?: continue
-                state = BlockStatePropertyBridge.withParsed(state, property, propertyValue)
+        if (normalized == "minecraft:structure_void") return null
+        return blockStates.computeIfAbsent(normalized) {
+            val blockId = normalized.substringBefore('[')
+            val block = Registries.BLOCK.getOrEmpty(Identifier(blockId)).orElse(Blocks.AIR)
+            if (block == Blocks.AIR && blockId != "minecraft:air") {
+                return@computeIfAbsent fallbackState('#', 0) ?: Blocks.STONE_BRICKS.defaultState
             }
+            var state = block.defaultState
+            val propertyText = normalized.substringAfter('[', "").substringBeforeLast(']', "")
+            if (propertyText.isNotBlank()) {
+                for (assignment in propertyText.split(',')) {
+                    val propertyName = assignment.substringBefore('=').trim()
+                    val propertyValue = assignment.substringAfter('=', "").trim()
+                    val property = state.properties.firstOrNull { it.name == propertyName } ?: continue
+                    state = BlockStatePropertyBridge.withParsed(state, property, propertyValue)
+                }
+            }
+            state
         }
-        state
     }
 
     private fun normalizeLegacyBlockState(value: String): String {

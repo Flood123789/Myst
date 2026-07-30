@@ -35,11 +35,11 @@ public class BiomeColorMixin {
             AgeProfile profile = ClientAgeCache.INSTANCE.getProperties(client.world.getRegistryKey().getValue());
             if (profile != null) {
                 Integer color = switch (type) {
-                    case "sky" -> profile.getColors().getSky();
-                    case "fog" -> profile.getColors().getFog();
-                    case "water" -> profile.getColors().getWater();
-                    case "foliage" -> profile.getColors().getFoliage();
-                    case "grass" -> profile.getColors().getGrass();
+                    case "sky" -> profile.getColors().getSky() & 0xFFFFFF;
+                    case "fog" -> profile.getColors().getFog() & 0xFFFFFF;
+                    case "water" -> profile.getColors().getWater() & 0xFFFFFF;
+                    case "foliage" -> profile.getColors().getFoliage() & 0xFFFFFF;
+                    case "grass" -> profile.getColors().getGrass() & 0xFFFFFF;
                     default -> null;
                 };
                 if (color != null) cir.setReturnValue(color);

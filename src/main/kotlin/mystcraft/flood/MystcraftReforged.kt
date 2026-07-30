@@ -129,7 +129,7 @@ object MystcraftReforged : ModInitializer {
         // === INJECT NEW FEATURES HERE ===
         BiomeModifications.addFeature(
             BiomeSelectors.all(),
-            GenerationStep.Feature.SURFACE_STRUCTURES,
+            GenerationStep.Feature.RAW_GENERATION,
             RegistryKey.of(RegistryKeys.PLACED_FEATURE, Identifier(MOD_ID, "city_grid"))
         )
 
@@ -206,8 +206,22 @@ object MystcraftReforged : ModInitializer {
         )
 
         // 4. Server Events (Time, Syncing, Unloading)
-        ServerTickEvents.END_SERVER_TICK.register {
+        ServerTickEvents.END_SERVER_TICK.register { server ->
             DistantHorizonsCompat.tick()
+            if (server.ticks % 100 == 0) {
+                val players = server.playerManager.playerList
+                if (players.isNotEmpty()) {
+                    server.worlds.forEach { world ->
+                        val id = world.registryKey.value
+                        if (id.namespace == MOD_ID) {
+                            val profile = AgeProfileManager.getOrGenerateProfile(server, id)
+                            players.forEach { player ->
+                                ModMessages.sendDimensionTimeSync(player, id, profile)
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         ServerLifecycleEvents.SERVER_STOPPED.register {

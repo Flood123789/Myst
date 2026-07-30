@@ -86,6 +86,7 @@ class BoundedLostCityFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defau
     override fun generate(context: FeatureContext<DefaultFeatureConfig>): Boolean {
         val world = context.world
         val serverWorld = world.toServerWorld()
+        if (context.generator is LostCityChunkGenerator) return false
         if (!AgeSubdimensionManager.isPrimaryAgeRealm(serverWorld.registryKey.value)) return false
 
         val profile = AgeProfileManager.getOrGenerateProfile(serverWorld.server, serverWorld.registryKey.value)

@@ -1,7 +1,10 @@
 {
   "variants": {
-    "axis=x": { "model": "mystcraft-reforged:block/crystal_portal_ew" },
-    "axis=y": { "model": "mystcraft-reforged:block/crystal_portal_ud" },
-    "axis=z": { "model": "mystcraft-reforged:block/crystal_portal_ns" }
+    "axis=x,surface_visible=true": { "model": "mystcraft-reforged:block/crystal_portal_ew" },
+    "axis=y,surface_visible=true": { "model": "mystcraft-reforged:block/crystal_portal_ud" },
+    "axis=z,surface_visible=true": { "model": "mystcraft-reforged:block/crystal_portal_ns" },
+    "axis=x,surface_visible=false": { "model": "mystcraft-reforged:block/crystal_portal_ew" },
+    "axis=y,surface_visible=false": { "model": "mystcraft-reforged:block/crystal_portal_ud" },
+    "axis=z,surface_visible=false": { "model": "mystcraft-reforged:block/crystal_portal_ns" }
   }
 }

@@ -2,6 +2,7 @@ package mystcraft.flood.mixin;
 
 import mystcraft.flood.generation.profile.AgeProfile;
 import mystcraft.flood.generation.profile.AgeProfileManager;
+import mystcraft.flood.generation.ImmersivePortalsCompat;
 import net.minecraft.network.packet.s2c.play.WorldTimeUpdateS2CPacket;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -52,12 +53,20 @@ public class AgeLogicMixin {
             }
                 
             // Force a network sync so the client sky instantly jumps.
+            for (ServerPlayerEntity player : world.getServer().getPlayerManager().getPlayerList()) {
+                mystcraft.flood.network.ModMessages.INSTANCE.sendDimensionTimeSync(
+                    player, world.getRegistryKey().getValue(), profile
+                );
+            }
             for (ServerPlayerEntity player : world.getPlayers()) {
-                player.networkHandler.sendPacket(new WorldTimeUpdateS2CPacket(
+                WorldTimeUpdateS2CPacket packet = new WorldTimeUpdateS2CPacket(
                     world.getTime(),
                     profile.getTime().getVisibleTimeOfDay(),
                     !profile.getTime().getVisibleTimeFrozen()
-                ));
+                );
+                if (!ImmersivePortalsCompat.INSTANCE.trySendWorldPacket(player, world, packet)) {
+                    player.networkHandler.sendPacket(packet);
+                }
             }
             
             // Cancel the event so vanilla doesn't overwrite our frozen LevelProperties

@@ -33,28 +33,33 @@ object AgePlantTintHelper {
             Blocks.OAK_LEAVES,
             Blocks.JUNGLE_LEAVES,
             Blocks.ACACIA_LEAVES,
-            Blocks.DARK_OAK_LEAVES -> shift(foliage, hueShift = 0.00f, saturationScale = 1.0f, valueScale = 1.0f, minSaturation = 0.12f, maxSaturation = 1.0f, minValue = 0.16f, maxValue = 1.0f)
-            Blocks.BIRCH_LEAVES -> shift(foliage, hueShift = -0.03f, saturationScale = 0.82f, valueScale = 1.16f, minSaturation = 0.18f, maxSaturation = 0.88f, minValue = 0.28f, maxValue = 1.0f)
-            Blocks.SPRUCE_LEAVES -> shift(foliage, hueShift = 0.04f, saturationScale = 1.08f, valueScale = 0.66f, minSaturation = 0.20f, maxSaturation = 1.0f, minValue = 0.12f, maxValue = 0.78f)
+            Blocks.DARK_OAK_LEAVES,
+            Blocks.BIRCH_LEAVES,
+            Blocks.SPRUCE_LEAVES,
+            Blocks.MANGROVE_LEAVES,
+            Blocks.AZALEA_LEAVES,
+            Blocks.FLOWERING_AZALEA_LEAVES,
+            Blocks.VINE,
+            Blocks.LILY_PAD -> foliage
+
             Blocks.CHERRY_LEAVES -> -1
-            Blocks.MANGROVE_LEAVES -> shift(foliage, hueShift = -0.015f, saturationScale = 1.04f, valueScale = 0.90f, minSaturation = 0.22f, maxSaturation = 1.0f, minValue = 0.18f, maxValue = 0.92f)
-            Blocks.AZALEA_LEAVES -> shift(foliage, hueShift = 0.02f, saturationScale = 0.92f, valueScale = 1.04f, minSaturation = 0.18f, maxSaturation = 0.92f, minValue = 0.20f, maxValue = 0.98f)
-            Blocks.FLOWERING_AZALEA_LEAVES -> shift(foliage, hueShift = -0.02f, saturationScale = 0.86f, valueScale = 1.08f, minSaturation = 0.16f, maxSaturation = 0.88f, minValue = 0.24f, maxValue = 1.0f)
 
-            Blocks.VINE -> shift(foliage, hueShift = 0.03f, saturationScale = 0.92f, valueScale = 0.76f, minSaturation = 0.16f, maxSaturation = 0.92f, minValue = 0.14f, maxValue = 0.84f)
-            Blocks.LILY_PAD -> shift(foliage, hueShift = 0.01f, saturationScale = 1.10f, valueScale = 0.58f, minSaturation = 0.20f, maxSaturation = 1.0f, minValue = 0.10f, maxValue = 0.70f)
-            Blocks.SUGAR_CANE -> shift(foliage, hueShift = -0.01f, saturationScale = 0.72f, valueScale = 1.10f, minSaturation = 0.12f, maxSaturation = 0.78f, minValue = 0.32f, maxValue = 1.0f)
-            Blocks.MELON_STEM, Blocks.ATTACHED_MELON_STEM, Blocks.PUMPKIN_STEM, Blocks.ATTACHED_PUMPKIN_STEM ->
-                shift(foliage, hueShift = 0.06f, saturationScale = 0.95f, valueScale = 0.92f, minSaturation = 0.14f, maxSaturation = 0.94f, minValue = 0.16f, maxValue = 0.92f)
+            Blocks.GRASS_BLOCK,
+            Blocks.GRASS,
+            Blocks.TALL_GRASS,
+            Blocks.FERN,
+            Blocks.LARGE_FERN,
+            Blocks.POTTED_FERN,
+            Blocks.SEAGRASS,
+            Blocks.TALL_SEAGRASS,
+            Blocks.SUGAR_CANE,
+            Blocks.SMALL_DRIPLEAF,
+            Blocks.BIG_DRIPLEAF,
+            Blocks.BIG_DRIPLEAF_STEM,
+            Blocks.MOSS_BLOCK,
+            Blocks.MOSS_CARPET,
+            Blocks.PINK_PETALS -> grass
 
-            Blocks.GRASS_BLOCK -> shift(grass, hueShift = 0.00f, saturationScale = 1.0f, valueScale = 1.0f, minSaturation = 0.12f, maxSaturation = 1.0f, minValue = 0.16f, maxValue = 1.0f)
-            Blocks.GRASS, Blocks.TALL_GRASS -> shift(grass, hueShift = 0.01f, saturationScale = 0.96f, valueScale = 1.08f, minSaturation = 0.12f, maxSaturation = 0.96f, minValue = 0.22f, maxValue = 1.0f)
-            Blocks.FERN, Blocks.LARGE_FERN, Blocks.POTTED_FERN -> shift(grass, hueShift = 0.04f, saturationScale = 0.94f, valueScale = 0.86f, minSaturation = 0.14f, maxSaturation = 0.94f, minValue = 0.14f, maxValue = 0.90f)
-            Blocks.SEAGRASS, Blocks.TALL_SEAGRASS -> shift(grass, hueShift = 0.08f, saturationScale = 0.90f, valueScale = 0.78f, minSaturation = 0.14f, maxSaturation = 0.92f, minValue = 0.10f, maxValue = 0.82f)
-
-            Blocks.SMALL_DRIPLEAF, Blocks.BIG_DRIPLEAF, Blocks.BIG_DRIPLEAF_STEM -> shift(foliage, hueShift = 0.05f, saturationScale = 0.88f, valueScale = 0.84f, minSaturation = 0.16f, maxSaturation = 0.90f, minValue = 0.12f, maxValue = 0.88f)
-            Blocks.MOSS_BLOCK, Blocks.MOSS_CARPET -> shift(grass, hueShift = 0.03f, saturationScale = 0.70f, valueScale = 0.72f, minSaturation = 0.08f, maxSaturation = 0.80f, minValue = 0.10f, maxValue = 0.80f)
-            Blocks.PINK_PETALS -> shift(grass, hueShift = -0.08f, saturationScale = 0.78f, valueScale = 1.12f, minSaturation = 0.10f, maxSaturation = 0.82f, minValue = 0.30f, maxValue = 1.0f)
             Blocks.WATER -> water
             else -> vanillaTint(block, world, pos)
         }

@@ -6,6 +6,7 @@ import mystcraft.flood.block.entity.CrystalPortalBlockEntity
 import mystcraft.flood.block.entity.ModBlockEntities 
 import mystcraft.flood.client.AgeTravelSoundSuppressor
 import mystcraft.flood.client.cache.ClientAgeCache
+import mystcraft.flood.client.cache.ClientAgeTimeCache
 import mystcraft.flood.client.gui.BookBinderScreen
 import mystcraft.flood.client.gui.EditingTableScreen
 import mystcraft.flood.client.gui.NotebookScreen
@@ -52,6 +53,7 @@ class MystcraftReforgedClient : ClientModInitializer {
         ClientMessages.registerS2CPackets()
 
         ClientTickEvents.END_CLIENT_TICK.register { client ->
+            ClientAgeTimeCache.tick()
             AgeTravelSoundSuppressor.INSTANCE.tick(client)
             AgeAmbientParticlePainter.tick(client)
             DistantHorizonsCompat.tick()
@@ -72,7 +74,7 @@ class MystcraftReforgedClient : ClientModInitializer {
             // Shaderpacks often replace the vanilla sky pass. Draw the fallback before terrain
             // and DH LOD chunks so they can occlude sky anomalies like normal distant scenery.
             skyMatrices.scale(3.0f, 3.0f, 3.0f)
-            CustomSkyPainter.paintShaderFallbackSky(skyMatrices, context.projectionMatrix(), context.tickDelta())
+            CustomSkyPainter.paintShaderFallbackSky(world, skyMatrices, context.projectionMatrix(), context.tickDelta())
         }
         
         HandledScreens.register(ModScreens.BOOK_BINDER_HANDLER, ::BookBinderScreen)
@@ -90,6 +92,7 @@ class MystcraftReforgedClient : ClientModInitializer {
         
         ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
             ClientAgeCache.clear()
+            ClientAgeTimeCache.clear()
             DistantHorizonsCompat.clear()
             MystcraftReforged.LOGGER.info("Cleared Age Cache on disconnect.")
         }

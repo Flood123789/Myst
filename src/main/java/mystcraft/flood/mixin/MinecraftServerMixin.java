@@ -1,9 +1,11 @@
 package mystcraft.flood.mixin;
 
 import kotlin.Pair;
+import mystcraft.flood.MystcraftReforged;
 import mystcraft.flood.access.DimensionInjector;
 import mystcraft.flood.generation.AgeBuilder;
 import mystcraft.flood.generation.AgeSubdimensionManager;
+import mystcraft.flood.generation.ImmersivePortalsCompat;
 import mystcraft.flood.generation.profile.AgeDimensionRole;
 import mystcraft.flood.generation.profile.AgeProfile;
 import mystcraft.flood.network.ModMessages;
@@ -82,8 +84,55 @@ public abstract class MinecraftServerMixin implements DimensionInjector {
 
             SimpleRegistry<DimensionOptions> simpleOptionsRegistry = (SimpleRegistry<DimensionOptions>) optionsRegistry;
             SimpleRegistryAccessor optionsAccessor = (SimpleRegistryAccessor) simpleOptionsRegistry;
-            
             RegistryKey<DimensionOptions> dimOptionsKey = RegistryKey.of(RegistryKeys.DIMENSION, ageId);
+
+            // IP's dynamic-dimension API must receive an unregistered dimension.
+            // It creates the ServerWorld, inserts the options in the registry, updates
+            // IP's integer dimension-ID record, and synchronizes that record to clients.
+            // Pre-registering liveOptions here makes Fabric reject IP's registration as
+            // a duplicate object. Falling back to a manually-created world after that
+            // leaves IP unaware of the Age and crashes its teleport confirmation tick.
+            if (!replaceExisting && ImmersivePortalsCompat.INSTANCE.isAvailable()) {
+                if (optionsRegistry.contains(dimOptionsKey)) {
+                    MystcraftReforged.INSTANCE.getLOGGER().error(
+                            "Cannot dynamically create Age {} through Immersive Portals: dimension options are already registered",
+                            ageId
+                    );
+                    return;
+                }
+
+                if (!ImmersivePortalsCompat.INSTANCE.tryAddDimensionDynamically(server, ageId, liveOptions)) {
+                    MystcraftReforged.INSTANCE.getLOGGER().error(
+                            "Immersive Portals failed to register Age {}; refusing to create an unsynchronized world",
+                            ageId
+                    );
+                    return;
+                }
+
+                ServerWorld createdWorld = server.getWorld(worldKey);
+                if (createdWorld == null) {
+                    MystcraftReforged.INSTANCE.getLOGGER().error(
+                            "Immersive Portals reported Age {} as registered but did not create its ServerWorld",
+                            ageId
+                    );
+                    return;
+                }
+
+                if (role == AgeDimensionRole.END) {
+                    createdWorld.setEnderDragonFight(new EnderDragonFight(createdWorld, profile.getSeed(), EnderDragonFight.Data.DEFAULT));
+                }
+                try {
+                    ServerWorldEvents.LOAD.invoker().onWorldLoad(server, createdWorld);
+                } catch (Throwable t) {
+                    System.out.println("[MYSTCRAFT-DEBUG] Error dispatching ServerWorldEvents.LOAD: " + t.getMessage());
+                }
+                if (server.getPlayerManager() != null) {
+                    for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+                        ModMessages.INSTANCE.sendDimensionSync(player, ageId, profile);
+                    }
+                }
+                return;
+            }
 
             if (!optionsRegistry.contains(dimOptionsKey)) {
                 optionsAccessor.setFrozen(false);

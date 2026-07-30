@@ -198,7 +198,7 @@ object AgeBuilder {
                 seaLevel = profile.terrainTuning.seaLevel,
                 caveDensity = profile.terrainTuning.caveDensity ?: 4,
                 biomeSize = profile.terrainTuning.biomeSize,
-                verticalRange = profile.terrainTuning.verticalRange ?: 4,
+                verticalRange = profile.terrainTuning.verticalRange,
                 superFlat = profile.terrainTuning.superFlat,
                 noMobs = profile.terrainTuning.noMobs,
                 caveWorld = profile.terrainTuning.caveWorld,
@@ -215,6 +215,11 @@ object AgeBuilder {
         }
 
         val baseGenerator = NoiseChunkGenerator(biomeSource, tunedSettings)
-        return Pair(baseGenerator, profile)
+        val chunkGenerator = if (profile.terrainType == TerrainType.CITIES) {
+            LostCityChunkGenerator(baseGenerator, biomeSource, profile.seed)
+        } else {
+            baseGenerator
+        }
+        return Pair(chunkGenerator, profile)
     }
 }

@@ -13,9 +13,15 @@ class CrystalPortalBlockEntity(pos: BlockPos, state: BlockState) : BlockEntity(M
     var targetX: Double? = null
     var targetY: Double? = null
     var targetZ: Double? = null
+    var targetYaw: Float? = null
+    var destinationRotationQuarterTurns: Int = 0
     
     // === THE MISSING VARIABLE: Stores the random color! ===
     var portalColor: Int = -1 
+
+    // True only after the optional Immersive Portals entity was spawned successfully.
+    // Persisting this keeps Mystcraft's collision teleporter disabled after a reload.
+    var immersivePortalActive: Boolean = false
 
     override fun toUpdatePacket(): net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket? {
         return net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket.create(this)
@@ -36,9 +42,12 @@ class CrystalPortalBlockEntity(pos: BlockPos, state: BlockState) : BlockEntity(M
         targetX?.let { nbt.putDouble("TargetX", it) }
         targetY?.let { nbt.putDouble("TargetY", it) }
         targetZ?.let { nbt.putDouble("TargetZ", it) }
+        targetYaw?.let { nbt.putFloat("TargetYaw", it) }
+        nbt.putInt("DestinationRotationQuarterTurns", destinationRotationQuarterTurns)
         
         // Save the color
         nbt.putInt("PortalColor", portalColor)
+        nbt.putBoolean("ImmersivePortalActive", immersivePortalActive)
     }
 
     override fun readNbt(nbt: NbtCompound) {
@@ -50,10 +59,13 @@ class CrystalPortalBlockEntity(pos: BlockPos, state: BlockState) : BlockEntity(M
         if (nbt.contains("TargetX")) targetX = nbt.getDouble("TargetX")
         if (nbt.contains("TargetY")) targetY = nbt.getDouble("TargetY")
         if (nbt.contains("TargetZ")) targetZ = nbt.getDouble("TargetZ")
+        if (nbt.contains("TargetYaw")) targetYaw = nbt.getFloat("TargetYaw")
+        destinationRotationQuarterTurns = Math.floorMod(nbt.getInt("DestinationRotationQuarterTurns"), 4)
         
         // Load the color
         if (nbt.contains("PortalColor")) {
             portalColor = nbt.getInt("PortalColor")
         }
+        immersivePortalActive = nbt.getBoolean("ImmersivePortalActive")
     }
 }
