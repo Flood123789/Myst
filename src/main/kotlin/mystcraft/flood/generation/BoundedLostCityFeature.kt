@@ -23,6 +23,13 @@ import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
 
+/**
+ * Places a city district inside a deterministic, bounded footprint.
+ *
+ * Layout decisions derive from world seed and grid coordinates rather than generation order.
+ * Every write is clipped to the active feature region so neighboring chunks can generate safely
+ * in parallel without duplicating or tearing roads and buildings.
+ */
 class BoundedLostCityFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatureConfig>(codec) {
 
     companion object {

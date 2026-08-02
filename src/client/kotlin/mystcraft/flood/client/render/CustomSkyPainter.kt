@@ -17,6 +17,13 @@ import org.joml.Matrix4f
 import javax.imageio.ImageIO
 import kotlin.random.Random
 
+/**
+ * Renders the authored celestial scene for a Mystcraft Age.
+ *
+ * It reads immutable snapshots from client caches and derives sun, moon, stars, anomalies, cloud,
+ * and ambient layers without changing world state. Geometry is cached where possible because this
+ * method sits on the render-frame hot path.
+ */
 object CustomSkyPainter {
     private val SUN_TEXTURE = Identifier("textures/environment/sun.png")
     private val MOON_PHASES = Identifier("textures/environment/moon_phases.png")

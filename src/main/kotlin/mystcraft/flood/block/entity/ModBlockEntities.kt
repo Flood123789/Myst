@@ -10,6 +10,11 @@ import net.minecraft.registry.Registry
 import net.minecraft.util.Identifier
 
 object ModBlockEntities {
+    val PAINTED_CRYSTAL: BlockEntityType<PaintedCrystalBlockEntity> = Registry.register(
+        Registries.BLOCK_ENTITY_TYPE,
+        Identifier(MystcraftReforged.MOD_ID, "painted_crystal_entity"),
+        FabricBlockEntityTypeBuilder.create(::PaintedCrystalBlockEntity, ModBlocks.CRYSTAL_BLOCK).build()
+    )
     
     // 1. The Book Binder (Notice the parenthesis closes right after .build()!)
     val BOOK_BINDER_ENTITY: BlockEntityType<BookBinderBlockEntity> = Registry.register(

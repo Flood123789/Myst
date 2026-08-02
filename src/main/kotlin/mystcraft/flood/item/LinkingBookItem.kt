@@ -20,6 +20,13 @@ import net.minecraft.util.math.Vec3d
 import net.minecraft.world.TeleportTarget
 import net.minecraft.world.World
 
+/**
+ * A return link bound to an existing dimension and exact position.
+ *
+ * Unlike a [DescriptiveBookItem], this item never authors or creates a world. Its NBT is a travel
+ * target captured from the server, and activation resolves that target through
+ * [LinkingBookTarget] before teleporting.
+ */
 class LinkingBookItem(settings: Settings) : Item(settings) {
     override fun use(world: World, user: PlayerEntity, hand: Hand): TypedActionResult<ItemStack> {
         if (world.isClient) return TypedActionResult.success(user.getStackInHand(hand))

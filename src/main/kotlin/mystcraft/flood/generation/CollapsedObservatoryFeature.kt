@@ -21,6 +21,7 @@ import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
+/** Generates a collapsed observatory landmark for historic-themed Ages. */
 class CollapsedObservatoryFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatureConfig>(codec) {
     override fun generate(context: FeatureContext<DefaultFeatureConfig>): Boolean {
         val world = context.world

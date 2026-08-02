@@ -8,6 +8,7 @@ import net.minecraft.resource.featuretoggle.FeatureFlags
 import net.minecraft.screen.ScreenHandlerType
 import net.minecraft.util.Identifier
 
+/** Common registry of server-side screen-handler types; client screens bind in the client entry point. */
 object ModScreens {
     val BOOK_BINDER_HANDLER: ScreenHandlerType<BookBinderScreenHandler> = Registry.register(
         Registries.SCREEN_HANDLER,

@@ -1,0 +1,38 @@
+{
+  "name": "Landmarks and Resources",
+  "category": "mystcraft-reforged:worlds",
+  "icon": "mystcraft-reforged:crystal_block",
+  "sortnum": 3,
+  "pages": [
+    {
+      "type": "text",
+      "title": "Living Landmarks",
+      "text": "Named landmark pages include Giant Trees, Crystal Formations, Tendrils, Obelisks, Page Storms, Memory Blooms, and Stable Sanctuaries. Explicitly naming one makes it eligible and generally stabilizes the final script despite the feature's own cost."
+    },
+    {
+      "type": "text",
+      "title": "Crystal",
+      "text": "Crystal Formations are the most direct source of Crystal Blocks. Crystal also threads through Tendrils and may appear in giant obelisks. It glows, accepts painted faces, forms portal frames, and requires an iron pickaxe or better to recover."
+    },
+    {
+      "type": "text",
+      "title": "Archives and Ruins",
+      "text": "Abandoned Archives may appear in any living non-Biosphere Age and hold Lost Pages. Ancient Bones, Forgotten Ruins, Collapsed Observatories, Ancient Aqueducts, and Gateway Ruins can be named directly or emerge from sufficient instability. Many contain supplies or pages."
+    },
+    {
+      "type": "text",
+      "title": "Castles and Fissures",
+      "text": "Floating Castles are rare sky structures with useful interiors and Lost Pages. Star Fissures tear open glowing, indestructible shafts and are immune to decay. Both can appear without their own writable symbol page."
+    },
+    {
+      "type": "text",
+      "title": "Meteoric Skies",
+      "text": "Meteor Showers and Sky Spheres are not mere painted sky. They generate physical features and therefore cost more than visual anomalies. Page Storms are also structures, while ambient particle pages remain purely atmospheric."
+    },
+    {
+      "type": "text",
+      "title": "Crowded Wonders",
+      "text": "Writing many feature pages makes each additional wonder less common and encourages major structures to keep their distance. Dense Ores is exempt from that crowding calculation, but pays its enormous instability cost instead. Configuration provides one multiplier for all Mystcraft feature rates and another specifically for page-bearing loot features."
+    }
+  ]
+}

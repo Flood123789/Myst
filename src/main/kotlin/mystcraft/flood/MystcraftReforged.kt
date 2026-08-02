@@ -39,6 +39,7 @@ import mystcraft.flood.entity.ModEntities
 import mystcraft.flood.registry.ModLoot
 import mystcraft.flood.registry.ModSounds
 import mystcraft.flood.registry.ModWorldgenCodecs
+import mystcraft.flood.recipe.ModRecipes
 import mystcraft.flood.generation.DeferredTreePlacer
 import mystcraft.flood.generation.AgeTravelSafety
 import mystcraft.flood.generation.AgeLifecycleManager
@@ -46,7 +47,15 @@ import mystcraft.flood.generation.AgeSubdimensionManager
 import mystcraft.flood.generation.AgeWeatherController
 import mystcraft.flood.generation.LostCityAssetLibrary
 import mystcraft.flood.player.PlayerSpawnMemory
+import mystcraft.flood.config.MystcraftConfig
 
+/**
+ * Common (client and dedicated-server) entry point for Mystcraft Reforged.
+ *
+ * This object is the composition root: it wires registries and Fabric callbacks together,
+ * but leaves gameplay policy in the named managers it calls. Keep registration before event
+ * wiring; callbacks may otherwise observe blocks, packets, or worldgen codecs that do not exist.
+ */
 object MystcraftReforged : ModInitializer {
 
     const val MOD_ID = "mystcraft-reforged"
@@ -55,9 +64,12 @@ object MystcraftReforged : ModInitializer {
     override fun onInitialize() {
         LOGGER.info("Initializing Mystcraft Reforged...")
 
-        // 1. Core Registries (Called exactly once)
+        MystcraftConfig.load()
+
+        // Static game objects and packet ids must exist before a world can load.
         ModSymbols.register()
         ModItems.registerModItems()
+        ModRecipes.register()
         ModEntities.register()
         ModItemGroups.registerItemGroups()
         ModBlocks.registerModBlocks()
@@ -71,13 +83,14 @@ object MystcraftReforged : ModInitializer {
         InstabilityManager.register()
         DecayManager.register()
         
-        // 2. World Generation & Physics (Called exactly once)
+        // Dynamic dimensions deserialize these codecs and features during construction.
         ModWorldgenCodecs.register()
         ModFeatures.register()
         DeferredTreePlacer.register()
         LostCityAssetLibrary.validateAssetsForServer()
 
-        // 3. Inject Features into Biomes
+        // The placed-feature JSON controls placement details; these hooks choose the vanilla
+        // generation step in which each registered placed feature is considered.
         BiomeModifications.addFeature(
             BiomeSelectors.all(),
             GenerationStep.Feature.UNDERGROUND_ORES,
@@ -126,7 +139,6 @@ object MystcraftReforged : ModInitializer {
             RegistryKey.of(RegistryKeys.PLACED_FEATURE, Identifier(MOD_ID, "floating_castle"))
         )
 
-        // === INJECT NEW FEATURES HERE ===
         BiomeModifications.addFeature(
             BiomeSelectors.all(),
             GenerationStep.Feature.RAW_GENERATION,
@@ -205,7 +217,14 @@ object MystcraftReforged : ModInitializer {
             RegistryKey.of(RegistryKeys.PLACED_FEATURE, Identifier(MOD_ID, "sky_spheres"))
         )
 
-        // 4. Server Events (Time, Syncing, Unloading)
+        BiomeModifications.addFeature(
+            BiomeSelectors.all(),
+            GenerationStep.Feature.VEGETAL_DECORATION,
+            RegistryKey.of(RegistryKeys.PLACED_FEATURE, Identifier(MOD_ID, "cave_glow_lichen"))
+        )
+
+        // Profile state is server-authoritative. Periodic sync packets only mirror enough state
+        // for client rendering; they never allow the client to mutate an AgeProfile directly.
         ServerTickEvents.END_SERVER_TICK.register { server ->
             DistantHorizonsCompat.tick()
             if (server.ticks % 100 == 0) {
@@ -242,8 +261,8 @@ object MystcraftReforged : ModInitializer {
                 }
 
                 if (!isDerivedRealm) {
-                    // Derived Nether/End realms inherit root Age state; ticking their own
-                    // time/weather separately creates drift and a lot of unnecessary work.
+                    // A root Age owns family-wide time and weather. Derived Nether/End realms
+                    // resolve to the same profile, so ticking them too would advance it 2-3x.
                     if (profile.time.fixedTime == null) {
                         profile.time.timeAccumulator += profile.time.timeScale
 
@@ -286,8 +305,13 @@ object MystcraftReforged : ModInitializer {
             PlayerSpawnMemory.restoreForCurrentWorld(handler.player)
         }
 
-        ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register(ServerEntityWorldChangeEvents.AfterPlayerChange { player, _, _ ->
+        ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register(ServerEntityWorldChangeEvents.AfterPlayerChange { player, _, destination ->
             PlayerSpawnMemory.restoreForCurrentWorld(player)
+            val id = destination.registryKey.value
+            if (id.namespace == MOD_ID) {
+                val profile = AgeProfileManager.getOrGenerateProfile(destination.server, id)
+                ModMessages.sendDimensionSync(player, id, profile)
+            }
         })
 
         ServerPlayerEvents.AFTER_RESPAWN.register(ServerPlayerEvents.AfterRespawn { oldPlayer, newPlayer, _ ->

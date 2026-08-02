@@ -8,8 +8,10 @@ import mystcraft.flood.generation.AmbientAgeThemes
 import mystcraft.flood.generation.ChaosAgeThemes
 import mystcraft.flood.generation.ExoticAgeThemes
 import mystcraft.flood.generation.HistoricAgeThemes
+import mystcraft.flood.config.MystcraftConfig
 import net.minecraft.registry.Registries
 import net.minecraft.registry.RegistryKeys
+import net.minecraft.registry.tag.BiomeTags
 import net.minecraft.server.MinecraftServer
 import net.minecraft.util.Identifier
 import net.minecraft.util.WorldSavePath
@@ -18,27 +20,42 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.random.Random
 
+/**
+ * Owns the in-memory cache and on-disk JSON representation of every [AgeProfile].
+ *
+ * This is the persistence boundary for Ages. Callers should request profiles here rather than
+ * constructing them themselves so old saves are migrated, missing choices are seeded
+ * deterministically, and derived Nether/End realms inherit the correct root profile.
+ */
 object AgeProfileManager {
     private val profileCache = ConcurrentHashMap<Identifier, AgeProfile>()
+    // The editing UI can provide tuning before the dynamic world exists. The first profile
+    // creation consumes this staging entry, avoiding a second world rebuild.
     private val pendingTerrainTuning = ConcurrentHashMap<Identifier, TerrainTuningProfile>()
 
     private fun normalizeSymbol(symbol: String): String =
         symbol.lowercase().replace("mystcraft-reforged:", "")
 
     private fun weightedRandomTerrain(rand: Random): TerrainType {
+        val pools = MystcraftConfig.current.pagePools
         val pool = buildList {
-            repeat(40) { add(TerrainType.STANDARD) }
-            repeat(9) { add(TerrainType.BETA) }
-            repeat(5) { add(TerrainType.ALPHA) }
-            repeat(10) { add(TerrainType.AMPLIFIED) }
-            repeat(18) { add(TerrainType.FLOATING_ISLANDS) }
-            repeat(16) { add(TerrainType.CAVES) }
-            repeat(14) { add(TerrainType.FLAT) }
-            repeat(3) { add(TerrainType.BIOSPHERES) }
-            repeat(2) { add(TerrainType.CITIES) }
-            repeat(1) { add(TerrainType.VOID) }
+            fun addTerrain(type: TerrainType, page: String, weight: Int) {
+                if (pools.allowsTerrainSymbol(Identifier(MystcraftReforged.MOD_ID, page))) repeat(weight) { add(type) }
+            }
+            addTerrain(TerrainType.STANDARD, "terrain_standard", 40)
+            addTerrain(TerrainType.BETA, "terrain_beta", 9)
+            addTerrain(TerrainType.ALPHA, "terrain_alpha", 5)
+            addTerrain(TerrainType.AMPLIFIED, "terrain_amplified", 10)
+            addTerrain(TerrainType.FLOATING_ISLANDS, "terrain_floating_islands", 18)
+            addTerrain(TerrainType.CAVES, "terrain_caves", 16)
+            addTerrain(TerrainType.FLAT, "terrain_flat", 14)
+            addTerrain(TerrainType.BIOSPHERES, "terrain_biospheres", 3)
+            addTerrain(TerrainType.CITIES, "terrain_cities", 2)
+            addTerrain(TerrainType.NETHER, "terrain_nether", 2)
+            addTerrain(TerrainType.END, "terrain_end", 2)
+            addTerrain(TerrainType.VOID, "terrain_void", 1)
         }
-        return pool.random(rand)
+        return pool.ifEmpty { listOf(TerrainType.STANDARD) }.random(rand)
     }
 
     private fun randomAgeEffectId(rand: Random): String? {
@@ -56,7 +73,7 @@ object AgeProfileManager {
         profileCache[ageId]?.let { cached ->
             if (role != AgeDimensionRole.OVERWORLD && rootAgeId != ageId) {
                 val rootProfile = getOrGenerateProfile(server, rootAgeId)
-                refreshDerivedProfile(ageId, role, rootAgeId, rootProfile, cached)
+                refreshDerivedProfile(server, ageId, role, rootAgeId, rootProfile, cached)
             }
             return cached
         }
@@ -79,7 +96,7 @@ object AgeProfileManager {
 
         if (role != AgeDimensionRole.OVERWORLD && rootAgeId != ageId) {
             val rootProfile = getOrGenerateProfile(server, rootAgeId)
-            if (refreshDerivedProfile(ageId, role, rootAgeId, rootProfile, profile)) {
+            if (refreshDerivedProfile(server, ageId, role, rootAgeId, rootProfile, profile)) {
                 Files.writeString(file, profile.toJson())
             }
         }
@@ -103,7 +120,7 @@ object AgeProfileManager {
         val rootAgeId = AgeSubdimensionManager.rootIdOf(ageId)
         if (role != AgeDimensionRole.OVERWORLD && rootAgeId != ageId) {
             val rootProfile = getOrGenerateProfile(server, rootAgeId)
-            return buildDerivedProfile(ageId, role, rootAgeId, rootProfile, null)
+            return buildDerivedProfile(server, ageId, role, rootAgeId, rootProfile, null)
         }
 
         val terrainTuning = pendingTerrainTuning.remove(ageId)?.normalized() ?: TerrainTuningProfile()
@@ -287,6 +304,8 @@ object AgeProfileManager {
             "FLOATING_ISLANDS" -> TerrainType.FLOATING_ISLANDS
             "BIOSPHERES" -> TerrainType.BIOSPHERES
             "CITIES" -> TerrainType.CITIES
+            "NETHER" -> TerrainType.NETHER
+            "END" -> TerrainType.END
             "STANDARD" -> TerrainType.STANDARD
             "FLAT" -> TerrainType.FLAT
             "VOID" -> TerrainType.VOID
@@ -299,6 +318,25 @@ object AgeProfileManager {
             else -> terrain
         }
 
+        // A biome-only book should still receive the native base terrain for that
+        // biome family. An explicit terrain page remains authoritative, allowing
+        // deliberate combinations such as an Overworld-shaped Nether biome Age.
+        if (!hasExplicitTerrainPage && compiled.biomes.isNotEmpty()) {
+            val biomeRegistry = server.registryManager.get(RegistryKeys.BIOME)
+            val authoredEntries = compiled.biomes.mapNotNull { biomeId ->
+                runCatching { Identifier(biomeId) }.getOrNull()?.let { id ->
+                    biomeRegistry.getEntry(net.minecraft.registry.RegistryKey.of(RegistryKeys.BIOME, id)).orElse(null)
+                }
+            }
+            if (authoredEntries.size == compiled.biomes.size) {
+                terrain = when {
+                    authoredEntries.all { it.isIn(BiomeTags.IS_NETHER) } -> TerrainType.NETHER
+                    authoredEntries.all { it.isIn(BiomeTags.IS_END) } -> TerrainType.END
+                    else -> terrain
+                }
+            }
+        }
+
         val finalBiomeMode = when (compiled.biomeController) {
             "CHECKERBOARD" -> BiomeMode.CHECKERBOARD
             "VANILLA" -> BiomeMode.VANILLA_DISTRIBUTION
@@ -307,7 +345,11 @@ object AgeProfileManager {
 
         val biomesList = if (compiled.biomes.isEmpty()) {
             // Dynamically fetch EVERY biome registered in the game right now (including Mods!)
-            val allBiomes = server.registryManager.get(RegistryKeys.BIOME).keys.map { it.value.toString() }
+            val allBiomes = server.registryManager.get(RegistryKeys.BIOME).keys
+                .map { it.value }
+                .filter(MystcraftConfig.current.pagePools::allowsBiome)
+                .map(Identifier::toString)
+                .ifEmpty { listOf("minecraft:plains") }
             
             if (finalBiomeMode == BiomeMode.VANILLA_DISTRIBUTION) {
                 // Leave it completely empty! This is the signal for the JSON Builder
@@ -387,6 +429,8 @@ object AgeProfileManager {
         if (terrain == TerrainType.BIOSPHERES) finalInstability += 32
         if (terrain == TerrainType.FLAT) finalInstability += 6
         if (terrain == TerrainType.CAVES) finalInstability += 10
+        if (terrain == TerrainType.NETHER) finalInstability += 18
+        if (terrain == TerrainType.END) finalInstability += 18
         if (terrain == TerrainType.VOID) finalInstability -= 90
 
         if (timeMode == "fixed") finalInstability += 20
@@ -649,7 +693,7 @@ object AgeProfileManager {
             cloudHeight = compiled.cloudHeight ?: when (terrain) {
                 TerrainType.FLOATING_ISLANDS -> 160.0f
                 TerrainType.ALPHA, TerrainType.AMPLIFIED -> 208.0f
-                TerrainType.CAVES, TerrainType.VOID -> 128.0f
+                TerrainType.CAVES, TerrainType.NETHER, TerrainType.END, TerrainType.VOID -> 128.0f
                 else -> 192.0f
             },
             time = TimeSettings(
@@ -679,7 +723,9 @@ object AgeProfileManager {
             ),
             biomes = BiomeSet(
                 mode = finalBiomeMode,
-                biomes = biomesList
+                biomes = biomesList,
+                inheritDimensionSource = finalBiomeMode == BiomeMode.VANILLA_DISTRIBUTION ||
+                    (!hasExplicitBiomePages && terrain in setOf(TerrainType.NETHER, TerrainType.END))
             ),
             spawning = SpawnSettings(noMobs || terrainTuning.noMobs, hostileMult, passiveMult),
             ageEffect = AgeEffectProfile(selectedAgeEffectId, true),
@@ -727,13 +773,14 @@ object AgeProfileManager {
             .resolve("${ageId.path}.json")
 
     private fun refreshDerivedProfile(
+        server: MinecraftServer,
         ageId: Identifier,
         role: AgeDimensionRole,
         rootAgeId: Identifier,
         rootProfile: AgeProfile,
         target: AgeProfile
     ): Boolean {
-        val refreshed = buildDerivedProfile(ageId, role, rootAgeId, rootProfile, target)
+        val refreshed = buildDerivedProfile(server, ageId, role, rootAgeId, rootProfile, target)
         if (refreshed == target) {
             return false
         }
@@ -772,6 +819,7 @@ object AgeProfileManager {
         target.weather.temporaryClearTicks = refreshed.weather.temporaryClearTicks
         target.biomes.mode = refreshed.biomes.mode
         target.biomes.biomes = refreshed.biomes.biomes.map { it.copy() }.toMutableList()
+        target.biomes.inheritDimensionSource = refreshed.biomes.inheritDimensionSource
         target.spawning.noMobs = refreshed.spawning.noMobs
         target.spawning.hostileMultiplier = refreshed.spawning.hostileMultiplier
         target.spawning.passiveMultiplier = refreshed.spawning.passiveMultiplier
@@ -806,6 +854,7 @@ object AgeProfileManager {
     }
 
     private fun buildDerivedProfile(
+        server: MinecraftServer,
         ageId: Identifier,
         role: AgeDimensionRole,
         rootAgeId: Identifier,
@@ -813,7 +862,7 @@ object AgeProfileManager {
         existing: AgeProfile?
     ): AgeProfile {
         val displayName = derivedDisplayName(rootProfile, rootAgeId, role)
-        val roleBiomes = when (role) {
+        val fallbackBiomes = when (role) {
             AgeDimensionRole.NETHER -> mutableListOf(
                 BiomeWeight("minecraft:nether_wastes", 34),
                 BiomeWeight("minecraft:crimson_forest", 22),
@@ -830,6 +879,21 @@ object AgeProfileManager {
             )
             AgeDimensionRole.OVERWORLD -> rootProfile.biomes.biomes.map { it.copy() }.toMutableList()
         }
+        val roleBiomes = if (role == AgeDimensionRole.OVERWORLD) {
+            fallbackBiomes
+        } else {
+            val tag = if (role == AgeDimensionRole.NETHER) BiomeTags.IS_NETHER else BiomeTags.IS_END
+            val biomeRegistry = server.registryManager.get(RegistryKeys.BIOME)
+            val discovered = biomeRegistry.keys
+                .mapNotNull { key -> biomeRegistry.getEntry(key).orElse(null)?.takeIf { it.isIn(tag) }?.let { key.value } }
+                .filter(MystcraftConfig.current.pagePools::allowsBiome)
+                .sortedBy(Identifier::toString)
+                .toList()
+            if (discovered.isEmpty()) fallbackBiomes else {
+                val weight = (100 / discovered.size).coerceAtLeast(1)
+                discovered.map { BiomeWeight(it.toString(), weight) }.toMutableList()
+            }
+        }
 
         return AgeProfile(
             id = ageId.toString(),
@@ -844,10 +908,11 @@ object AgeProfileManager {
             weather = rootProfile.weather.copy(),
             biomes = BiomeSet(
                 mode = when (role) {
-                    AgeDimensionRole.NETHER, AgeDimensionRole.END -> BiomeMode.WEIGHTED
+                    AgeDimensionRole.NETHER, AgeDimensionRole.END -> BiomeMode.VANILLA_DISTRIBUTION
                     AgeDimensionRole.OVERWORLD -> rootProfile.biomes.mode
                 },
-                biomes = roleBiomes
+                biomes = roleBiomes,
+                inheritDimensionSource = role != AgeDimensionRole.OVERWORLD || rootProfile.biomes.inheritDimensionSource
             ),
             spawning = rootProfile.spawning.copy(),
             ageEffect = rootProfile.ageEffect.copy(),

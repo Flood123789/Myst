@@ -116,7 +116,7 @@ class GiantObeliskFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultF
         world.setBlockState(chestPos, Blocks.CHEST.defaultState.with(Properties.HORIZONTAL_FACING, Direction.NORTH), 2)
         val chestEntity = world.getBlockEntity(chestPos)
         if (chestEntity is ChestBlockEntity) {
-            val pageCount = random.nextInt(3) + 1
+            val pageCount = FeatureBuildHelper.configuredLostPageCount(random, 1, 3)
             for (i in 0 until pageCount) {
                 chestEntity.setStack(random.nextInt(chestEntity.size()), ItemStack(ModItems.LOST_PAGE))
             }

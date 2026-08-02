@@ -1,0 +1,48 @@
+{
+  "name": "Time, Weather, and Life",
+  "category": "mystcraft-reforged:age_writing",
+  "icon": "minecraft:clock",
+  "sortnum": 4,
+  "pages": [
+    {
+      "type": "text",
+      "title": "Time",
+      "text": "Day, Noon, Night, and Midnight freeze the visible sky at their named hour. Fast and Slow keep the cycle moving at a changed rate; repeated copies strengthen that rate but add instability. Rival time laws conflict, and Fast beside Slow is especially violent."
+    },
+    {
+      "type": "text",
+      "title": "Weather",
+      "text": "Normal Weather allows ordinary changes. Clear or No Weather forbids rain. Rain writes endless rain, while Thunder writes an endless storm. Only one weather law should be used. Weather is maintained independently for each Age and inherited by its lesser realms."
+    },
+    {
+      "type": "text",
+      "title": "Suns, Moons, Stars",
+      "text": "Normal, red, and blue sun pages create their own suns and may be repeated. Normal Moon and Extra Moon each add a moon. Normal Stars sets one layer, Dense Stars adds layers, and No Stars removes them. Omitting these families lets the Age choose its own heavens."
+    },
+    {
+      "type": "text",
+      "title": "Clouds and Color",
+      "text": "Cloud Height may be Low, Normal, or High. Color modifiers can stain sky, fog, water, grass, foliage, ambient light, clouds, and fire or lava. Put the color immediately before its target. Presets include red, orange, yellow, lime, green, teal, cyan, light blue, blue, purple, magenta, pink, brown, gray, black, and white."
+    },
+    {
+      "type": "text",
+      "title": "Custom Color",
+      "text": "Rename a $(thing)Custom Color$() symbol page in an anvil to a six-digit hexadecimal color such as $(c)#FF00AA$(). The page then displays as $(thing)Color: #FF00AA$() in that hue. Place it before a target page. A missing or malformed hex value leaves an unresolved modifier and adds instability."
+    },
+    {
+      "type": "text",
+      "title": "Finding Pages in Creative",
+      "text": "Symbol names begin with their catalog family so creative search can find them in large modpacks: $(thing)Terrain: Standard$(), $(thing)Biome: Birch Forest$(), $(thing)Environment: Sky Color$(), and $(thing)Color: Red$(). The Mystcraft Pages tab groups and alphabetizes each family."
+    },
+    {
+      "type": "text",
+      "title": "Creature Laws",
+      "text": "Normal Spawning leaves ordinary rates. No Mobs prevents natural creature generation. Extra Hostile and Extra Passive pages each add another full measure of their respective spawn class and may stack. A No Mobs law overrides those multipliers."
+    },
+    {
+      "type": "text",
+      "title": "Ambient Particles",
+      "text": "Motes, ash, spores, and void particles change the air around travelers without adding structures. They carry small instability costs. Like sky anomalies, they are useful for giving an Age a visible character without changing its terrain shape."
+    }
+  ]
+}

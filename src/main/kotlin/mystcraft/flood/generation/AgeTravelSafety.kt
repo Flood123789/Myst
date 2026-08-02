@@ -11,6 +11,13 @@ import net.minecraft.world.Heightmap
 import mystcraft.flood.generation.profile.AgeProfile
 import mystcraft.flood.generation.profile.TerrainType
 
+/**
+ * Finds or creates survivable arrival positions for book and portal travel.
+ *
+ * Searches are terrain-aware and bounded so a transfer cannot stall indefinitely. Callers may
+ * request a fallback platform only after ordinary surface/interior candidates fail; this keeps
+ * generated terrain intact in the common case while guaranteeing recovery from hostile layouts.
+ */
 object AgeTravelSafety {
     private const val INTERIOR_CEILING_LIMIT = 40
 
@@ -36,7 +43,12 @@ object AgeTravelSafety {
             BlockPos(x, y, z)
         }
 
-        val preferred = currentAnchor ?: BlockPos.ofFloored(preferredPos)
+        val requested = BlockPos.ofFloored(preferredPos)
+        val preferred = currentAnchor ?: if (profile.terrainType == TerrainType.CAVES) {
+            BlockPos(requested.x, world.bottomY + world.height / 2, requested.z)
+        } else {
+            requested
+        }
         val resolved = when (profile.terrainType) {
             TerrainType.CAVES -> findNearbyInteriorStand(world, preferred, maxRadius = 48)
                 ?: findNearbySafeStand(world, preferred, maxRadius = 24, preferSurface = false)
@@ -132,7 +144,7 @@ object AgeTravelSafety {
 
                     val x = origin.x + dx
                     val z = origin.z + dz
-                    findInteriorStandInColumn(world, x, z)?.let { return it }
+                    findInteriorStandInColumn(world, x, z, origin.y)?.let { return it }
                 }
             }
         }
@@ -158,15 +170,17 @@ object AgeTravelSafety {
         return null
     }
 
-    private fun findInteriorStandInColumn(world: ServerWorld, x: Int, z: Int): BlockPos? {
-        val highestFeet = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z)
-            .coerceAtMost(world.topY - 3)
-        if (highestFeet <= world.bottomY + 1) return null
-
-        for (y in highestFeet downTo world.bottomY + 2) {
-            val candidate = BlockPos(x, y, z)
-            if (isSafeStand(world, candidate) && hasNearbyCeiling(world, candidate, INTERIOR_CEILING_LIMIT)) {
-                return candidate
+    private fun findInteriorStandInColumn(world: ServerWorld, x: Int, z: Int, preferredY: Int): BlockPos? {
+        val minimum = world.bottomY + 2
+        val maximum = world.topY - 3
+        val center = preferredY.coerceIn(minimum, maximum)
+        for (offset in 0..(maximum - minimum)) {
+            for (y in listOf(center - offset, center + offset).distinct()) {
+                if (y !in minimum..maximum) continue
+                val candidate = BlockPos(x, y, z)
+                if (isSafeStand(world, candidate) && hasNearbyCeiling(world, candidate, INTERIOR_CEILING_LIMIT)) {
+                    return candidate
+                }
             }
         }
         return null

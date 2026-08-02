@@ -26,6 +26,13 @@ import net.minecraft.util.Hand
 import net.minecraft.util.Identifier
 import net.minecraft.util.math.BlockPos
 
+/**
+ * Common network contract and server-side packet handlers.
+ *
+ * `C2S` handlers treat packet data as an untrusted request: the active screen, held item, slot,
+ * permissions, and values must be re-validated on the server before state changes. The `S2C`
+ * helpers serialize authoritative profile snapshots for client rendering and book previews.
+ */
 object ModMessages {
     val DIMENSION_SYNC = Identifier(MystcraftReforged.MOD_ID, "dimension_sync")
     val DIMENSION_TIME_SYNC = Identifier(MystcraftReforged.MOD_ID, "dimension_time_sync")

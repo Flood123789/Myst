@@ -1,0 +1,38 @@
+{
+  "name": "Age Realms and Compatibility",
+  "category": "mystcraft-reforged:mechanics",
+  "icon": "minecraft:obsidian",
+  "sortnum": 3,
+  "pages": [
+    {
+      "type": "text",
+      "title": "Lesser Realms",
+      "text": "By default, a living Age with instability no higher than $(thing)25$() can grow its own Nether and End. Build and ignite a Nether portal inside the Age to create its Nether; a stronghold End portal leads to its End. Their return portals lead to the root Age, not Minecraft's Overworld. This threshold is configurable."
+    },
+    {
+      "type": "text",
+      "title": "Shared Law",
+      "text": "These lesser realms inherit the root Age's name, colors, time, weather, spawning, Age Effect, gravity, curses, instability, tuning, and modifiers. Their terrain and biome layout come from the server's live Nether or End generator, but terrain noise, structures, carving, decoration, and population use the Age's seed. Tagged mod biomes, foliage, features, structures, and mobs remain native."
+    },
+    {
+      "type": "text",
+      "title": "Unsafe Families",
+      "text": "A sacrificed Age cannot create lesser realms. An Age above the configured functional maximum is also refused while instability symptoms are active. Its portal blocks remain inert instead of falling through to Minecraft's global Nether or End. A steward who disables those symptoms can permit realm creation without lowering the score."
+    },
+    {
+      "type": "text",
+      "title": "Strongholds",
+      "text": "Standard-compatible root Ages can generate strongholds even with unusual or modded biome selections. Their portal frames become useful only when the Age meets the functional-instability rule. Generation changes affect new chunks; an already explored region will not be rewritten."
+    },
+    {
+      "type": "text",
+      "title": "Immersive Portals",
+      "text": "When Immersive Portals is installed, Crystal Portals and an Age's Nether or End portals gain seamless views and crossings. Crystal destinations respect the Linking Book's saved facing; the receptacle can rotate that view in quarter turns. Ordinary teleportation remains the fallback."
+    },
+    {
+      "type": "text",
+      "title": "Distant Horizons",
+      "text": "When Distant Horizons is installed, Mystcraft registers Age levels with a no-op distant generator. This prevents the distant renderer from independently generating mismatched Age terrain; normal loaded chunks remain the authority. No player configuration is required."
+    }
+  ]
+}

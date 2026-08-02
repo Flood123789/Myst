@@ -16,6 +16,13 @@ import net.minecraft.util.Identifier
 import org.joml.Matrix3f
 import org.joml.Matrix4f
 
+/**
+ * Draws symbol-specific ink glyphs over the shared paper item model.
+ *
+ * Pages encode their symbol in NBT, so static model JSON cannot select every icon. The renderer
+ * maps symbol families to small procedural glyphs and uses full light in inventory GUIs while
+ * respecting world light when a page is held or displayed.
+ */
 object PageIconItemRenderer : BuiltinItemRendererRegistry.DynamicItemRenderer {
     private val WHITE_TEXTURE = Identifier("minecraft", "textures/misc/white.png")
     private const val PAPER = 0xFFF7EACB.toInt()
@@ -132,6 +139,15 @@ object PageIconItemRenderer : BuiltinItemRendererRegistry.DynamicItemRenderer {
             "color_white" -> drawSwatch(matrices, providers, 0xFFF2F2F2.toInt(), light, overlay)
             "color_yellow" -> drawSwatch(matrices, providers, 0xFFF0C94E.toInt(), light, overlay)
             "color_purple" -> drawSwatch(matrices, providers, 0xFF9B62E4.toInt(), light, overlay)
+            "color_orange" -> drawSwatch(matrices, providers, 0xFFFF8800.toInt(), light, overlay)
+            "color_cyan" -> drawSwatch(matrices, providers, 0xFF00FFFF.toInt(), light, overlay)
+            "color_teal" -> drawSwatch(matrices, providers, 0xFF008080.toInt(), light, overlay)
+            "color_pink" -> drawSwatch(matrices, providers, 0xFFFF69B4.toInt(), light, overlay)
+            "color_magenta" -> drawSwatch(matrices, providers, 0xFFFF00FF.toInt(), light, overlay)
+            "color_lime" -> drawSwatch(matrices, providers, 0xFF7FFF00.toInt(), light, overlay)
+            "color_brown" -> drawSwatch(matrices, providers, 0xFF8B4513.toInt(), light, overlay)
+            "color_gray" -> drawSwatch(matrices, providers, 0xFF808080.toInt(), light, overlay)
+            "color_light_blue" -> drawSwatch(matrices, providers, 0xFF66CCFF.toInt(), light, overlay)
             else -> drawPalette(matrices, providers, light, overlay)
         }
     }

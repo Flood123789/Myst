@@ -23,6 +23,8 @@ import mystcraft.flood.client.render.DescriptiveBookEntityRenderer
 import mystcraft.flood.client.render.ModEntityModelLayers
 import mystcraft.flood.client.render.MystcraftDimensionEffects
 import mystcraft.flood.client.render.PageIconItemRenderer
+import mystcraft.flood.client.render.PaintedCrystalBlockEntityRenderer
+import mystcraft.flood.item.CrystalPaint
 import mystcraft.flood.compat.DistantHorizonsCompat
 import mystcraft.flood.entity.ModEntities
 import mystcraft.flood.gui.ModScreens
@@ -47,6 +49,11 @@ import net.minecraft.util.Identifier
 import mystcraft.flood.item.ModItems
 import org.joml.Matrix4f
 
+/**
+ * Client-only composition root for screens, renderers, tint providers, and packet receivers.
+ * Nothing registered here may be referenced during dedicated-server class loading; shared
+ * gameplay code communicates with these systems through packets and neutral profile data.
+ */
 class MystcraftReforgedClient : ClientModInitializer {
     
     override fun onInitializeClient() {
@@ -56,7 +63,11 @@ class MystcraftReforgedClient : ClientModInitializer {
             ClientAgeTimeCache.tick()
             AgeTravelSoundSuppressor.INSTANCE.tick(client)
             AgeAmbientParticlePainter.tick(client)
-            DistantHorizonsCompat.tick()
+            val dimension = client.world?.registryKey?.value
+            val paletteReady = dimension != null && (
+                dimension.namespace != MystcraftReforged.MOD_ID || ClientAgeCache.getProperties(dimension) != null
+            )
+            DistantHorizonsCompat.tick(dimension, paletteReady)
         }
 
         WorldRenderEvents.AFTER_SETUP.register { context ->
@@ -104,15 +115,22 @@ class MystcraftReforgedClient : ClientModInitializer {
         BlockEntityRendererFactories.register(ModBlockEntities.BOOK_RECEPTACLE) { context ->
             BookReceptacleBlockEntityRenderer(context)
         }
+        BlockEntityRendererFactories.register(ModBlockEntities.PAINTED_CRYSTAL) { context ->
+            PaintedCrystalBlockEntityRenderer(context)
+        }
         BlockEntityRendererFactories.register(ModBlockEntities.BOOK_STAND) { context ->
             BookStandBlockEntityRenderer(context)
         }
 
         BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.CRYSTAL_BLOCK, RenderLayer.getTranslucent())
+        BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.BOOK_RECEPTACLE, RenderLayer.getTranslucent())
         BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.CRYSTAL_PORTAL, RenderLayer.getTranslucent())
 
         BuiltinItemRendererRegistry.INSTANCE.register(ModItems.SYMBOL_PAGE, PageIconItemRenderer)
         BuiltinItemRendererRegistry.INSTANCE.register(ModItems.LOST_PAGE, PageIconItemRenderer)
+        ColorProviderRegistry.ITEM.register({ stack, tintIndex ->
+            if (tintIndex == 1) CrystalPaint.getColor(stack) else -1
+        }, ModItems.INK_VIAL, ModItems.BLOCK_INK_VIAL)
         ModelPredicateProviderRegistry.register(ModItems.NOTEBOOK, Identifier(MystcraftReforged.MOD_ID, "filled")) { stack, _, _, _ ->
             if (NotebookItem.getSymbols(stack).isNotEmpty()) 1.0f else 0.0f
         }

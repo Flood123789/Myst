@@ -12,11 +12,32 @@
     {
       "type": "text",
       "title": "Ignition",
-      "text": "One stone of the frame must be a $(c)Book Receptacle$(). When the frame is sealed, place a proper Linking Book or Descriptive Book within it. If the frame approves, the passage wakes at once and takes on the hue of its destination."
+      "text": "One stone of the frame must be a $(c)Book Receptacle$(), touching at least one Crystal. When the frame is sealed, place a linked Linking Book or Descriptive Book within it. The passage wakes at once with a random retained hue. Linking Books preserve their exact position and facing; Descriptive Books lead to the Age's safe arrival anchor."
     },
     {
       "type": "text",
       "text": "Take away the book, or break the crystal ring, and the road collapses without ceremony. I have seen pursuers vanish mid-step this way. I have also seen friends do the same, so be certain before meddling."
+    },
+    {
+      "type": "text",
+      "title": "Portal Controls",
+      "text": "While a receptacle holds a book, use a $(item)Crystal Block$() on it to rotate the destination facing 90 degrees clockwise. With Immersive Portals installed, use $(item)Shears$() to hide or restore Mystcraft's colored surface while leaving the seamless portal active. Either control preserves the book."
+    },
+    {
+      "type": "crafting",
+      "title": "Bottling Ink",
+      "recipe": "mystcraft-reforged:ink_vial",
+      "text": "A glass bottle and an ink sac make an $(thing)Ink Vial$(). It is useful at the writing desk, but builders have discovered another purpose."
+    },
+    {
+      "type": "text",
+      "title": "Painting Crystal",
+      "text": "Craft one $(thing)Ink Vial$() with one model-rendered block that has no block entity. The sampled block is consumed and yields a vial with $(thing)16 uses$(); Crystal and portal components cannot be sampled. Use it on a Crystal face to cover only that face. Different faces may carry different patterns. The empty vial returns when exhausted."
+    },
+    {
+      "type": "text",
+      "title": "Recovering the Frame",
+      "text": "Crystal Blocks and the Book Receptacle share the same mining requirements. Bring an $(thing)iron pickaxe$() or better if you wish to recover either one intact."
     }
   ]
 }

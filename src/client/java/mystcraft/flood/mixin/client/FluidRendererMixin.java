@@ -1,8 +1,7 @@
 package mystcraft.flood.mixin.client;
 
-import mystcraft.flood.client.cache.ClientAgeCache;
+import mystcraft.flood.client.render.AgeColorContext;
 import mystcraft.flood.generation.profile.AgeProfile;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.color.world.BiomeColors;
 import net.minecraft.client.render.block.FluidRenderer;
 import net.minecraft.util.math.BlockPos;
@@ -21,12 +20,9 @@ public class FluidRendererMixin {
             )
     )
     private int mystcraft$getWaterColor(BlockRenderView world, BlockPos pos) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client.world != null && "mystcraft-reforged".equals(client.world.getRegistryKey().getValue().getNamespace())) {
-            AgeProfile profile = ClientAgeCache.INSTANCE.getProperties(client.world.getRegistryKey().getValue());
-            if (profile != null) {
-                return profile.getColors().getWater() & 0xFFFFFF;
-            }
+        AgeProfile profile = AgeColorContext.getProfile(world);
+        if (profile != null) {
+            return profile.getColors().getWater() & 0xFFFFFF;
         }
 
         return BiomeColors.getWaterColor(world, pos);

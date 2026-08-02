@@ -127,7 +127,7 @@ class FloatingCastleFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defaul
             if (!isPosInCurrentChunk(info.pos, chunkPos)) continue
             val blockEntity = world.getBlockEntity(info.pos)
             if (blockEntity is ChestBlockEntity && blockEntity.isEmpty) {
-                val pageCount = 2 + random.nextInt(4)
+                val pageCount = FeatureBuildHelper.configuredLostPageCount(random, 2, 5)
                 repeat(pageCount) {
                     blockEntity.setStack(random.nextInt(blockEntity.size()), ItemStack(ModItems.LOST_PAGE))
                 }

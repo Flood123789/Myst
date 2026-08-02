@@ -1,5 +1,6 @@
 package mystcraft.flood.generation
 
+import mystcraft.flood.config.MystcraftConfig
 import mystcraft.flood.generation.profile.AgeDimensionRole
 import mystcraft.flood.generation.profile.AgeProfileManager
 import mystcraft.flood.generation.profile.TerrainType
@@ -19,7 +20,15 @@ import net.minecraft.world.StructureWorldAccess
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.roundToInt
+import kotlin.math.floor
 
+/**
+ * Shared placement rules for hand-built worldgen features.
+ *
+ * The helpers centralize cave-vs-surface ground selection, protected-block replacement, water
+ * policy, clipping, and loot-container setup. Feature classes should use these rules so a
+ * structure behaves consistently across ordinary, cave, Nether, void, and derived Age terrain.
+ */
 object FeatureBuildHelper {
     private const val INTERIOR_MAX_CLEARANCE = 28
 
@@ -190,12 +199,34 @@ object FeatureBuildHelper {
     }
 
     fun randomPageLoot(random: net.minecraft.util.math.random.Random): List<ItemStack> = buildList {
-        val pageCount = 1 + random.nextInt(2)
+        val pageCount = configuredLostPageCount(random, 1, 2)
         repeat(pageCount) { add(ItemStack(mystcraft.flood.item.ModItems.LOST_PAGE)) }
         if (random.nextFloat() < 0.35f) add(ItemStack(Blocks.BOOKSHELF.asItem()))
         if (random.nextFloat() < 0.30f) add(ItemStack(net.minecraft.item.Items.MAP))
         if (random.nextFloat() < 0.30f) add(ItemStack(net.minecraft.item.Items.COMPASS))
         if (random.nextFloat() < 0.25f) add(ItemStack(net.minecraft.item.Items.SPYGLASS))
+    }
+
+    fun configuredLostPageCount(
+        random: net.minecraft.util.math.random.Random,
+        baseMinimum: Int,
+        baseMaximum: Int
+    ): Int {
+        val loot = MystcraftConfig.current.loot
+        if (random.nextFloat() >= loot.ageFeatureChestPageChance) return 0
+        val base = baseMinimum + random.nextInt((baseMaximum - baseMinimum + 1).coerceAtLeast(1))
+        val scaled = base * loot.ageFeaturePageCountMultiplier
+        val whole = floor(scaled).toInt()
+        return whole + if (random.nextFloat() < scaled - whole) 1 else 0
+    }
+
+    fun configuredLostPageCount(random: java.util.Random, baseMinimum: Int, baseMaximum: Int): Int {
+        val loot = MystcraftConfig.current.loot
+        if (random.nextFloat() >= loot.ageFeatureChestPageChance) return 0
+        val base = baseMinimum + random.nextInt((baseMaximum - baseMinimum + 1).coerceAtLeast(1))
+        val scaled = base * loot.ageFeaturePageCountMultiplier
+        val whole = floor(scaled).toInt()
+        return whole + if (random.nextFloat() < scaled - whole) 1 else 0
     }
 
     fun randomSupplyLoot(random: net.minecraft.util.math.random.Random): List<ItemStack> = listOf(

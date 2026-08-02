@@ -22,6 +22,7 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
 
+/** Generates seeded archaeological remains as an optional historic Age landmark. */
 class AncientRemainsFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatureConfig>(codec) {
 
     override fun generate(context: FeatureContext<DefaultFeatureConfig>): Boolean {

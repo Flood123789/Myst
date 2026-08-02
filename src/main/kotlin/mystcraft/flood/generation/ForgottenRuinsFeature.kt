@@ -29,6 +29,11 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.roundToInt
 
+/**
+ * Builds one of several deterministic ruined-landmark compositions for historic-themed Ages.
+ * Individual blocks are varied from seeded local coordinates, making the result independent of
+ * the order in which neighboring chunks happen to request feature generation.
+ */
 class ForgottenRuinsFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatureConfig>(codec) {
 
     override fun generate(context: FeatureContext<DefaultFeatureConfig>): Boolean {
@@ -578,7 +583,7 @@ class ForgottenRuinsFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defaul
         setBlockState(world, chunkPos, pos, Blocks.CHEST.defaultState.with(ChestBlock.FACING, facing))
         val chest = world.getBlockEntity(pos) as? ChestBlockEntity ?: return
         if (pageLoot) {
-            repeat(1 + rand.nextInt(2)) {
+            repeat(FeatureBuildHelper.configuredLostPageCount(rand, 1, 2)) {
                 chest.setStack(rand.nextInt(chest.size()), ItemStack(ModItems.LOST_PAGE))
             }
         }

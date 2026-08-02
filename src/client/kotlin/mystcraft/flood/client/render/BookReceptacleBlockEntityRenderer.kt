@@ -1,6 +1,7 @@
 package mystcraft.flood.client.render
 
 import mystcraft.flood.block.entity.BookReceptacleBlockEntity
+import mystcraft.flood.block.entity.PaintedCrystalBlockEntity
 import net.minecraft.client.MinecraftClient
 import net.minecraft.client.render.VertexConsumerProvider
 import net.minecraft.client.render.block.entity.BlockEntityRenderer
@@ -12,6 +13,7 @@ import net.minecraft.util.math.Direction
 import net.minecraft.util.math.RotationAxis
 
 class BookReceptacleBlockEntityRenderer(ctx: BlockEntityRendererFactory.Context) : BlockEntityRenderer<BookReceptacleBlockEntity> {
+    private val blockRenderManager = ctx.renderManager
     
     override fun render(
         entity: BookReceptacleBlockEntity,
@@ -21,6 +23,8 @@ class BookReceptacleBlockEntityRenderer(ctx: BlockEntityRendererFactory.Context)
         light: Int,
         overlay: Int
     ) {
+        renderPaintedBacking(entity, matrices, vertexConsumers, light, overlay)
+
         val stack = entity.inventory.getStack(0)
         if (stack.isEmpty) return
 
@@ -79,6 +83,49 @@ class BookReceptacleBlockEntityRenderer(ctx: BlockEntityRendererFactory.Context)
             0
         )
 
+        matrices.pop()
+    }
+
+    private fun renderPaintedBacking(
+        entity: BookReceptacleBlockEntity,
+        matrices: MatrixStack,
+        vertexConsumers: VertexConsumerProvider,
+        light: Int,
+        overlay: Int
+    ) {
+        val world = entity.world ?: return
+        val facing = entity.cachedState.get(Properties.FACING)
+        val support = world.getBlockEntity(entity.pos.offset(facing.opposite)) as? PaintedCrystalBlockEntity ?: return
+        val paintedState = support.getPaintedState(facing) ?: return
+
+        matrices.push()
+        when (facing) {
+            Direction.NORTH -> {
+                matrices.translate(0.0, 0.0, 0.624)
+                matrices.scale(1.0f, 1.0f, 0.377f)
+            }
+            Direction.SOUTH -> {
+                matrices.translate(0.0, 0.0, -0.001)
+                matrices.scale(1.0f, 1.0f, 0.377f)
+            }
+            Direction.EAST -> {
+                matrices.translate(-0.001, 0.0, 0.0)
+                matrices.scale(0.377f, 1.0f, 1.0f)
+            }
+            Direction.WEST -> {
+                matrices.translate(0.624, 0.0, 0.0)
+                matrices.scale(0.377f, 1.0f, 1.0f)
+            }
+            Direction.UP -> {
+                matrices.translate(0.0, -0.001, 0.0)
+                matrices.scale(1.0f, 0.377f, 1.0f)
+            }
+            Direction.DOWN -> {
+                matrices.translate(0.0, 0.624, 0.0)
+                matrices.scale(1.0f, 0.377f, 1.0f)
+            }
+        }
+        blockRenderManager.renderBlockAsEntity(paintedState, matrices, vertexConsumers, light, overlay)
         matrices.pop()
     }
 }

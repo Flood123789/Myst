@@ -8,12 +8,15 @@ import net.minecraft.block.BlockWithEntity
 import net.minecraft.block.ShapeContext
 import net.minecraft.block.entity.BlockEntity
 import net.minecraft.entity.ItemEntity
+import net.minecraft.entity.LivingEntity
 import net.minecraft.entity.player.PlayerEntity
+import net.minecraft.item.ItemStack
 import net.minecraft.item.ItemPlacementContext
 import net.minecraft.item.Items
 import net.minecraft.text.Text
 import net.minecraft.state.StateManager
 import net.minecraft.state.property.Properties
+import net.minecraft.state.property.BooleanProperty
 import net.minecraft.util.ActionResult
 import net.minecraft.util.Hand
 import net.minecraft.util.ItemScatterer
@@ -30,7 +33,9 @@ class BookReceptacleBlock(settings: Settings) : BlockWithEntity(settings) {
 
     init {
         // Now uses full 6-axis FACING!
-        defaultState = stateManager.defaultState.with(Properties.FACING, Direction.NORTH)
+        defaultState = stateManager.defaultState
+            .with(Properties.FACING, Direction.NORTH)
+            .with(PAINTED_BACKING, false)
     }
 
     @Deprecated("Deprecated in Java")
@@ -52,12 +57,27 @@ class BookReceptacleBlock(settings: Settings) : BlockWithEntity(settings) {
     }
 
     override fun appendProperties(builder: StateManager.Builder<Block, BlockState>) {
-        builder.add(Properties.FACING)
+        builder.add(Properties.FACING, PAINTED_BACKING)
     }
 
     override fun getPlacementState(ctx: ItemPlacementContext): BlockState {
         // Snaps its back to whatever block face you clicked on!
         return defaultState.with(Properties.FACING, ctx.side)
+    }
+
+    override fun onPlaced(
+        world: World,
+        pos: BlockPos,
+        state: BlockState,
+        placer: LivingEntity?,
+        itemStack: ItemStack
+    ) {
+        super.onPlaced(world, pos, state, placer, itemStack)
+        val facing = state.get(Properties.FACING)
+        val support = world.getBlockEntity(pos.offset(facing.opposite)) as? mystcraft.flood.block.entity.PaintedCrystalBlockEntity
+        if (support?.getPaintedState(facing) != null) {
+            world.setBlockState(pos, state.with(PAINTED_BACKING, true), 3)
+        }
     }
 
     override fun createBlockEntity(pos: BlockPos, state: BlockState): BlockEntity {
@@ -130,5 +150,9 @@ class BookReceptacleBlock(settings: Settings) : BlockWithEntity(settings) {
             return ActionResult.SUCCESS
         }
         return ActionResult.PASS
+    }
+
+    companion object {
+        val PAINTED_BACKING: BooleanProperty = BooleanProperty.of("painted_backing")
     }
 }

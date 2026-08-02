@@ -19,6 +19,13 @@ import net.minecraft.world.dimension.NetherPortal
 import net.minecraft.world.TeleportTarget
 import net.minecraft.world.World
 
+/**
+ * Shared implementation behind crystal, Nether, and End portal transfers in Mystcraft realms.
+ *
+ * Portal mixins only detect the vanilla interaction and delegate here. This object resolves the
+ * correct member of the Age family, applies Nether coordinate scaling, prepares a safe exit, and
+ * performs the actual transfer while preserving entity orientation and velocity.
+ */
 object AgePortalRouting {
     private val AGE_END_SPAWN = BlockPos(100, 50, 0)
 
@@ -44,7 +51,10 @@ object AgePortalRouting {
         if (!shouldHijackPortal(entity, serverWorld)) return false
 
         val currentAgeId = serverWorld.registryKey.value
-        val targetAgeId = AgeSubdimensionManager.routeNetherPortal(serverWorld.server, currentAgeId) ?: return false
+        // An unstable Age owns this portal even while it cannot sustain a
+        // destination. Consume the collision so vanilla cannot route it to the
+        // global Nether.
+        val targetAgeId = AgeSubdimensionManager.routeNetherPortal(serverWorld.server, currentAgeId) ?: return true
         if (entity.portalCooldown > 0) return true
 
         val targetWorld = AgeSubdimensionManager.getWorld(serverWorld.server, targetAgeId) ?: return false
@@ -79,7 +89,9 @@ object AgePortalRouting {
         if (!shouldHijackPortal(entity, serverWorld)) return false
 
         val currentAgeId = serverWorld.registryKey.value
-        val targetAgeId = AgeSubdimensionManager.routeEndPortal(serverWorld.server, currentAgeId) ?: return false
+        // Keep a stronghold portal inert until the root Age is stable enough;
+        // falling through here would incorrectly send the player to the global End.
+        val targetAgeId = AgeSubdimensionManager.routeEndPortal(serverWorld.server, currentAgeId) ?: return true
         if (entity.portalCooldown > 0) return true
 
         val targetWorld = AgeSubdimensionManager.getWorld(serverWorld.server, targetAgeId) ?: return false

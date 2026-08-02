@@ -6,6 +6,7 @@
     "ClientPlayNetworkHandlerAccessor",
     "BlockLeakParticleAccessor",
     "ClientAgeTimeMixin",
+    "LightmapTextureManagerAccessor",
     "BiomeColorsMixin",
     "BackgroundRendererMixin",
     "BlockLeakParticleMixin",

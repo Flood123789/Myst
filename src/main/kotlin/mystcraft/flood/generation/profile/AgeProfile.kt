@@ -5,6 +5,13 @@ import com.google.gson.GsonBuilder
 import com.google.gson.JsonParser
 import java.util.concurrent.CopyOnWriteArrayList
 
+/**
+ * Server-authoritative, JSON-persisted description of one Age.
+ *
+ * Nested settings are mutable because time, weather, instability, curses, and lifecycle state
+ * evolve while the server runs. Structural choices such as the seed and id stay immutable.
+ * Client code receives a read-only snapshot of this same schema through `ModMessages`.
+ */
 data class AgeProfile(
     val id: String,
     val seed: Long,
@@ -25,11 +32,22 @@ data class AgeProfile(
 ) {
     companion object {
         val GSON: Gson = GsonBuilder().setPrettyPrinting().serializeNulls().create()
+        /**
+         * Reads current and older save schemas. Every `has(...)` branch below is a migration
+         * default, not ordinary initialization; removing one can break an existing world.
+         */
         fun fromJson(json: String): AgeProfile {
             val root = JsonParser.parseString(json).asJsonObject
             var profile = GSON.fromJson(root, AgeProfile::class.java)
             if (!root.has("terrainTuning") || root.get("terrainTuning").isJsonNull) {
                 profile = profile.copy(terrainTuning = TerrainTuningProfile())
+            }
+            val biomeJson = root.getAsJsonObject("biomes")
+            if (!biomeJson.has("inheritDimensionSource")) {
+                profile.biomes.inheritDimensionSource =
+                    profile.biomes.mode == BiomeMode.VANILLA_DISTRIBUTION ||
+                        profile.terrainType == TerrainType.NETHER ||
+                        profile.terrainType == TerrainType.END
             }
             profile.modifiers = CopyOnWriteArrayList(profile.modifiers)
 
@@ -135,7 +153,7 @@ data class AgeProfile(
     fun toJson(): String = GSON.toJson(this)
 }
 
-enum class TerrainType { STANDARD, BETA, ALPHA, AMPLIFIED, CAVES, FLOATING_ISLANDS, FLAT, BIOSPHERES, CITIES, VOID }
+enum class TerrainType { STANDARD, BETA, ALPHA, AMPLIFIED, CAVES, FLOATING_ISLANDS, FLAT, BIOSPHERES, CITIES, NETHER, END, VOID }
 
 enum class BiomeMode { SINGLE, VANILLA_DISTRIBUTION, CHECKERBOARD, WEIGHTED }
 
@@ -143,7 +161,9 @@ data class BiomeWeight(var biomeId: String, var weight: Int)
 
 data class BiomeSet(
     var mode: BiomeMode,
-    var biomes: MutableList<BiomeWeight>
+    var biomes: MutableList<BiomeWeight>,
+    /** Use the live vanilla dimension's biome source, including datapack/mod replacements. */
+    var inheritDimensionSource: Boolean = false
 )
 
 data class ColorSettings(
@@ -157,8 +177,8 @@ data class ColorSettings(
     var fireLava: Int = 0xFF6A00
 )
 
+/** Authored celestial layout plus the runtime clock maintained by the root Age realm. */
 data class TimeSettings(
-    // === NEW: Expanded Celestial Data ===
     var sunNormalCount: Int = 1,
     var sunRedCount: Int = 0,
     var sunBlueCount: Int = 0,
@@ -173,6 +193,7 @@ data class TimeSettings(
     var timeScale: Float = 1.0f,
     var savedTime: Long? = null,
     var temporaryTimeOverride: Long? = null,
+    // These accumulators are runtime state. savedTime/fixedTime provide the persistent anchors.
     @Transient var liveTimeOfDay: Long = 6000L,
     @Transient var timeAccumulator: Float = 0f
 ) {
@@ -183,6 +204,7 @@ data class TimeSettings(
         get() = temporaryTimeOverride != null || fixedTime != null
 }
 
+/** Authored weather rules and the current natural-weather state between server ticks. */
 data class WeatherSettings(
     var isEndlessRain: Boolean,
     var isEndlessStorm: Boolean,
@@ -221,6 +243,7 @@ data class PhysicsSettings(
     var gravityScale: Float = 1.0f
 )
 
+/** Lifecycle and family metadata that does not fit terrain or environmental settings. */
 data class AgeState(
     var isSacrificed: Boolean = false,
     var sacrificedAt: Long? = null,
@@ -252,6 +275,7 @@ data class SpawnSettings(
     var passiveMultiplier: Float = 1.0f
 )
 
+/** Optional 1-16 editor values; null means "leave the selected generator at its default." */
 data class TerrainTuningProfile(
     var terrainTurbulence: Int? = null,
     var seaLevel: Int? = null,

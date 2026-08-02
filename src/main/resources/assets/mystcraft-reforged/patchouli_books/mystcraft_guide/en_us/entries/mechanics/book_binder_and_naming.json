@@ -6,7 +6,7 @@
   "pages": [
     {
       "type": "text",
-      "text": "The $(thing)Book Binder$() is altar, desk, and patient accomplice. In it are made guide books, descriptive books, and linking books. In it, too, you may lay symbols in order before the first dangerous reading."
+      "text": "The $(thing)Book Binder$() is altar, desk, and patient accomplice. It binds descriptive books and linking books; the Wayfarer's Primer has its own crafting recipe. In the Binder you may lay loose symbols or a filled notebook in order before the first dangerous reading."
     },
     {
       "type": "text",
@@ -22,11 +22,15 @@
     },
     {
       "type": "text",
-      "text": "The $(thing)Editing Table$() is stranger work. Lay an unlinked descriptive book in its cradle and surround it with chosen materials. Diamonds press turbulence, gold fixes the waters, iron deepens or loosens the caverns, copper broadens regions, and coal alters the world's reach. Pearl, sponge, spawner, and golden shovel write harsher instructions still."
+      "text": "The $(thing)Editing Table$() is stranger work. Lay an unlinked descriptive book in its cradle and surround it with up to 16 of each chosen material. Diamonds tune turbulence, gold sets sea level, iron adjusts cave density, copper changes biome size, and coal changes vertical range."
     },
     {
       "type": "text",
-      "text": "Only an unlinked descriptive book may be terrain-tuned at the table. A linked descriptive book invites sterner work: with a $(item)Curse Cleansing$() symbol page, ink, lapis, and amethyst, the table can lift one named curse from the Age without replacing sacrifice as the deeper healing art."
+      "text": "One spawner writes No Mobs, one sponge removes aquifers, one ender pearl forces a Cave World, and one golden shovel forces Superflat. Only an unlinked book accepts terrain tuning. The ingredients are consumed when the impression is applied and stored until the book first creates its Age."
+    },
+    {
+      "type": "text",
+      "text": "A linked descriptive book invites sterner work: with a $(item)Curse Cleansing$() page, one ink vial, four lapis, and one amethyst shard, the table removes the strongest active curse and lowers instability by that curse's relief value."
     },
     {
       "type": "text",
@@ -38,7 +42,7 @@
     },
     {
       "type": "text",
-      "text": "Take care with copied descriptive books. They are not new Ages, but additional bindings of the same one. So long as even one true binding survives, the world endures. When the last surviving descriptive book is destroyed, the Age suffers a wound of $(thing)200 instability$()."
+      "text": "Take care with copied descriptive books. They are not new Ages, but additional copies of the same binding lineage. So long as one tracked copy survives, no loss is recorded. If the last copy despawns, burns, falls into the void, or is otherwise destroyed, its Age suffers $(thing)200 instability$()."
     }
   ]
 }

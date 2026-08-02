@@ -3,7 +3,13 @@ package mystcraft.flood.generation
 import net.minecraft.registry.Registries
 import net.minecraft.util.Identifier
 
-// This class MUST match what AgeProfileManager expects!
+/**
+ * Intermediate result of parsing a book's ordered symbol pages.
+ *
+ * This deliberately uses nullable fields: null means the author omitted that category and
+ * [AgeProfileManager] must choose a deterministic default. It is not the persisted Age schema;
+ * [mystcraft.flood.generation.profile.AgeProfile] fills that role.
+ */
 data class CompiledAgeData(
     var terrainType: String? = null,
     val biomes: MutableList<String> = mutableListOf(),
@@ -28,16 +34,25 @@ data class CompiledAgeData(
     var conflictInstability: Int = 0 // Tracks "bad grammar" penalties
 )
 
+/**
+ * Implements the ordered symbol grammar used by Descriptive Books.
+ *
+ * Modifier pages are buffered until a target page consumes them. Exclusive categories collect
+ * every candidate so the last page can win while earlier conflicts still add instability. The
+ * compiler has no world or save-file side effects, which keeps previewing and unit testing cheap.
+ */
 object AgeCompiler {
     fun compile(symbols: List<String>): CompiledAgeData {
         val data = CompiledAgeData()
         
-        // Memory banks for sequential grammar
+        // Sequential modifiers cannot be applied immediately: a later target declares whether
+        // the buffered value belongs to the sky, fog, water, and so on.
         val pendingColors = mutableListOf<Int>()
         val ageEffectCandidates = mutableListOf<String>()
         var ageEffectTargetCount = 0
         
-        // Conflict trackers to handle winners/losers at the end
+        // Keep all exclusive candidates until the end. This separates parsing from the
+        // "last page wins, every contradiction costs stability" resolution rule.
         val terrains = mutableListOf<String>()
         val times = mutableListOf<String>()
         val weathers = mutableListOf<String>()
@@ -46,11 +61,12 @@ object AgeCompiler {
         for (symbol in symbols) {
             var clean = symbol.lowercase().replace("mystcraft-reforged:", "")
             
-            // --- THE WILDCARD INTERCEPTOR ---
+            // Random is intentionally resolved at compile time so the resulting profile can be
+            // persisted and remain stable across restarts.
             if (clean == "random") {
                 // Pick a random chaotic feature for the compiler to inject!
                 val wildcards = listOf(
-                    "floating_islands", "amplified", "alpha", "beta", "cave", "flat", "biospheres", "cities",
+                    "floating_islands", "amplified", "alpha", "beta", "cave", "flat", "biospheres", "cities", "nether", "end",
                     "time_fast", "time_fixed", 
                     "weather_storm", "weather_rain", "weather_normal",
                     "red", "purple", "black", "green",
@@ -79,6 +95,15 @@ object AgeCompiler {
             
             when {
                 // === COLORS (Modifiers) ===
+                clean == "color_orange" -> pendingColors.add(0xFF8800)
+                clean == "color_cyan" -> pendingColors.add(0x00FFFF)
+                clean == "color_teal" -> pendingColors.add(0x008080)
+                clean == "color_pink" -> pendingColors.add(0xFF69B4)
+                clean == "color_magenta" -> pendingColors.add(0xFF00FF)
+                clean == "color_lime" -> pendingColors.add(0x7FFF00)
+                clean == "color_brown" -> pendingColors.add(0x8B4513)
+                clean == "color_gray" -> pendingColors.add(0x808080)
+                clean == "color_light_blue" -> pendingColors.add(0x66CCFF)
                 clean.contains("red") -> pendingColors.add(0xFF0000)
                 clean.contains("blue") -> pendingColors.add(0x0000FF)
                 clean.contains("green") -> pendingColors.add(0x00FF00)
@@ -121,6 +146,8 @@ object AgeCompiler {
                 clean == "terrain_caves" || clean == "cave" || clean == "caves" -> terrains.add("CAVE")
                 clean == "terrain_biospheres" || clean == "biospheres" || clean == "biosphere" -> terrains.add("BIOSPHERES")
                 clean == "terrain_cities" || clean == "cities" || clean == "city" -> terrains.add("CITIES")
+                clean == "terrain_nether" || clean == "nether" -> terrains.add("NETHER")
+                clean == "terrain_end" || clean == "end" -> terrains.add("END")
                 clean == "terrain_standard" || clean == "standard" -> terrains.add("STANDARD")
                 clean == "terrain_flat" || clean == "flat" -> terrains.add("FLAT")
                 clean == "terrain_void" || clean == "void" -> terrains.add("VOID")
@@ -153,9 +180,7 @@ object AgeCompiler {
             }
         }
         
-        // ----------------------------------------------------
-        // CONFLICT RESOLUTION ENGINE
-        // ----------------------------------------------------
+        // Resolve mutually exclusive categories only after every page has been seen.
         
         // Unused modifiers cause instability (Grammar Leaks!)
         if (pendingColors.isNotEmpty()) {

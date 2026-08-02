@@ -8,6 +8,7 @@ import net.minecraft.util.Identifier
 import net.minecraft.world.gen.feature.DefaultFeatureConfig
 import net.minecraft.world.gen.feature.Feature
 
+/** Runtime registry for feature codecs; placement parameters live in worldgen JSON resources. */
 object ModFeatures {
 
     // 1. Define the features once. 
@@ -36,6 +37,7 @@ object ModFeatures {
     val STABLE_SANCTUARIES: Feature<DefaultFeatureConfig> = StableSanctuaryFeature(DefaultFeatureConfig.CODEC)
     val METEOR_SHOWERS: Feature<DefaultFeatureConfig> = MeteorShowerFeature(DefaultFeatureConfig.CODEC)
     val SKY_SPHERES: Feature<DefaultFeatureConfig> = SkySphereFeature(DefaultFeatureConfig.CODEC)
+    val CAVE_GLOW_LICHEN: Feature<DefaultFeatureConfig> = CaveGlowLichenFeature(DefaultFeatureConfig.CODEC)
 
     private var hasRegistered = false
 
@@ -68,6 +70,7 @@ object ModFeatures {
         Registry.register(Registries.FEATURE, Identifier(MystcraftReforged.MOD_ID, "stable_sanctuaries"), STABLE_SANCTUARIES)
         Registry.register(Registries.FEATURE, Identifier(MystcraftReforged.MOD_ID, "meteor_showers"), METEOR_SHOWERS)
         Registry.register(Registries.FEATURE, Identifier(MystcraftReforged.MOD_ID, "sky_spheres"), SKY_SPHERES)
+        Registry.register(Registries.FEATURE, Identifier(MystcraftReforged.MOD_ID, "cave_glow_lichen"), CAVE_GLOW_LICHEN)
 
         MystcraftReforged.LOGGER.info("Successfully registered all worldgen features.")
     }

@@ -25,6 +25,11 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
 
+/**
+ * Applies profile-selected exotic surface treatments without replacing the base chunk generator.
+ * The feature samples the existing terrain first, then performs bounded decoration so authored
+ * themes remain compatible with vanilla and modded biome/noise sources.
+ */
 class ExoticSurfaceFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatureConfig>(codec) {
 
     override fun generate(context: FeatureContext<DefaultFeatureConfig>): Boolean {
@@ -706,7 +711,7 @@ class ExoticSurfaceFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Default
         }
         setBlockState(world, chunkPos, pos, Blocks.CHEST.defaultState.with(ChestBlock.FACING, Direction.NORTH))
         val chest = world.getBlockEntity(pos) as? ChestBlockEntity ?: return
-        repeat(pageCount) {
+        repeat(FeatureBuildHelper.configuredLostPageCount(world.random, pageCount, pageCount)) {
             chest.setStack(world.random.nextInt(chest.size()), net.minecraft.item.ItemStack(ModItems.LOST_PAGE))
         }
     }
