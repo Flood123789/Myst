@@ -14,15 +14,40 @@ import net.minecraft.text.Text
 import net.minecraft.util.Hand
 import net.minecraft.util.Identifier
 
+import mystcraft.flood.item.DisplayedBookHelper
+import net.minecraft.client.gui.widget.TextFieldWidget
+
 class LinkingBookScreen(
     private val stack: ItemStack,
     private val hand: Hand
 ) : Screen(Text.literal("Linking Book")) {
 
+    private var nameField: TextFieldWidget? = null
+    private var lastSentName = ""
+
+    override fun init() {
+        super.init()
+        val left = (width - BOOK_WIDTH) / 2
+        val top = (height - BOOK_HEIGHT) / 2
+        val initialName = DisplayedBookHelper.getAgeBookName(currentStack())
+
+        val field = TextFieldWidget(textRenderer, left + 20, top + 18, 120, 12, Text.literal("Book Name"))
+        field.setMaxLength(64)
+        field.setDrawsBackground(false)
+        field.setEditableColor(TEXT_COLOR)
+        field.setUneditableColor(TEXT_MUTED)
+        field.setSuggestion("Name this book")
+        field.text = initialName
+        field.setChangedListener(::onNameChanged)
+        lastSentName = initialName.trim()
+        nameField = addDrawableChild(field)
+    }
+
     override fun shouldPause(): Boolean = false
 
     override fun render(context: DrawContext, mouseX: Int, mouseY: Int, delta: Float) {
         renderBackground(context)
+        nameField?.setSuggestion(if (nameField?.text.orEmpty().isBlank()) "Name this book" else null)
         val left = (width - BOOK_WIDTH) / 2
         val top = (height - BOOK_HEIGHT) / 2
         drawBookShell(context, left, top)
@@ -33,6 +58,12 @@ class LinkingBookScreen(
 
     override fun mouseClicked(mouseX: Double, mouseY: Double, button: Int): Boolean {
         if (button != 0) return super.mouseClicked(mouseX, mouseY, button)
+
+        if (nameField?.mouseClicked(mouseX, mouseY, button) == true) {
+            setFocused(nameField)
+            return true
+        }
+
         val left = (width - BOOK_WIDTH) / 2
         val top = (height - BOOK_HEIGHT) / 2
         val x = mouseX.toInt()
@@ -51,6 +82,21 @@ class LinkingBookScreen(
         return super.mouseClicked(mouseX, mouseY, button)
     }
 
+    private fun onNameChanged(rawValue: String) {
+        val trimmedValue = rawValue.trim().take(64)
+        nameField?.setSuggestion(if (trimmedValue.isBlank()) "Name this book" else null)
+        if (trimmedValue == lastSentName) return
+        lastSentName = trimmedValue
+
+        DisplayedBookHelper.applyAgeBookName(currentStack(), trimmedValue)
+
+        val buf = PacketByteBufs.create()
+        buf.writeBoolean(false)
+        buf.writeEnumConstant(hand)
+        buf.writeString(trimmedValue, 64)
+        ClientPlayNetworking.send(ModMessages.RENAME_DESCRIPTIVE_BOOK, buf)
+    }
+
     private fun drawBookShell(context: DrawContext, left: Int, top: Int) {
         RenderSystem.enableBlend()
         context.drawTexture(COVER_TEXTURE, left + 7, top, 0f, 0f, 156, 195, 256, 256)
@@ -59,12 +105,12 @@ class LinkingBookScreen(
     }
 
     private fun drawLeftPage(context: DrawContext, left: Int, top: Int) {
-        val title = if (isLinked()) "Linked Destination" else "Unbound Volume"
-        context.drawText(textRenderer, title, left + 20, top + 18, TEXT_COLOR, false)
+        val customName = DisplayedBookHelper.getAgeBookName(currentStack())
 
         val body = buildList {
             if (isLinked()) {
-                add("This book is bound to ${destinationName()}.")
+                val dest = if (customName.isNotBlank()) "$customName (${destinationName()})" else destinationName()
+                add("This book is bound to $dest.")
                 add("Its anchor lies at ${locationLabel()}.")
                 add("Touch the painted panel to cross.")
                 add("Use the refresh mark if the view in the leaves has grown stale.")

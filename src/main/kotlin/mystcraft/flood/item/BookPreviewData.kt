@@ -1,5 +1,6 @@
 package mystcraft.flood.item
 
+import mystcraft.flood.generation.profile.AgeProfile
 import mystcraft.flood.generation.profile.AgeProfileManager
 import net.minecraft.block.BlockState
 import net.minecraft.item.ItemStack
@@ -71,7 +72,7 @@ object BookPreviewData {
                 anchorY,
                 anchorZ
             )
-            write(stack, capture(world, anchor, profile.colors.sky, profile.colors.fog))
+            write(stack, capture(world, anchor, profile.colors.sky, profile.colors.fog, profile))
             return true
         }
 
@@ -80,11 +81,12 @@ object BookPreviewData {
         val world = server.getWorld(worldKey) ?: return false
         val anchor = BlockPos.ofFloored(nbt.getDouble("PosX"), nbt.getDouble("PosY"), nbt.getDouble("PosZ"))
         val (skyTop, skyBottom) = defaultSkyColors(world)
-        write(stack, capture(world, anchor, skyTop, skyBottom))
+        val profile = if (dimId.namespace == "mystcraft-reforged") AgeProfileManager.getOrGenerateProfile(server, dimId) else null
+        write(stack, capture(world, anchor, skyTop, skyBottom, profile))
         return true
     }
 
-    private fun capture(world: ServerWorld, anchor: BlockPos, skyTopColor: Int, skyBottomColor: Int): BookPreviewSnapshot {
+    private fun capture(world: ServerWorld, anchor: BlockPos, skyTopColor: Int, skyBottomColor: Int, profile: AgeProfile? = null): BookPreviewSnapshot {
         val width = 24
         val height = 18
         val horizonRows = 5
@@ -106,7 +108,7 @@ object BookPreviewData {
                 val topY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, worldX, worldZ)
                 val surfacePos = BlockPos(worldX, topY - 1, worldZ)
                 val surfaceState = world.getBlockState(surfacePos)
-                val baseColor = approximateBlockColor(surfaceState)
+                val baseColor = approximateBlockColor(surfaceState, profile)
                 val heightDelta = (topY - baseAnchorY).coerceIn(-24, 24)
                 val brightness = 0.82 + (heightDelta / 80.0)
                 pixels[index] = shade(baseColor, brightness)
@@ -122,11 +124,11 @@ object BookPreviewData {
         )
     }
 
-    private fun approximateBlockColor(state: BlockState): Int {
+    private fun approximateBlockColor(state: BlockState, profile: AgeProfile? = null): Int {
         val path = net.minecraft.registry.Registries.BLOCK.getId(state.block).path
         return when {
-            "water" in path -> 0x3F74C9
-            "lava" in path -> 0xFF6A00
+            "water" in path -> profile?.colors?.water ?: 0x3F74C9
+            "lava" in path -> profile?.colors?.fireLava ?: 0xFF6A00
             "prismarine" in path -> 0x62B0A6
             "deepslate" in path -> 0x43474D
             "netherrack" in path || "nether" in path -> 0x7A3E35
@@ -134,8 +136,8 @@ object BookPreviewData {
             "end_stone" in path || "end" in path -> 0xD8D6A4
             "sand" in path || "sandstone" in path -> 0xD7C27D
             "terracotta" in path || "brick" in path || "mud" in path -> 0xA67355
-            "grass" in path || "moss" in path -> 0x5C9D49
-            "leaves" in path || "vine" in path || "azalea" in path -> 0x4A8A3D
+            "grass" in path || "moss" in path -> profile?.colors?.grass ?: 0x5C9D49
+            "leaves" in path || "vine" in path || "azalea" in path -> profile?.colors?.foliage ?: 0x4A8A3D
             "snow" in path || "ice" in path -> 0xDCEFFD
             "stone" in path || "cobble" in path || "andesite" in path || "diorite" in path || "granite" in path -> 0x8E929A
             "log" in path || "wood" in path || "planks" in path -> 0x8B6C46

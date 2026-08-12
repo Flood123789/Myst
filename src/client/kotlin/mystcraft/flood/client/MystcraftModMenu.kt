@@ -2,7 +2,14 @@ package mystcraft.flood.client
 
 import com.terraformersmc.modmenu.api.ConfigScreenFactory
 import com.terraformersmc.modmenu.api.ModMenuApi
+import me.shedaniel.clothconfig2.api.AbstractConfigListEntry
 import me.shedaniel.clothconfig2.api.ConfigBuilder
+import me.shedaniel.clothconfig2.api.ConfigEntryBuilder
+import mystcraft.flood.client.config.SkyElements
+import mystcraft.flood.client.config.SkyLayerMode
+import mystcraft.flood.client.config.SkyRenderConfig
+import mystcraft.flood.client.config.SkyRenderMode
+import mystcraft.flood.client.config.SkyRenderSettings
 import mystcraft.flood.config.MystcraftConfig
 import net.minecraft.client.gui.screen.Screen
 import net.minecraft.text.Text
@@ -26,7 +33,7 @@ class MystcraftModMenu : ModMenuApi {
         )
         val builder = ConfigBuilder.create()
             .setParentScreen(parent)
-            .setTitle(Text.literal("Mystcraft Reforged Balance"))
+            .setTitle(Text.literal("Mystcraft Reforged"))
         val entries = builder.entryBuilder()
 
         val instability = builder.getOrCreateCategory(Text.literal("Instability"))
@@ -70,7 +77,113 @@ class MystcraftModMenu : ModMenuApi {
         pools.addEntry(entries.startStrList(Text.literal("Terrain/world page IDs"), working.pagePools.blacklistedTerrainPages).setSaveConsumer { working.pagePools.blacklistedTerrainPages = it.toMutableList() }.build())
         pools.addEntry(entries.startStrList(Text.literal("Any symbol page IDs"), working.pagePools.blacklistedSymbolPages).setSaveConsumer { working.pagePools.blacklistedSymbolPages = it.toMutableList() }.build())
 
-        builder.setSavingRunnable { MystcraftConfig.replace(working) }
+        val sky = addSkyCategory(builder, entries)
+
+        builder.setSavingRunnable {
+            MystcraftConfig.replace(working)
+            SkyRenderConfig.replace(sky)
+        }
         return builder.build()
+    }
+
+    /**
+     * Shader packs replace the vanilla sky pass, so the authored sky needs somewhere else to land.
+     * This category chooses that placement globally and per element.
+     */
+    private fun addSkyCategory(builder: ConfigBuilder, entries: ConfigEntryBuilder): SkyRenderSettings {
+        val sky = SkyRenderConfig.current.let { live ->
+            live.copy(elements = LinkedHashMap(live.elements))
+        }
+        val category = builder.getOrCreateCategory(Text.literal("Sky Rendering"))
+
+        category.addEntry(
+            entries.startEnumSelector(Text.literal("Sky placement"), SkyRenderMode::class.java, sky.mode)
+                .setEnumNameProvider { Text.literal(modeLabel(it as SkyRenderMode)) }
+                .setTooltip(
+                    Text.literal("Auto: draw on top of the frame while a shader pack is loaded, otherwise in the vanilla sky pass."),
+                    Text.literal("Sky pass: vanilla behaviour. Most shaders discard it."),
+                    Text.literal("Overlay: always draw on top, after shader composite passes."),
+                    Text.literal("Off: hide every custom sky element.")
+                )
+                .setSaveConsumer { sky.mode = it }
+                .build()
+        )
+        category.addEntry(
+            entries.startBooleanToggle(Text.literal("Overlay only where sky is visible"), sky.overlayMasksToSky)
+                .setTooltip(
+                    Text.literal("Hide overlay elements behind terrain, buildings and Distant Horizons LOD chunks."),
+                    Text.literal("Turn this off if a shader pack leaves the overlay invisible.")
+                )
+                .setSaveConsumer { sky.overlayMasksToSky = it }
+                .build()
+        )
+        category.addEntry(
+            entries.startBooleanToggle(Text.literal("Occlude behind Distant Horizons LODs"), sky.overlayIncludesDistantHorizons)
+                .setTooltip(Text.literal("Distant Horizons keeps LOD depth in its own buffer; this folds it into the sky mask."))
+                .setSaveConsumer { sky.overlayIncludesDistantHorizons = it }
+                .build()
+        )
+        category.addEntry(
+            entries.startBooleanToggle(Text.literal("Redraw sun, moon and stars in overlay"), sky.overlayDrawsBaseBodies)
+                .setTooltip(
+                    Text.literal("An Age only authors its extra bodies; the first sun, moon and star layer come from the vanilla sky pass that the overlay covers."),
+                    Text.literal("Turn this off if you end up with a doubled sun or moon.")
+                )
+                .setSaveConsumer { sky.overlayDrawsBaseBodies = it }
+                .build()
+        )
+        category.addEntry(
+            entries.startFloatField(Text.literal("Overlay sky tint opacity"), sky.overlaySkyTintOpacity)
+                .setMin(0f).setMax(1f)
+                .setTooltip(Text.literal("How strongly the Age's sky colour is painted over the shader sky."))
+                .setSaveConsumer { sky.overlaySkyTintOpacity = it }
+                .build()
+        )
+        category.addEntry(
+            entries.startFloatField(Text.literal("Sky pass tint opacity"), sky.skyPassTintOpacity)
+                .setMin(0f).setMax(1f)
+                .setSaveConsumer { sky.skyPassTintOpacity = it }
+                .build()
+        )
+
+        category.addEntry(elementGroup(entries, "Suns, Moons & Stars", SkyElements.CORE, sky))
+        category.addEntry(elementGroup(entries, "Sky Anomalies", SkyElements.ANOMALIES, sky))
+        return sky
+    }
+
+    private fun elementGroup(
+        entries: ConfigEntryBuilder,
+        title: String,
+        keys: List<String>,
+        sky: SkyRenderSettings
+    ): AbstractConfigListEntry<*> {
+        val elementEntries = ArrayList<AbstractConfigListEntry<*>>()
+        for (key in keys) {
+            elementEntries.add(
+                entries.startEnumSelector(
+                    Text.literal(SkyElements.label(key)),
+                    SkyLayerMode::class.java,
+                    sky.elements[key] ?: SkyLayerMode.AUTO
+                )
+                    .setEnumNameProvider { Text.literal(elementModeLabel(it as SkyLayerMode)) }
+                    .setSaveConsumer { sky.elements[key] = it }
+                    .build()
+            )
+        }
+        return entries.startSubCategory(Text.literal(title), elementEntries).build()
+    }
+
+    private fun modeLabel(mode: SkyRenderMode): String = when (mode) {
+        SkyRenderMode.AUTO -> "Auto (on top with shaders)"
+        SkyRenderMode.SKY_PASS -> "Vanilla sky pass"
+        SkyRenderMode.OVERLAY -> "Draw on top"
+        SkyRenderMode.OFF -> "Off"
+    }
+
+    private fun elementModeLabel(mode: SkyLayerMode): String = when (mode) {
+        SkyLayerMode.AUTO -> "Follow sky placement"
+        SkyLayerMode.SKY_PASS -> "Vanilla sky pass"
+        SkyLayerMode.OVERLAY -> "Draw on top"
+        SkyLayerMode.HIDDEN -> "Hidden"
     }
 }

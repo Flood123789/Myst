@@ -2,7 +2,11 @@ package mystcraft.flood.client.render
 
 import com.mojang.blaze3d.platform.GlStateManager
 import com.mojang.blaze3d.systems.RenderSystem
+import com.mojang.blaze3d.systems.VertexSorter
 import mystcraft.flood.client.cache.ClientAgeCache
+import mystcraft.flood.client.config.SkyElements
+import mystcraft.flood.client.config.SkyLayer
+import mystcraft.flood.client.config.SkyRenderConfig
 import mystcraft.flood.generation.ChaosAgeThemes
 import net.minecraft.client.MinecraftClient
 import net.minecraft.client.gl.VertexBuffer
@@ -14,6 +18,7 @@ import net.minecraft.util.Identifier
 import net.minecraft.util.math.RotationAxis
 import net.minecraft.util.math.random.Random as MCRandom
 import org.joml.Matrix4f
+import org.lwjgl.opengl.GL11
 import javax.imageio.ImageIO
 import kotlin.random.Random
 
@@ -30,6 +35,9 @@ object CustomSkyPainter {
     private val AURORA_TEXTURE = Identifier("mystcraft-reforged", "textures/environment/aurora.png")
     private val RIFT_TEXTURE = Identifier("mystcraft-reforged", "textures/environment/rift.png")
     private val STREAK_TEXTURE = Identifier("mystcraft-reforged", "textures/environment/streak.png")
+
+    /** Celestial bodies scale from a 30 unit quad, and the vanilla moon is drawn 20 units wide. */
+    private const val VANILLA_MOON_SCALE = 20.0f / 30.0f
     private var starBuffer: VertexBuffer? = null
     private var sunTiles: List<SunTile>? = null
 
@@ -45,6 +53,12 @@ object CustomSkyPainter {
         val upZ: Float
     )
 
+    private data class BodyPlacement(
+        val size: Float,
+        val orbitPitch: Float,
+        val orbitYaw: Float
+    )
+
     private data class SunTile(
         val x0: Float,
         val z0: Float,
@@ -55,6 +69,17 @@ object CustomSkyPainter {
         val blue: Float,
         val alpha: Float
     )
+
+    /**
+     * Tilts a body's orbit without flipping which half of the day it is up for.
+     *
+     * A body's height above the horizon works out to `cos(timeAngle * 360) * cos(tilt)`, so the yaw
+     * offset only slides it around the horizon while the tilt decides its phase. Rolling the tilt
+     * across a full circle put a coin flip on every sun: half of them peaked at midnight and sat
+     * under the world all day. Keeping it inside a quarter turn leaves suns in the daylight arc and
+     * moons (drawn half a rotation later) in the night one, while still spreading them out.
+     */
+    private fun orbitTilt(random: Random): Float = (random.nextFloat() * 2.0f - 1.0f) * 60.0f
 
     private fun initStars() {
         if (starBuffer != null) return
@@ -97,6 +122,78 @@ object CustomSkyPainter {
         starBuffer!!.bind()
         starBuffer!!.upload(bufferBuilder.end())
         VertexBuffer.unbind()
+    }
+
+    /**
+     * Paints every element assigned to [layer] for this Age.
+     *
+     * Both layers walk the same element list; the config decides which of them each element answers
+     * to, so a shader pack that eats the sky pass can still show the authored sky as an overlay.
+     */
+    @JvmStatic
+    fun paintSky(
+        world: ClientWorld,
+        matrices: MatrixStack,
+        projectionMatrix: Matrix4f,
+        tickDelta: Float,
+        layer: SkyLayer
+    ) {
+        if (world.registryKey.value.namespace != "mystcraft-reforged") return
+        val depthTest = layer == SkyLayer.OVERLAY && SkyRenderConfig.overlayMasksToSky()
+
+        if (SkyRenderConfig.drawsOn(SkyElements.SKY_TINT, layer)) {
+            paintSkyTint(world, matrices, projectionMatrix, SkyRenderConfig.tintOpacity(layer), depthTest)
+        }
+        paintExtraSky(world, matrices, projectionMatrix, tickDelta, depthTest, layer)
+    }
+
+    /**
+     * Paints the [SkyLayer.OVERLAY] elements on top of the finished frame.
+     *
+     * Runs after shader composite passes, so it restores the render state it borrows: the world
+     * projection is re-applied for the sky-sized geometry and fog is pushed out of range to keep
+     * terrain fog from washing the elements out.
+     *
+     * Masking is done with the depth range rather than the element positions. The sky geometry only
+     * sits ~100 blocks out, so depth testing it normally would let anything beyond that - distant
+     * mountains, Distant Horizons LOD chunks - fail to occlude it. Collapsing the depth range onto
+     * the far plane instead makes every element read as infinitely far away, so it passes only where
+     * the world wrote no depth at all: the open sky.
+     */
+    @JvmStatic
+    fun paintSkyOverlay(world: ClientWorld, tickDelta: Float) {
+        if (world.registryKey.value.namespace != "mystcraft-reforged") return
+        if (!SkyRenderConfig.paintsAnythingOn(SkyLayer.OVERLAY)) return
+        val matrices = SkyFrameCapture.viewStack() ?: return
+        val projectionMatrix = SkyFrameCapture.projectionMatrix()
+        val maskToSky = SkyRenderConfig.overlayMasksToSky()
+
+        val previousProjection = RenderSystem.getProjectionMatrix()
+        val previousSorter = RenderSystem.getVertexSorting()
+        val previousFogStart = RenderSystem.getShaderFogStart()
+        val previousFogEnd = RenderSystem.getShaderFogEnd()
+        RenderSystem.setProjectionMatrix(projectionMatrix, VertexSorter.BY_DISTANCE)
+        RenderSystem.setShaderFogStart(Float.MAX_VALUE)
+        RenderSystem.setShaderFogEnd(Float.MAX_VALUE)
+        if (maskToSky) {
+            // Distant Horizons keeps LOD depth in its own buffer, so fold it in before masking.
+            if (SkyRenderConfig.overlayIncludesDistantHorizons() && !ClientRenderCompatibility.isShaderPackActive()) {
+                DistantHorizonsDepthMask.stampLodDepth()
+            }
+            RenderSystem.depthFunc(GL11.GL_LEQUAL)
+            GL11.glDepthRange(1.0, 1.0)
+        }
+        try {
+            paintSky(world, matrices, projectionMatrix, tickDelta, SkyLayer.OVERLAY)
+        } finally {
+            if (maskToSky) {
+                GL11.glDepthRange(0.0, 1.0)
+            }
+            RenderSystem.setShaderFogStart(previousFogStart)
+            RenderSystem.setShaderFogEnd(previousFogEnd)
+            RenderSystem.setProjectionMatrix(previousProjection, previousSorter)
+            RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f)
+        }
     }
 
     @JvmOverloads
@@ -145,23 +242,41 @@ object CustomSkyPainter {
         }
     }
 
-    fun paintShaderFallbackSky(world: ClientWorld, matrices: MatrixStack, projectionMatrix: Matrix4f, tickDelta: Float) {
-        paintSkyTint(world, matrices, projectionMatrix, 0.18f, depthTestSky = true)
-        paintExtraSky(world, matrices, projectionMatrix, tickDelta, depthTestSky = false)
-    }
-
     @JvmOverloads
     fun paintExtraSky(
         world: ClientWorld,
         matrices: MatrixStack,
         projectionMatrix: Matrix4f,
         tickDelta: Float,
-        depthTestSky: Boolean = false
+        depthTestSky: Boolean = false,
+        layer: SkyLayer = SkyLayer.SKY_PASS
     ) {
         val ageId = world.registryKey.value
         if (ageId.namespace != "mystcraft-reforged") return
         val profile = ClientAgeCache.getProperties(ageId) ?: return
+
+        // Placements are rolled up front and unconditionally, so hiding one element or moving it to
+        // another layer cannot shift where the remaining bodies sit.
         val rand = Random(profile.seed)
+        val starSpins = List((profile.time.starDensity - 1).coerceAtLeast(0)) {
+            Triple(rand.nextFloat() * 360f, rand.nextFloat() * 360f, rand.nextFloat() * 360f)
+        }
+        val redSuns = List(profile.time.sunRedCount) {
+            BodyPlacement(profile.time.sunSize * (rand.nextFloat() * 1.5f + 0.8f), orbitTilt(rand), rand.nextFloat() * 360f)
+        }
+        val blueSuns = List(profile.time.sunBlueCount) {
+            BodyPlacement(profile.time.sunSize * (rand.nextFloat() * 0.8f + 0.4f), orbitTilt(rand), rand.nextFloat() * 360f)
+        }
+        val moons = List((profile.time.moonCount - 1).coerceAtLeast(0)) {
+            BodyPlacement(profile.time.moonSize * (rand.nextFloat() * 1.5f + 0.5f), orbitTilt(rand), rand.nextFloat() * 360f)
+        }
+
+        val drawStars = SkyRenderConfig.drawsOn(SkyElements.STARS, layer)
+        val drawSuns = SkyRenderConfig.drawsOn(SkyElements.SUNS, layer)
+        val drawMoons = SkyRenderConfig.drawsOn(SkyElements.MOONS, layer)
+        // An Age only authors the bodies beyond the first sun, moon and star layer; those come from
+        // the vanilla sky pass. The overlay paints over that pass, so it has to supply them itself.
+        val drawBaseBodies = layer == SkyLayer.OVERLAY && SkyRenderConfig.overlayDrawsBaseBodies()
 
         RenderSystem.enableBlend()
         RenderSystem.disableCull()
@@ -179,16 +294,28 @@ object CustomSkyPainter {
             brightness = brightness.coerceIn(0.0f, 1.0f)
             val starAlpha = brightness * brightness * 0.5f
 
-            if (starAlpha > 0.0f && profile.time.starDensity > 1) {
+            if (drawStars && starAlpha > 0.0f && (starSpins.isNotEmpty() || drawBaseBodies)) {
                 initStars()
                 RenderSystem.setShader(GameRenderer::getPositionProgram)
                 RenderSystem.setShaderColor(starAlpha, starAlpha, starAlpha, starAlpha)
-                for (i in 1 until profile.time.starDensity) {
+
+                if (drawBaseBodies && profile.time.starDensity > 0) {
+                    // The vanilla star field: no scatter rotation, just the daily spin.
                     matrices.push()
-                    matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(rand.nextFloat() * 360f))
-                    matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(rand.nextFloat() * 360f))
-                    matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(rand.nextFloat() * 360f))
-                    matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(world.getSkyAngle(tickDelta) * 360.0f))
+                    matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-90.0f))
+                    matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(skyAngle * 360.0f))
+                    starBuffer?.bind()
+                    starBuffer?.draw(matrices.peek().positionMatrix, projectionMatrix, GameRenderer.getPositionProgram())
+                    VertexBuffer.unbind()
+                    matrices.pop()
+                }
+
+                for ((yaw, pitch, roll) in starSpins) {
+                    matrices.push()
+                    matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(yaw))
+                    matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(pitch))
+                    matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(roll))
+                    matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(skyAngle * 360.0f))
                     starBuffer?.bind()
                     starBuffer?.draw(matrices.peek().positionMatrix, projectionMatrix, GameRenderer.getPositionProgram())
                     VertexBuffer.unbind()
@@ -197,6 +324,8 @@ object CustomSkyPainter {
             }
 
             // 2. CELESTIAL BODIES (Suns then Moons)
+            // Celestial bodies (suns and moons) use additive blending like vanilla sky rendering
+            // to prevent black box bounds around transparent texture quads when shaders are enabled.
             RenderSystem.blendFunc(GlStateManager.SrcFactor.SRC_ALPHA, GlStateManager.DstFactor.ONE)
             RenderSystem.setShader(GameRenderer::getPositionTexColorProgram)
             RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f)
@@ -208,23 +337,34 @@ object CustomSkyPainter {
             try {
                 matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-90.0f))
 
-                // Draw Red Suns
-                for (i in 0 until profile.time.sunRedCount) {
+                // The vanilla pair, at vanilla's sizes: a 30 unit sun and a 20 unit moon half a
+                // rotation behind it, so they sit exactly where the sky pass would have put them.
+                if (drawBaseBodies && drawSuns && profile.time.sunNormalCount > 0) {
                     drawCelestialBody(matrices, buffer, tessellator, SUN_TEXTURE,
-                        profile.time.sunSize * (rand.nextFloat() * 1.5f + 0.8f), world.getSkyAngle(tickDelta),
-                        rand.nextFloat() * 360f, rand.nextFloat() * 360f, 1.0f, 0.2f, 0.2f, 0.9f)
+                        1.0f, skyAngle, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f)
                 }
-                // Draw Blue Suns
-                for (i in 0 until profile.time.sunBlueCount) {
-                    drawCelestialBody(matrices, buffer, tessellator, SUN_TEXTURE,
-                        profile.time.sunSize * (rand.nextFloat() * 0.8f + 0.4f), world.getSkyAngle(tickDelta),
-                        rand.nextFloat() * 360f, rand.nextFloat() * 360f, 0.2f, 0.5f, 1.0f, 0.9f)
-                }
-                // Draw Extra Moons (Drawn last = appears on top!)
-                for (i in 1 until profile.time.moonCount) {
+                if (drawBaseBodies && drawMoons && profile.time.moonCount > 0) {
                     drawCelestialBody(matrices, buffer, tessellator, MOON_PHASES,
-                        profile.time.moonSize * (rand.nextFloat() * 1.5f + 0.5f), world.getSkyAngle(tickDelta) + 0.5f,
-                        rand.nextFloat() * 360f, rand.nextFloat() * 360f, 1.0f, 1.0f, 1.0f, 0.8f, true)
+                        VANILLA_MOON_SCALE, skyAngle + 0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, true,
+                        world.moonPhase)
+                }
+
+                if (drawSuns) {
+                    for (sun in redSuns) {
+                        drawCelestialBody(matrices, buffer, tessellator, SUN_TEXTURE,
+                            sun.size, skyAngle, sun.orbitPitch, sun.orbitYaw, 1.0f, 0.2f, 0.2f, 0.9f)
+                    }
+                    for (sun in blueSuns) {
+                        drawCelestialBody(matrices, buffer, tessellator, SUN_TEXTURE,
+                            sun.size, skyAngle, sun.orbitPitch, sun.orbitYaw, 0.2f, 0.5f, 1.0f, 0.9f)
+                    }
+                }
+                // Drawn last = appears on top of the suns.
+                if (drawMoons) {
+                    for (moon in moons) {
+                        drawCelestialBody(matrices, buffer, tessellator, MOON_PHASES,
+                            moon.size, skyAngle + 0.5f, moon.orbitPitch, moon.orbitYaw, 1.0f, 1.0f, 1.0f, 0.8f, true)
+                    }
                 }
             } finally {
                 matrices.pop()
@@ -232,7 +372,7 @@ object CustomSkyPainter {
 
             RenderSystem.defaultBlendFunc()
             val effectTicks = (Util.getMeasuringTimeMs().toDouble() / 50.0).toFloat()
-            drawChaosSky(matrices, buffer, tessellator, profile.modifiers, profile.seed, effectTicks)
+            drawChaosSky(matrices, buffer, tessellator, profile.modifiers, profile.seed, effectTicks, layer, depthTestSky)
         } finally {
             RenderSystem.depthMask(true)
             RenderSystem.enableDepthTest()
@@ -243,33 +383,41 @@ object CustomSkyPainter {
         }
     }
 
+    /** An anomaly draws when the Age authored it and the config routes it to the current layer. */
+    private fun shows(modifiers: List<String>, theme: String, layer: SkyLayer): Boolean =
+        modifiers.contains(theme) && SkyRenderConfig.drawsOn(theme, layer)
+
     private fun drawChaosSky(
         matrices: MatrixStack,
         buffer: BufferBuilder,
         tessellator: Tessellator,
         modifiers: List<String>,
         seed: Long,
-        effectTicks: Float
+        effectTicks: Float,
+        layer: SkyLayer,
+        depthTestSky: Boolean
     ) {
-        if (modifiers.contains(ChaosAgeThemes.BRIGHT_SKY)) {
+        if (shows(modifiers, ChaosAgeThemes.BRIGHT_SKY, layer)) {
             drawSkyBand(matrices, buffer, tessellator, 0f, 95f, 72f, 0xFFF9B8, 0.15f)
         }
-        if (modifiers.contains(ChaosAgeThemes.DARK_SKY)) {
+        if (shows(modifiers, ChaosAgeThemes.DARK_SKY, layer)) {
             drawSkyBand(matrices, buffer, tessellator, 0f, 96f, 88f, 0x050713, 0.36f)
         }
-        if (modifiers.contains(ChaosAgeThemes.SKY_RAINBOWS)) {
+        if (shows(modifiers, ChaosAgeThemes.SKY_RAINBOWS, layer)) {
             val offset = (seed and 255L).toFloat()
             drawRainbowArc(matrices, buffer, tessellator, offset)
         }
-        if (modifiers.contains(ChaosAgeThemes.SKY_AURORAS)) {
+        if (shows(modifiers, ChaosAgeThemes.SKY_AURORAS, layer)) {
             repeat(6) { index ->
                 val hue = ((seed shr (index * 10)).toInt() and 255) / 255.0f
                 val color = java.awt.Color.HSBtoRGB(hue, 0.72f, 1.0f) and 0xFFFFFF
                 drawAurora(matrices, buffer, tessellator, index * 60f + hue * 28f, color, 0.78f, index)
             }
         }
-        if (modifiers.contains(ChaosAgeThemes.SKY_RIFTS)) {
-            RenderSystem.disableDepthTest()
+        if (shows(modifiers, ChaosAgeThemes.SKY_RIFTS, layer)) {
+            // Rifts sit in front of the other sky elements, but they must still be occluded by the
+            // world when this layer is masked to the visible sky.
+            if (!depthTestSky) RenderSystem.disableDepthTest()
             RenderSystem.depthMask(false)
             try {
                 repeat(3) { index ->
@@ -305,10 +453,11 @@ object CustomSkyPainter {
                     )
                 }
             } finally {
-                RenderSystem.enableDepthTest()
+                // Restore whatever depth mode this layer asked for instead of forcing it back on.
+                if (depthTestSky) RenderSystem.enableDepthTest() else RenderSystem.disableDepthTest()
             }
         }
-        if (modifiers.contains(ChaosAgeThemes.SHOOTING_STARS)) {
+        if (shows(modifiers, ChaosAgeThemes.SHOOTING_STARS, layer)) {
             repeat(9) { index ->
                 val offset = ((seed ushr ((index * 7) % 48)).toInt() and 2047).toFloat()
                 val cycle = 2100f
@@ -334,7 +483,7 @@ object CustomSkyPainter {
                 }
             }
         }
-        if (modifiers.contains(ChaosAgeThemes.COMETS)) {
+        if (shows(modifiers, ChaosAgeThemes.COMETS, layer)) {
             repeat(2) { index ->
                 val cycle = 9600f
                 val phase = ((effectTicks + index * 3300f + (seed and 1023L)) % cycle) / cycle
@@ -357,73 +506,73 @@ object CustomSkyPainter {
                 }
             }
         }
-        if (modifiers.contains(ChaosAgeThemes.SKY_NEBULAE)) {
+        if (shows(modifiers, ChaosAgeThemes.SKY_NEBULAE, layer)) {
             drawSkyNebulae(matrices, buffer, tessellator, seed, effectTicks)
         }
-        if (modifiers.contains(ChaosAgeThemes.ECLIPSE_HALOS)) {
+        if (shows(modifiers, ChaosAgeThemes.ECLIPSE_HALOS, layer)) {
             drawEclipseHalos(matrices, buffer, tessellator, seed, effectTicks)
         }
-        if (modifiers.contains(ChaosAgeThemes.STAR_GLYPHS)) {
+        if (shows(modifiers, ChaosAgeThemes.STAR_GLYPHS, layer)) {
             drawStarGlyphs(matrices, buffer, tessellator, seed, effectTicks)
         }
-        if (modifiers.contains(ChaosAgeThemes.HORIZON_MIRAGES)) {
+        if (shows(modifiers, ChaosAgeThemes.HORIZON_MIRAGES, layer)) {
             drawHorizonMirages(matrices, buffer, tessellator, seed, effectTicks)
         }
-        if (modifiers.contains(ChaosAgeThemes.CRYSTAL_HALOS)) {
+        if (shows(modifiers, ChaosAgeThemes.CRYSTAL_HALOS, layer)) {
             drawCrystalHalos(matrices, buffer, tessellator, seed, effectTicks)
         }
-        if (modifiers.contains(ChaosAgeThemes.VOID_FLECKS)) {
+        if (shows(modifiers, ChaosAgeThemes.VOID_FLECKS, layer)) {
             drawVoidFlecks(matrices, buffer, tessellator, seed, effectTicks)
         }
-        if (modifiers.contains(ChaosAgeThemes.SPIRAL_GALAXIES)) {
+        if (shows(modifiers, ChaosAgeThemes.SPIRAL_GALAXIES, layer)) {
             drawSpiralGalaxies(matrices, buffer, tessellator, seed, effectTicks)
         }
-        if (modifiers.contains(ChaosAgeThemes.FALLING_SKY_SHARDS)) {
+        if (shows(modifiers, ChaosAgeThemes.FALLING_SKY_SHARDS, layer)) {
             drawFallingSkyShards(matrices, buffer, tessellator, seed, effectTicks)
         }
-        if (modifiers.contains(ChaosAgeThemes.LIGHTNING_VEINS)) {
+        if (shows(modifiers, ChaosAgeThemes.LIGHTNING_VEINS, layer)) {
             drawLightningVeins(matrices, buffer, tessellator, seed, effectTicks)
         }
-        if (modifiers.contains(ChaosAgeThemes.LUMINOUS_COLUMNS)) {
+        if (shows(modifiers, ChaosAgeThemes.LUMINOUS_COLUMNS, layer)) {
             drawLuminousColumns(matrices, buffer, tessellator, seed, effectTicks)
         }
-        if (modifiers.contains(ChaosAgeThemes.SKY_MONOLITHS)) {
+        if (shows(modifiers, ChaosAgeThemes.SKY_MONOLITHS, layer)) {
             drawSkyMonoliths(matrices, buffer, tessellator, seed, effectTicks)
         }
-        if (modifiers.contains(ChaosAgeThemes.PRISM_RINGS)) {
+        if (shows(modifiers, ChaosAgeThemes.PRISM_RINGS, layer)) {
             drawPrismRings(matrices, buffer, tessellator, seed, effectTicks)
         }
-        if (modifiers.contains(ChaosAgeThemes.CHROMA_WAVES)) {
+        if (shows(modifiers, ChaosAgeThemes.CHROMA_WAVES, layer)) {
             drawChromaWaves(matrices, buffer, tessellator, seed, effectTicks)
         }
-        if (modifiers.contains(ChaosAgeThemes.ORBITAL_GRID)) {
+        if (shows(modifiers, ChaosAgeThemes.ORBITAL_GRID, layer)) {
             drawOrbitalGrid(matrices, buffer, tessellator, seed, effectTicks)
         }
-        if (modifiers.contains(ChaosAgeThemes.SKY_LANTERNS)) {
+        if (shows(modifiers, ChaosAgeThemes.SKY_LANTERNS, layer)) {
             drawSkyLanterns(matrices, buffer, tessellator, seed, effectTicks)
         }
-        if (modifiers.contains(ChaosAgeThemes.FRACTURE_WEB)) {
+        if (shows(modifiers, ChaosAgeThemes.FRACTURE_WEB, layer)) {
             drawFractureWeb(matrices, buffer, tessellator, seed, effectTicks)
         }
-        if (modifiers.contains(ChaosAgeThemes.DREAM_VEILS)) {
+        if (shows(modifiers, ChaosAgeThemes.DREAM_VEILS, layer)) {
             drawDreamVeils(matrices, buffer, tessellator, seed, effectTicks)
         }
-        if (modifiers.contains(ChaosAgeThemes.SKY_BUBBLES)) {
+        if (shows(modifiers, ChaosAgeThemes.SKY_BUBBLES, layer)) {
             drawSkyBubbles(matrices, buffer, tessellator, seed, effectTicks)
         }
-        if (modifiers.contains(ChaosAgeThemes.STARFALL_BLOOMS)) {
+        if (shows(modifiers, ChaosAgeThemes.STARFALL_BLOOMS, layer)) {
             drawStarfallBlooms(matrices, buffer, tessellator, seed, effectTicks)
         }
-        if (modifiers.contains(ChaosAgeThemes.HORIZON_CROWNS)) {
+        if (shows(modifiers, ChaosAgeThemes.HORIZON_CROWNS, layer)) {
             drawHorizonCrowns(matrices, buffer, tessellator, seed, effectTicks)
         }
-        if (modifiers.contains(ChaosAgeThemes.CELESTIAL_SCRIPT)) {
+        if (shows(modifiers, ChaosAgeThemes.CELESTIAL_SCRIPT, layer)) {
             drawCelestialScript(matrices, buffer, tessellator, seed, effectTicks)
         }
-        if (modifiers.contains(ChaosAgeThemes.GLASS_CONSTELLATIONS)) {
+        if (shows(modifiers, ChaosAgeThemes.GLASS_CONSTELLATIONS, layer)) {
             drawGlassConstellations(matrices, buffer, tessellator, seed, effectTicks)
         }
-        if (modifiers.contains(ChaosAgeThemes.RADIANT_WHIRLPOOLS)) {
+        if (shows(modifiers, ChaosAgeThemes.RADIANT_WHIRLPOOLS, layer)) {
             drawRadiantWhirlpools(matrices, buffer, tessellator, seed, effectTicks)
         }
     }
@@ -633,6 +782,8 @@ object CustomSkyPainter {
                 1 -> 0xD7A7FF
                 else -> 0xFFF2A0
             }
+            // Mirages hug the horizon, but they used to be authored below it: the whole band sat
+            // under the terrain silhouette and only showed because nothing occluded the sky layer.
             drawHorizonRainbowBand(
                 matrices,
                 buffer,
@@ -640,8 +791,8 @@ object CustomSkyPainter {
                 yaw + sway,
                 -158f,
                 158f,
-                -18f + index * 2.0f,
-                -6f + index * 2.2f,
+                1.5f + index * 1.2f,
+                5f + index * 1.8f,
                 0.75f,
                 color,
                 0.18f,
@@ -872,7 +1023,7 @@ object CustomSkyPainter {
             val rand = Random(seed xor 0x434F4C554D4EL)
             buffer.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR)
             repeat(9) { index ->
-                val basis = skyBasis(index * 39f + (seed % 31).toFloat(), -4f + rand.nextFloat() * 12f, 0f, 99f)
+                val basis = skyBasis(index * 39f + (seed % 31).toFloat(), 0.5f + rand.nextFloat() * 10f, 0f, 99f)
                 val pulse = 0.72f + 0.28f * kotlin.math.sin((effectTicks * 0.012f + index).toDouble()).toFloat()
                 val width = 2.8f + rand.nextFloat() * 4.0f
                 val height = 28f + rand.nextFloat() * 26f
@@ -1208,7 +1359,9 @@ object CustomSkyPainter {
             val rand = Random(seed xor 0x43524F574EL)
             buffer.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR)
             repeat(18) { spike ->
-                val basis = skyBasis(spike * 20f + (seed % 19).toFloat(), -8f + rand.nextFloat() * 12f, 0f, 99f)
+                // Rooted just above the horizon so the spike reads against the sky rather than
+                // starting underground.
+                val basis = skyBasis(spike * 20f + (seed % 19).toFloat(), 0.5f + rand.nextFloat() * 11f, 0f, 99f)
                 val hue = (0.10f + spike * 0.018f + rand.nextFloat() * 0.08f) % 1.0f
                 val c = colorComponents(java.awt.Color.HSBtoRGB(hue, 0.56f, 1.0f) and 0xFFFFFF)
                 val height = 10f + rand.nextFloat() * 24f
@@ -1900,7 +2053,7 @@ object CustomSkyPainter {
     private fun drawCelestialBody(
         matrices: MatrixStack, buffer: BufferBuilder, tessellator: Tessellator, texture: Identifier,
         size: Float, timeAngle: Float, orbitOffsetPitch: Float, orbitOffsetYaw: Float,
-        r: Float, g: Float, b: Float, a: Float, isMoon: Boolean = false
+        r: Float, g: Float, b: Float, a: Float, isMoon: Boolean = false, moonPhase: Int = -1
     ) {
         matrices.push()
         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(orbitOffsetYaw))
@@ -1908,18 +2061,37 @@ object CustomSkyPainter {
         matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(timeAngle * 360.0f))
 
         val matrix = matrices.peek().positionMatrix
-        val scale = 30.0f * size
-
-        if (texture == SUN_TEXTURE) {
-            drawMaskedMinecraftSun(buffer, tessellator, matrix, scale, r, g, b, a)
+        val centerPos = org.joml.Vector3f(0f, 100f, 0f)
+        matrix.transformPosition(centerPos)
+        val centerY = centerPos.y()
+        if (centerY < -2.0f) {
+            matrices.pop()
+            return
+        }
+        val horizonFade = ((centerY + 2.0f) / 8.0f).coerceIn(0.0f, 1.0f)
+        val finalAlpha = a * horizonFade
+        if (finalAlpha <= 0.001f) {
             matrices.pop()
             return
         }
 
+        val scale = 30.0f * size
+
+        if (texture == SUN_TEXTURE) {
+            drawMaskedMinecraftSun(buffer, tessellator, matrix, scale, r, g, b, finalAlpha)
+            matrices.pop()
+            return
+        }
+
+        // Suns leave the position/colour program bound, so every textured body has to claim the
+        // shader it needs rather than trusting whatever the previous body left behind.
+        RenderSystem.setShader(GameRenderer::getPositionTexColorProgram)
         RenderSystem.setShaderTexture(0, texture)
         var u0 = 0.0f; var u1 = 1.0f; var v0 = 0.0f; var v1 = 1.0f
         if (isMoon) {
-            val phase = (((timeAngle * 8.0f).toInt() % 8) + 8) % 8
+            // The base moon follows the world's real phase; authored extra moons keep cycling with
+            // their own orbit so they do not all wax and wane together.
+            val phase = if (moonPhase >= 0) moonPhase % 8 else (((timeAngle * 8.0f).toInt() % 8) + 8) % 8
             val col = phase % 4
             val row = phase / 4
             val uInset = 0.002f
@@ -1932,10 +2104,10 @@ object CustomSkyPainter {
 
         buffer.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE_COLOR)
         // Back to fixed distance (100) to match vanilla sky
-        buffer.vertex(matrix, -scale, 100.0f, -scale).texture(u0, v0).color(r, g, b, a).next()
-        buffer.vertex(matrix, scale, 100.0f, -scale).texture(u1, v0).color(r, g, b, a).next()
-        buffer.vertex(matrix, scale, 100.0f, scale).texture(u1, v1).color(r, g, b, a).next()
-        buffer.vertex(matrix, -scale, 100.0f, scale).texture(u0, v1).color(r, g, b, a).next()
+        buffer.vertex(matrix, -scale, 100.0f, -scale).texture(u0, v0).color(r, g, b, finalAlpha).next()
+        buffer.vertex(matrix, scale, 100.0f, -scale).texture(u1, v0).color(r, g, b, finalAlpha).next()
+        buffer.vertex(matrix, scale, 100.0f, scale).texture(u1, v1).color(r, g, b, finalAlpha).next()
+        buffer.vertex(matrix, -scale, 100.0f, scale).texture(u0, v1).color(r, g, b, finalAlpha).next()
         tessellator.draw()
         matrices.pop()
     }

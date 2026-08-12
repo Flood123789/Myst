@@ -7,6 +7,7 @@ import mystcraft.flood.block.entity.ModBlockEntities
 import mystcraft.flood.client.AgeTravelSoundSuppressor
 import mystcraft.flood.client.cache.ClientAgeCache
 import mystcraft.flood.client.cache.ClientAgeTimeCache
+import mystcraft.flood.client.config.SkyRenderConfig
 import mystcraft.flood.client.gui.BookBinderScreen
 import mystcraft.flood.client.gui.EditingTableScreen
 import mystcraft.flood.client.gui.NotebookScreen
@@ -18,8 +19,8 @@ import mystcraft.flood.client.render.AgePlantTintHelper
 import mystcraft.flood.client.render.BookStandBlockEntityRenderer
 import mystcraft.flood.client.render.BookReceptacleBlockEntityRenderer
 import mystcraft.flood.client.render.ClientRenderCompatibility
-import mystcraft.flood.client.render.CustomSkyPainter
 import mystcraft.flood.client.render.DescriptiveBookEntityRenderer
+import mystcraft.flood.client.render.DistantHorizonsDepthMask
 import mystcraft.flood.client.render.ModEntityModelLayers
 import mystcraft.flood.client.render.MystcraftDimensionEffects
 import mystcraft.flood.client.render.PageIconItemRenderer
@@ -35,19 +36,17 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.rendering.v1.BuiltinItemRendererRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.ColorProviderRegistry
+import net.fabricmc.fabric.api.client.rendering.v1.CoreShaderRegistrationCallback
 import net.fabricmc.fabric.api.client.rendering.v1.DimensionRenderingRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents
 import net.minecraft.client.gui.screen.ingame.HandledScreens
 import net.minecraft.client.item.ModelPredicateProviderRegistry
 import net.minecraft.client.render.RenderLayer
 import net.minecraft.client.render.block.entity.BlockEntityRendererFactories
 import net.minecraft.client.render.block.entity.EndPortalBlockEntityRenderer
-import net.minecraft.client.util.math.MatrixStack
 import net.minecraft.block.Blocks
 import net.minecraft.util.Identifier
 import mystcraft.flood.item.ModItems
-import org.joml.Matrix4f
 
 /**
  * Client-only composition root for screens, renderers, tint providers, and packet receivers.
@@ -57,7 +56,16 @@ import org.joml.Matrix4f
 class MystcraftReforgedClient : ClientModInitializer {
     
     override fun onInitializeClient() {
+        SkyRenderConfig.load()
         ClientMessages.registerS2CPackets()
+
+        CoreShaderRegistrationCallback.EVENT.register { context ->
+            context.register(
+                Identifier(MystcraftReforged.MOD_ID, "dh_depth_mask"),
+                DistantHorizonsDepthMask.vertexFormat,
+                DistantHorizonsDepthMask::setProgram
+            )
+        }
 
         ClientTickEvents.END_CLIENT_TICK.register { client ->
             ClientAgeTimeCache.tick()
@@ -70,24 +78,6 @@ class MystcraftReforgedClient : ClientModInitializer {
             DistantHorizonsCompat.tick(dimension, paletteReady)
         }
 
-        WorldRenderEvents.AFTER_SETUP.register { context ->
-            if (!ClientRenderCompatibility.canUseShaderFallbackSkyOverlay()) return@register
-            val world = context.world() ?: return@register
-            if (world.registryKey.value.namespace != MystcraftReforged.MOD_ID) return@register
-
-            val skyView = Matrix4f(context.matrixStack().peek().positionMatrix)
-            skyView.m30(0.0f)
-            skyView.m31(0.0f)
-            skyView.m32(0.0f)
-
-            val skyMatrices = MatrixStack()
-            skyMatrices.peek().positionMatrix.set(skyView)
-            // Shaderpacks often replace the vanilla sky pass. Draw the fallback before terrain
-            // and DH LOD chunks so they can occlude sky anomalies like normal distant scenery.
-            skyMatrices.scale(3.0f, 3.0f, 3.0f)
-            CustomSkyPainter.paintShaderFallbackSky(world, skyMatrices, context.projectionMatrix(), context.tickDelta())
-        }
-        
         HandledScreens.register(ModScreens.BOOK_BINDER_HANDLER, ::BookBinderScreen)
         HandledScreens.register(ModScreens.WRITING_DESK_HANDLER, ::WritingDeskScreen)
         HandledScreens.register(ModScreens.EDITING_TABLE_HANDLER, ::EditingTableScreen)

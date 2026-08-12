@@ -8,11 +8,13 @@ import net.minecraft.registry.Registries
 import net.minecraft.registry.Registry
 import net.minecraft.util.Identifier
 
+import net.minecraft.item.Items
+
 /** Owns item registry ids; behavior lives in the corresponding item classes. */
 object ModItems {
     // === Core Crafting Ingredients ===
     val LINK_PANEL = register("linkpanel", Item(Item.Settings()))
-    val INK_VIAL = register("ink_vial", Item(Item.Settings()))
+    val INK_VIAL = register("ink_vial", Item(Item.Settings().recipeRemainder(Items.GLASS_BOTTLE)))
     val BLOCK_INK_VIAL = register("block_ink_vial", BlockInkVialItem(Item.Settings().maxCount(1)))
     val PAGE = register("page", Item(Item.Settings())) 
     

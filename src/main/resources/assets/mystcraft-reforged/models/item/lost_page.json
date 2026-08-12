@@ -1,9 +1,4 @@
 {
-  "parent": "minecraft:builtin/entity",
-  "display": {
-    "gui": {
-      "translation": [4.2, 2.8, 0],
-      "scale": [1.0, 1.0, 1.0]
-    }
-  }
+  "parent": "mystcraft-reforged:item/page"
 }
+

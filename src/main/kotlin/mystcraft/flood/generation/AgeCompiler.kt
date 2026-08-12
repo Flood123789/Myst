@@ -1,7 +1,24 @@
 package mystcraft.flood.generation
 
+import mystcraft.flood.generation.profile.ColorCategory
+import mystcraft.flood.registry.ModSymbols
 import net.minecraft.registry.Registries
 import net.minecraft.util.Identifier
+
+sealed interface CompiledColor {
+    fun resolve(rand: kotlin.random.Random): Int
+    fun resolve(rand: java.util.Random): Int = resolve(kotlin.random.Random(rand.nextLong()))
+
+    data class Exact(val rgb: Int) : CompiledColor {
+        override fun resolve(rand: kotlin.random.Random): Int = rgb
+        override fun resolve(rand: java.util.Random): Int = rgb
+    }
+
+    data class Preset(val category: ColorCategory) : CompiledColor {
+        override fun resolve(rand: kotlin.random.Random): Int = category.sample(rand)
+        override fun resolve(rand: java.util.Random): Int = category.sample(rand)
+    }
+}
 
 /**
  * Intermediate result of parsing a book's ordered symbol pages.
@@ -13,26 +30,65 @@ import net.minecraft.util.Identifier
 data class CompiledAgeData(
     var terrainType: String? = null,
     val biomes: MutableList<String> = mutableListOf(),
-    var biomeController: String? = null, // <--- Added Biome Controller
+    var biomeController: String? = null,
     var timeMode: String? = null,
     var fixedTimeOfDay: Long? = null,
     var timeScaleMultiplier: Float = 1.0f,
     var weatherMode: String? = null,
     
-    var skyColor: Int? = null,
-    var fogColor: Int? = null,
-    var waterColor: Int? = null,
-    var grassColor: Int? = null,
-    var foliageColor: Int? = null,
-    var ambientColor: Int? = null,
-    var cloudColor: Int? = null,
-    var fireLavaColor: Int? = null,
+    var skyColorSpec: CompiledColor? = null,
+    var fogColorSpec: CompiledColor? = null,
+    var waterColorSpec: CompiledColor? = null,
+    var grassColorSpec: CompiledColor? = null,
+    var foliageColorSpec: CompiledColor? = null,
+    var ambientColorSpec: CompiledColor? = null,
+    var cloudColorSpec: CompiledColor? = null,
+    var fireLavaColorSpec: CompiledColor? = null,
+
     var cloudHeight: Float? = null,
     var ageEffectId: String? = null,
     var lowGravity: Boolean = false,
     
-    var conflictInstability: Int = 0 // Tracks "bad grammar" penalties
-)
+    var conflictInstability: Int = 0
+) {
+    var skyColor: Int?
+        get() = specToDefaultRgb(skyColorSpec)
+        set(value) { skyColorSpec = value?.let { CompiledColor.Exact(it) } }
+
+    var fogColor: Int?
+        get() = specToDefaultRgb(fogColorSpec)
+        set(value) { fogColorSpec = value?.let { CompiledColor.Exact(it) } }
+
+    var waterColor: Int?
+        get() = specToDefaultRgb(waterColorSpec)
+        set(value) { waterColorSpec = value?.let { CompiledColor.Exact(it) } }
+
+    var grassColor: Int?
+        get() = specToDefaultRgb(grassColorSpec)
+        set(value) { grassColorSpec = value?.let { CompiledColor.Exact(it) } }
+
+    var foliageColor: Int?
+        get() = specToDefaultRgb(foliageColorSpec)
+        set(value) { foliageColorSpec = value?.let { CompiledColor.Exact(it) } }
+
+    var ambientColor: Int?
+        get() = specToDefaultRgb(ambientColorSpec)
+        set(value) { ambientColorSpec = value?.let { CompiledColor.Exact(it) } }
+
+    var cloudColor: Int?
+        get() = specToDefaultRgb(cloudColorSpec)
+        set(value) { cloudColorSpec = value?.let { CompiledColor.Exact(it) } }
+
+    var fireLavaColor: Int?
+        get() = specToDefaultRgb(fireLavaColorSpec)
+        set(value) { fireLavaColorSpec = value?.let { CompiledColor.Exact(it) } }
+
+    private fun specToDefaultRgb(spec: CompiledColor?): Int? = when (spec) {
+        is CompiledColor.Exact -> spec.rgb
+        is CompiledColor.Preset -> spec.category.defaultRgb
+        null -> null
+    }
+}
 
 /**
  * Implements the ordered symbol grammar used by Descriptive Books.
@@ -45,26 +101,19 @@ object AgeCompiler {
     fun compile(symbols: List<String>): CompiledAgeData {
         val data = CompiledAgeData()
         
-        // Sequential modifiers cannot be applied immediately: a later target declares whether
-        // the buffered value belongs to the sky, fog, water, and so on.
-        val pendingColors = mutableListOf<Int>()
+        val pendingColors = mutableListOf<CompiledColor>()
         val ageEffectCandidates = mutableListOf<String>()
         var ageEffectTargetCount = 0
         
-        // Keep all exclusive candidates until the end. This separates parsing from the
-        // "last page wins, every contradiction costs stability" resolution rule.
         val terrains = mutableListOf<String>()
         val times = mutableListOf<String>()
         val weathers = mutableListOf<String>()
-        val biomeControllers = mutableListOf<String>() // <--- Tracker for controllers
+        val biomeControllers = mutableListOf<String>()
         
         for (symbol in symbols) {
             var clean = symbol.lowercase().replace("mystcraft-reforged:", "")
             
-            // Random is intentionally resolved at compile time so the resulting profile can be
-            // persisted and remain stable across restarts.
             if (clean == "random") {
-                // Pick a random chaotic feature for the compiler to inject!
                 val wildcards = listOf(
                     "floating_islands", "amplified", "alpha", "beta", "cave", "flat", "biospheres", "cities", "nether", "end",
                     "time_fast", "time_fixed", 
@@ -78,57 +127,56 @@ object AgeCompiler {
                     ChaosAgeThemes.PARTICLE_MOTES, ChaosAgeThemes.PARTICLE_ASH, ChaosAgeThemes.PARTICLE_SPORES, ChaosAgeThemes.PARTICLE_VOID
                 )
                 clean = if (kotlin.random.Random.nextFloat() < 0.01f) "void" else wildcards.random()
-                data.conflictInstability += 5 // A small "Chaos Tax" for using wildcard pages
+                data.conflictInstability += 5
             }
             
             // 1. Parse Custom Hex Color from Anvil ("color_custom:#FF00AA")
             if (clean.startsWith("color_custom:#")) {
                 val hex = clean.substringAfter("#")
                 try {
-                    // Convert Hex string to Int
-                    pendingColors.add(hex.toInt(16))
+                    pendingColors.add(CompiledColor.Exact(hex.toInt(16)))
                 } catch (e: Exception) {
-                    data.conflictInstability += 10 // Heavy penalty for broken hex code!
+                    data.conflictInstability += 10
                 }
                 continue
             }
             
             when {
                 // === COLORS (Modifiers) ===
-                clean == "color_orange" -> pendingColors.add(0xFF8800)
-                clean == "color_cyan" -> pendingColors.add(0x00FFFF)
-                clean == "color_teal" -> pendingColors.add(0x008080)
-                clean == "color_pink" -> pendingColors.add(0xFF69B4)
-                clean == "color_magenta" -> pendingColors.add(0xFF00FF)
-                clean == "color_lime" -> pendingColors.add(0x7FFF00)
-                clean == "color_brown" -> pendingColors.add(0x8B4513)
-                clean == "color_gray" -> pendingColors.add(0x808080)
-                clean == "color_light_blue" -> pendingColors.add(0x66CCFF)
-                clean.contains("red") -> pendingColors.add(0xFF0000)
-                clean.contains("blue") -> pendingColors.add(0x0000FF)
-                clean.contains("green") -> pendingColors.add(0x00FF00)
-                clean.contains("black") -> pendingColors.add(0x000000)
-                clean.contains("white") -> pendingColors.add(0xFFFFFF)
-                clean.contains("yellow") -> pendingColors.add(0xFFFF00)
-                clean.contains("purple") -> pendingColors.add(0x800080)
+                clean == "color_orange" -> pendingColors.add(CompiledColor.Preset(ColorCategory.ORANGE))
+                clean == "color_cyan" -> pendingColors.add(CompiledColor.Preset(ColorCategory.CYAN))
+                clean == "color_teal" -> pendingColors.add(CompiledColor.Preset(ColorCategory.TEAL))
+                clean == "color_pink" -> pendingColors.add(CompiledColor.Preset(ColorCategory.PINK))
+                clean == "color_magenta" -> pendingColors.add(CompiledColor.Preset(ColorCategory.MAGENTA))
+                clean == "color_lime" -> pendingColors.add(CompiledColor.Preset(ColorCategory.LIME))
+                clean == "color_brown" -> pendingColors.add(CompiledColor.Preset(ColorCategory.BROWN))
+                clean == "color_gray" -> pendingColors.add(CompiledColor.Preset(ColorCategory.GRAY))
+                clean == "color_light_blue" -> pendingColors.add(CompiledColor.Preset(ColorCategory.LIGHT_BLUE))
+                clean.contains("red") -> pendingColors.add(CompiledColor.Preset(ColorCategory.RED))
+                clean.contains("blue") -> pendingColors.add(CompiledColor.Preset(ColorCategory.BLUE))
+                clean.contains("green") -> pendingColors.add(CompiledColor.Preset(ColorCategory.GREEN))
+                clean.contains("black") -> pendingColors.add(CompiledColor.Preset(ColorCategory.BLACK))
+                clean.contains("white") -> pendingColors.add(CompiledColor.Preset(ColorCategory.WHITE))
+                clean.contains("yellow") -> pendingColors.add(CompiledColor.Preset(ColorCategory.YELLOW))
+                clean.contains("purple") -> pendingColors.add(CompiledColor.Preset(ColorCategory.PURPLE))
                 
                 // === TARGETS (They "consume" the colors in memory) ===
                 clean.contains("color_sky") -> { 
-                    data.skyColor = pendingColors.lastOrNull()
+                    data.skyColorSpec = pendingColors.lastOrNull()
                     if (pendingColors.size > 1) data.conflictInstability += (pendingColors.size - 1) * 10
                     pendingColors.clear() 
                 }
                 clean.contains("color_fog") -> { 
-                    data.fogColor = pendingColors.lastOrNull()
+                    data.fogColorSpec = pendingColors.lastOrNull()
                     if (pendingColors.size > 1) data.conflictInstability += (pendingColors.size - 1) * 10
                     pendingColors.clear() 
                 }
-                clean.contains("color_water") -> { data.waterColor = pendingColors.lastOrNull(); pendingColors.clear() }
-                clean.contains("color_grass") -> { data.grassColor = pendingColors.lastOrNull(); pendingColors.clear() }
-                clean.contains("color_foliage") -> { data.foliageColor = pendingColors.lastOrNull(); pendingColors.clear() }
-                clean.contains("color_ambient") -> { data.ambientColor = pendingColors.lastOrNull(); pendingColors.clear() }
-                clean.contains("color_cloud") -> { data.cloudColor = pendingColors.lastOrNull(); pendingColors.clear() }
-                clean.contains("color_fire_lava") -> { data.fireLavaColor = pendingColors.lastOrNull(); pendingColors.clear() }
+                clean.contains("color_water") -> { data.waterColorSpec = pendingColors.lastOrNull(); pendingColors.clear() }
+                clean.contains("color_grass") -> { data.grassColorSpec = pendingColors.lastOrNull(); pendingColors.clear() }
+                clean.contains("color_foliage") -> { data.foliageColorSpec = pendingColors.lastOrNull(); pendingColors.clear() }
+                clean.contains("color_ambient") -> { data.ambientColorSpec = pendingColors.lastOrNull(); pendingColors.clear() }
+                clean.contains("color_cloud") -> { data.cloudColorSpec = pendingColors.lastOrNull(); pendingColors.clear() }
+                clean.contains("color_fire_lava") -> { data.fireLavaColorSpec = pendingColors.lastOrNull(); pendingColors.clear() }
                 clean.contains("cloud_height_low") -> data.cloudHeight = 96.0f
                 clean.contains("cloud_height_normal") -> data.cloudHeight = 192.0f
                 clean.contains("cloud_height_high") -> data.cloudHeight = 256.0f
@@ -139,50 +187,50 @@ object AgeCompiler {
                 }
                 
                 // === TERRAIN TYPES ===
-                clean == "terrain_floating_islands" || clean == "floating_islands" -> terrains.add("FLOATING_ISLANDS")
-                clean == "terrain_alpha" || clean == "alpha" -> terrains.add("ALPHA")
-                clean == "terrain_beta" || clean == "beta" -> terrains.add("BETA")
-                clean == "terrain_amplified" || clean == "amplified" -> terrains.add("AMPLIFIED")
-                clean == "terrain_caves" || clean == "cave" || clean == "caves" -> terrains.add("CAVE")
-                clean == "terrain_biospheres" || clean == "biospheres" || clean == "biosphere" -> terrains.add("BIOSPHERES")
-                clean == "terrain_cities" || clean == "cities" || clean == "city" -> terrains.add("CITIES")
-                clean == "terrain_nether" || clean == "nether" -> terrains.add("NETHER")
-                clean == "terrain_end" || clean == "end" -> terrains.add("END")
-                clean == "terrain_standard" || clean == "standard" -> terrains.add("STANDARD")
-                clean == "terrain_flat" || clean == "flat" -> terrains.add("FLAT")
-                clean == "terrain_void" || clean == "void" -> terrains.add("VOID")
+                clean == "terrain_floating_islands" -> terrains.add("FLOATING_ISLANDS")
+                clean == "terrain_amplified" -> terrains.add("AMPLIFIED")
+                clean == "terrain_alpha" -> terrains.add("ALPHA")
+                clean == "terrain_beta" -> terrains.add("BETA")
+                clean == "terrain_cave" || clean == "terrain_caves" -> terrains.add("CAVES")
+                clean == "terrain_flat" -> terrains.add("FLAT")
+                clean == "terrain_void" -> terrains.add("VOID")
+                clean == "terrain_biospheres" -> terrains.add("BIOSPHERES")
+                clean == "terrain_cities" -> terrains.add("CITIES")
+                clean == "terrain_nether" -> terrains.add("NETHER")
+                clean == "terrain_end" -> terrains.add("END")
                 
-                // === TIME MODES ===
-                clean.contains("time_fast") -> times.add("fast")
-                clean.contains("time_slow") -> times.add("slow")
-                clean.contains("time_day") -> times.add("fixed:1000")
-                clean.contains("time_noon") -> times.add("fixed:6000")
-                clean.contains("time_night") -> times.add("fixed:13000")
-                clean.contains("time_midnight") -> times.add("fixed:18000")
-                clean.contains("time_fixed") -> times.add("fixed")
+                // === BIOME CONTROLLERS ===
+                clean == "biome_vanilla" || clean == "biome_vanilla_distribution" -> biomeControllers.add("VANILLA_DISTRIBUTION")
+                clean == "biome_checkerboard" -> biomeControllers.add("CHECKERBOARD")
+                clean == "biome_single" || clean == "biome_tiled" -> biomeControllers.add("SINGLE")
                 
-                // === WEATHER MODES ===
-                clean.contains("weather_rain") -> weathers.add("endless_rain")
-                clean.contains("weather_storm") || clean.contains("thunder") -> weathers.add("endless_storm")
-                clean.contains("weather_clear") || clean.contains("no_weather") -> weathers.add("no_weather")
-                clean.contains("weather_normal") -> weathers.add("normal")
+                // === WEATHER ===
+                clean == "weather_rain" || clean == "weather_endless_rain" -> weathers.add("endless_rain")
+                clean == "weather_storm" || clean == "weather_endless_storm" -> weathers.add("endless_storm")
+                clean == "weather_normal" -> weathers.add("normal")
+                clean == "weather_none" || clean == "weather_no_weather" -> weathers.add("no_weather")
+                
+                // === TIME ===
+                clean.startsWith("time_fixed") -> times.add("fixed:${clean.substringAfter(":", "")}")
+                clean == "time_fast" -> times.add("fast")
+                clean == "time_slow" -> times.add("slow")
+                clean == "time_normal" -> times.add("normal")
+
+                // === OTHER ===
                 clean == "low_gravity" -> data.lowGravity = true
 
-                // === BIOME CONTROLLERS ===
-                clean.contains("checkerboard") -> biomeControllers.add("CHECKERBOARD")
-                clean.contains("vanilla") || clean.contains("native") -> biomeControllers.add("VANILLA")
-                
-                // === STATUS EFFECT SYMBOLS ===
-                isStatusEffectId(clean) -> ageEffectCandidates.add(clean)
-
-                // === BIOMES ===
-                clean.contains(":") -> data.biomes.add(clean)
+                else -> {
+                    if (isStatusEffectId(clean)) {
+                        ageEffectCandidates.add(clean)
+                    } else if (clean.startsWith("biome_") || ModSymbols.isBiomeSymbol(Identifier.tryParse(clean) ?: Identifier("minecraft", "plains"))) {
+                        var biomeId = clean.replace("biome_", "")
+                        if (!biomeId.contains(":")) biomeId = "minecraft:$biomeId"
+                        data.biomes.add(biomeId)
+                    }
+                }
             }
         }
         
-        // Resolve mutually exclusive categories only after every page has been seen.
-        
-        // Unused modifiers cause instability (Grammar Leaks!)
         if (pendingColors.isNotEmpty()) {
             data.conflictInstability += pendingColors.size * 25
         }
@@ -204,7 +252,6 @@ object AgeCompiler {
             data.conflictInstability += ageEffectCandidates.size * 15
         }
         
-        // Terrain Conflict: Floating Islands AND Caves? Pick 1, add instability
         if (terrains.isNotEmpty()) {
             if (terrains.distinct().size > 1) {
                 data.conflictInstability += (terrains.distinct().size - 1) * 30
@@ -212,15 +259,13 @@ object AgeCompiler {
             data.terrainType = terrains.last()
         }
 
-        // Biome Controller Conflict
         if (biomeControllers.isNotEmpty()) {
             if (biomeControllers.distinct().size > 1) {
-                data.conflictInstability += 20 // Grammar conflict: can't be vanilla distribution AND checkerboard
+                data.conflictInstability += 20
             }
             data.biomeController = biomeControllers.last()
         }
         
-        // Weather Conflict
         if (weathers.isNotEmpty()) {
             if (weathers.distinct().size > 1) {
                 data.conflictInstability += (weathers.distinct().size - 1) * 15
@@ -228,7 +273,6 @@ object AgeCompiler {
             data.weatherMode = weathers.last()
         }
         
-        // Time Conflict: Fast + Slow fighting? Chaos.
         val timeModes = times.map { it.substringBefore(":") }
         val fastCount = timeModes.count { it == "fast" }
         val slowCount = timeModes.count { it == "slow" }
@@ -239,7 +283,7 @@ object AgeCompiler {
                 data.conflictInstability += (distinctTimes.size - 1) * 20
             }
             if (fastCount > 0 && slowCount > 0) {
-                data.conflictInstability += 50 // Massive shear!
+                data.conflictInstability += 50
             }
 
             data.timeMode = timeModes.last()

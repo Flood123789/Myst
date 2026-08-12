@@ -172,7 +172,7 @@ object ModMessages {
                     renameDisplayedDescriptiveBook(server, player, standPos, requestedName)
                 } else if (hand != null) {
                     val stack = player.getStackInHand(hand)
-                    if (resolveDescriptiveBook(stack) != null) {
+                    if (resolveDescriptiveBook(stack) != null || stack.isOf(ModItems.LINKING_BOOK)) {
                         renameDescriptiveBookStack(server, stack, requestedName)
                         syncPlayerInventory(player)
                     }
@@ -302,7 +302,7 @@ object ModMessages {
         if (standPos == null) return
         val blockEntity = player.serverWorld.getBlockEntity(standPos) as? BookStandBlockEntity ?: return
         val stack = blockEntity.getBook()
-        if (resolveDescriptiveBook(stack) == null) return
+        if (resolveDescriptiveBook(stack) == null && !stack.isOf(ModItems.LINKING_BOOK)) return
         renameDescriptiveBookStack(server, stack, requestedName)
         blockEntity.markBookDirty()
     }

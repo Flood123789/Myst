@@ -52,13 +52,10 @@ object PageIconItemRenderer : BuiltinItemRendererRegistry.DynamicItemRenderer {
         val renderLight = if (mode == ModelTransformationMode.GUI) LightmapTextureManager.MAX_LIGHT_COORDINATE else light
 
         matrices.push()
-        if (mode == ModelTransformationMode.GUI) {
-            matrices.translate(0.20f, 0.14f, 0.0f)
-        }
+        matrices.translate(0.5, 0.5, 0.5)
+        itemRenderer.renderItem(baseStack, ModelTransformationMode.NONE, false, matrices, vertexConsumers, renderLight, overlay, baseModel)
+        matrices.pop()
 
-        itemRenderer.renderItem(baseStack, mode, false, matrices, vertexConsumers, renderLight, overlay, baseModel)
-
-        matrices.translate(0.0, 0.0, 0.035)
         drawPaperGlow(matrices, vertexConsumers, renderLight, overlay)
         drawBorder(matrices, vertexConsumers, renderLight, overlay)
 
@@ -67,8 +64,6 @@ object PageIconItemRenderer : BuiltinItemRendererRegistry.DynamicItemRenderer {
         } else {
             drawSymbol(stack.nbt?.getString("Symbol"), matrices, vertexConsumers, renderLight, overlay)
         }
-
-        matrices.pop()
     }
 
     private fun drawSymbol(symbolId: String?, matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
@@ -193,14 +188,14 @@ object PageIconItemRenderer : BuiltinItemRendererRegistry.DynamicItemRenderer {
     }
 
     private fun drawBorder(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
-        rect(matrices, providers, 2f, 2f, 14f, 2.7f, INK, light, overlay)
-        rect(matrices, providers, 2f, 13.3f, 14f, 14f, INK, light, overlay)
-        rect(matrices, providers, 2f, 2f, 2.7f, 14f, INK, light, overlay)
-        rect(matrices, providers, 13.3f, 2f, 14f, 14f, INK, light, overlay)
+        rect(matrices, providers, 2f, 2f, 14f, 2.7f, INK, light, overlay, 0.0325f)
+        rect(matrices, providers, 2f, 13.3f, 14f, 14f, INK, light, overlay, 0.0325f)
+        rect(matrices, providers, 2f, 2f, 2.7f, 14f, INK, light, overlay, 0.0325f)
+        rect(matrices, providers, 13.3f, 2f, 14f, 14f, INK, light, overlay, 0.0325f)
     }
 
     private fun drawPaperGlow(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
-        rect(matrices, providers, 3f, 3f, 13f, 13f, PAPER_GLOW, light, overlay)
+        rect(matrices, providers, 3f, 3f, 13f, 13f, PAPER_GLOW, light, overlay, 0.0320f)
     }
 
     private fun drawLostPage(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
@@ -640,40 +635,76 @@ object PageIconItemRenderer : BuiltinItemRendererRegistry.DynamicItemRenderer {
         rect(matrices, providers, cx - 0.3f * scale, cy + 1.2f * scale, cx + 0.3f * scale, cy + 1.8f * scale, color, light, overlay)
     }
 
-    private fun line(matrices: MatrixStack, providers: VertexConsumerProvider, x1: Float, y1: Float, x2: Float, y2: Float, thickness: Float, color: Int, light: Int, overlay: Int) {
+    private fun line(matrices: MatrixStack, providers: VertexConsumerProvider, x1: Float, y1: Float, x2: Float, y2: Float, thickness: Float, color: Int, light: Int, overlay: Int, zFront: Float = 0.0330f) {
         val dx = x2 - x1
         val dy = y2 - y1
         val length = kotlin.math.sqrt((dx * dx + dy * dy).toDouble()).toFloat().coerceAtLeast(0.001f)
         val nx = -dy / length * thickness / 2f
         val ny = dx / length * thickness / 2f
-        quad(matrices, providers, x1 + nx, y1 + ny, x1 - nx, y1 - ny, x2 - nx, y2 - ny, x2 + nx, y2 + ny, color, light, overlay)
+        quad(matrices, providers, x1 + nx, y1 + ny, x1 - nx, y1 - ny, x2 - nx, y2 - ny, x2 + nx, y2 + ny, color, light, overlay, zFront)
     }
 
-    private fun rect(matrices: MatrixStack, providers: VertexConsumerProvider, x1: Float, y1: Float, x2: Float, y2: Float, color: Int, light: Int, overlay: Int) =
-        quad(matrices, providers, x1, y1, x2, y1, x2, y2, x1, y2, color, light, overlay)
+    private fun rect(matrices: MatrixStack, providers: VertexConsumerProvider, x1: Float, y1: Float, x2: Float, y2: Float, color: Int, light: Int, overlay: Int, zFront: Float = 0.0330f) =
+        quad(matrices, providers, x1, y1, x2, y1, x2, y2, x1, y2, color, light, overlay, zFront)
 
-    private fun quad(matrices: MatrixStack, providers: VertexConsumerProvider, x1: Float, y1: Float, x2: Float, y2: Float, x3: Float, y3: Float, x4: Float, y4: Float, color: Int, light: Int, overlay: Int) {
+    private fun quad(
+        matrices: MatrixStack,
+        providers: VertexConsumerProvider,
+        x1: Float, y1: Float,
+        x2: Float, y2: Float,
+        x3: Float, y3: Float,
+        x4: Float, y4: Float,
+        color: Int,
+        light: Int,
+        overlay: Int,
+        zFront: Float = 0.0330f
+    ) {
         val entry = matrices.peek()
         val consumer = providers.getBuffer(RenderLayer.getEntityTranslucent(WHITE_TEXTURE))
         val r = color shr 16 and 255
         val g = color shr 8 and 255
         val b = color and 255
         val a = color ushr 24 and 255
-        val z = 0.0025f
+        val zBack = -zFront
 
-        vertex(consumer, entry.positionMatrix, entry.normalMatrix, x1, y1, z, r, g, b, a, 0f, 0f, light, overlay)
-        vertex(consumer, entry.positionMatrix, entry.normalMatrix, x2, y2, z, r, g, b, a, 1f, 0f, light, overlay)
-        vertex(consumer, entry.positionMatrix, entry.normalMatrix, x3, y3, z, r, g, b, a, 1f, 1f, light, overlay)
-        vertex(consumer, entry.positionMatrix, entry.normalMatrix, x4, y4, z, r, g, b, a, 0f, 1f, light, overlay)
+        // Front face (+Z)
+        vertex(consumer, entry.positionMatrix, entry.normalMatrix, x1, y1, zFront, r, g, b, a, 0f, 0f, light, overlay, 0f, 0f, 1f)
+        vertex(consumer, entry.positionMatrix, entry.normalMatrix, x2, y2, zFront, r, g, b, a, 1f, 0f, light, overlay, 0f, 0f, 1f)
+        vertex(consumer, entry.positionMatrix, entry.normalMatrix, x3, y3, zFront, r, g, b, a, 1f, 1f, light, overlay, 0f, 0f, 1f)
+        vertex(consumer, entry.positionMatrix, entry.normalMatrix, x4, y4, zFront, r, g, b, a, 0f, 1f, light, overlay, 0f, 0f, 1f)
+
+        // Back face (-Z)
+        vertex(consumer, entry.positionMatrix, entry.normalMatrix, x4, y4, zBack, r, g, b, a, 0f, 1f, light, overlay, 0f, 0f, -1f)
+        vertex(consumer, entry.positionMatrix, entry.normalMatrix, x3, y3, zBack, r, g, b, a, 1f, 1f, light, overlay, 0f, 0f, -1f)
+        vertex(consumer, entry.positionMatrix, entry.normalMatrix, x2, y2, zBack, r, g, b, a, 1f, 0f, light, overlay, 0f, 0f, -1f)
+        vertex(consumer, entry.positionMatrix, entry.normalMatrix, x1, y1, zBack, r, g, b, a, 0f, 0f, light, overlay, 0f, 0f, -1f)
     }
 
-    private fun vertex(consumer: VertexConsumer, matrix: Matrix4f, normalMatrix: Matrix3f, px: Float, py: Float, pz: Float, r: Int, g: Int, b: Int, a: Int, u: Float, v: Float, light: Int, overlay: Int) {
+    private fun vertex(
+        consumer: VertexConsumer,
+        matrix: Matrix4f,
+        normalMatrix: Matrix3f,
+        px: Float,
+        py: Float,
+        pz: Float,
+        r: Int,
+        g: Int,
+        b: Int,
+        a: Int,
+        u: Float,
+        v: Float,
+        light: Int,
+        overlay: Int,
+        nx: Float = 0f,
+        ny: Float = 0f,
+        nz: Float = 1f
+    ) {
         consumer.vertex(matrix, mapX(px), mapY(py), pz)
             .color(r, g, b, a)
             .texture(u, v)
             .overlay(overlay)
             .light(light)
-            .normal(normalMatrix, 0f, 0f, 1f)
+            .normal(normalMatrix, nx, ny, nz)
             .next()
     }
 

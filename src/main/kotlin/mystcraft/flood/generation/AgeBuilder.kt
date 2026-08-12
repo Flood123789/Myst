@@ -41,6 +41,14 @@ object AgeBuilder {
         val registries = server.registryManager
         val biomeRegistry = registries.get(RegistryKeys.BIOME)
         val inheritedGenerator = inheritedDimensionGenerator(server, role, profile.terrainType)
+        val liveBiomeWorld = when (AgeBiomeDistribution.sourceRole(role, profile.terrainType)) {
+            AgeDimensionRole.OVERWORLD -> World.OVERWORLD
+            AgeDimensionRole.NETHER -> World.NETHER
+            AgeDimensionRole.END -> World.END
+        }
+        val liveBiomeGenerator = server.getWorld(liveBiomeWorld)
+            ?.chunkManager
+            ?.chunkGenerator
 
         if (profile.ageState.isSacrificed) {
             val voidBiomeId = if (profile.biomes.biomes.isNotEmpty()) {
@@ -54,9 +62,12 @@ object AgeBuilder {
             return Pair(BlankAgeChunkGenerator(FixedBiomeSource(biomeEntry)), profile)
         }
 
-        // Pick the biome distribution independently from terrain generation. Several terrain
-        // types can share one distribution, and a datapack may replace the inherited source.
+        // Pick the biome distribution independently from terrain generation. Vanilla
+        // Distribution means the complete live source-realm layout even when the terrain page
+        // is Alpha or Beta; terrain pages must not silently collapse it to a six-biome subset.
         val selectedBiomeSource = when {
+            profile.biomes.mode == BiomeMode.VANILLA_DISTRIBUTION && liveBiomeGenerator != null ->
+                liveBiomeGenerator.biomeSource
             profile.biomes.inheritDimensionSource && inheritedGenerator != null -> inheritedGenerator.biomeSource
             role == AgeDimensionRole.NETHER -> {
                 weightedBiomeSource(profile, biomeRegistry, "minecraft:nether_wastes")
@@ -64,8 +75,6 @@ object AgeBuilder {
             role == AgeDimensionRole.END -> {
                 weightedBiomeSource(profile, biomeRegistry, "minecraft:the_end")
             }
-            profile.terrainType == TerrainType.ALPHA -> ClassicBiomeSources.alphaSource(biomeRegistry)
-            profile.terrainType == TerrainType.BETA -> ClassicBiomeSources.betaSource(biomeRegistry)
             else -> when (profile.biomes.mode) {
             BiomeMode.VANILLA_DISTRIBUTION -> {
                 val parameterRegistry = registries.get(RegistryKeys.MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST)
@@ -295,5 +304,14 @@ object AgeBuilder {
             currentTemp = nextTemp
         }
         return MultiNoiseBiomeSource.create(MultiNoiseUtil.Entries(entries))
+    }
+}
+
+/** Selects the vanilla realm whose full biome distribution an Age inherits. */
+object AgeBiomeDistribution {
+    fun sourceRole(role: AgeDimensionRole, terrainType: TerrainType): AgeDimensionRole = when {
+        role == AgeDimensionRole.NETHER || terrainType == TerrainType.NETHER -> AgeDimensionRole.NETHER
+        role == AgeDimensionRole.END || terrainType == TerrainType.END -> AgeDimensionRole.END
+        else -> AgeDimensionRole.OVERWORLD
     }
 }

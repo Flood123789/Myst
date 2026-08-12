@@ -76,8 +76,7 @@ object AgeFeatureTuning {
         HistoricAgeThemes.GATEWAY_RUINS,
         AmbientAgeThemes.PAGE_STORMS,
         AmbientAgeThemes.MEMORY_BLOOMS,
-        AmbientAgeThemes.STABLE_SANCTUARIES,
-        STAR_FISSURE
+        AmbientAgeThemes.STABLE_SANCTUARIES
     )
 
     private val PAGE_LOOT_FEATURE_IDS = setOf(

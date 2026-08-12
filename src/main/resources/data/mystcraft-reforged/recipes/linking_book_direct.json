@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "minecraft:leather"
+    },
+    {
+      "item": "mystcraft-reforged:page"
+    },
+    {
+      "item": "mystcraft-reforged:ink_vial"
+    }
+  ],
+  "result": {
+    "item": "mystcraft-reforged:linkingbook",
+    "count": 1
+  }
+}

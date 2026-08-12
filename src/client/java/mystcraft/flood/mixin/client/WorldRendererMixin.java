@@ -2,8 +2,11 @@ package mystcraft.flood.mixin.client;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import mystcraft.flood.client.cache.ClientAgeCache;
+import mystcraft.flood.client.config.SkyLayer;
+import mystcraft.flood.client.config.SkyRenderConfig;
 import mystcraft.flood.client.render.ClientRenderCompatibility;
 import mystcraft.flood.client.render.CustomSkyPainter;
+import mystcraft.flood.client.render.SkyFrameCapture;
 import mystcraft.flood.generation.profile.AgeProfile;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.LightmapTextureManager;
@@ -81,19 +84,19 @@ public class WorldRendererMixin {
     private void mystcraft$renderExtraCelestialBodies(MatrixStack matrices, Matrix4f projectionMatrix, float tickDelta, Camera camera, boolean thickFog, Runnable fogCallback, CallbackInfo ci) {
         if (ClientRenderCompatibility.isIrisShadowPass()) return;
         if (this.world == null) return;
+        if (!SkyRenderConfig.paintsAnythingOn(SkyLayer.SKY_PASS)) return;
 
-        if (ClientRenderCompatibility.canUseCustomSkyOverlay()) {
-            CustomSkyPainter.INSTANCE.paintSkyTint(this.world, matrices, projectionMatrix);
-            CustomSkyPainter.INSTANCE.paintExtraSky(this.world, matrices, projectionMatrix, tickDelta);
-        } else if (ClientRenderCompatibility.canUseShaderFallbackSkyOverlay()) {
-            CustomSkyPainter.INSTANCE.paintShaderFallbackSky(this.world, matrices, projectionMatrix, tickDelta);
-        }
+        CustomSkyPainter.paintSky(this.world, matrices, projectionMatrix, tickDelta, SkyLayer.SKY_PASS);
         RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
     }
 
     @Inject(method = "render(Lnet/minecraft/client/util/math/MatrixStack;FJZLnet/minecraft/client/render/Camera;Lnet/minecraft/client/render/GameRenderer;Lnet/minecraft/client/render/LightmapTextureManager;Lorg/joml/Matrix4f;)V",
             at = @At("HEAD"))
     private void mystcraft$refreshDimensionLightmap(MatrixStack matrices, float tickDelta, long limitTime, boolean renderBlockOutline, Camera camera, net.minecraft.client.render.GameRenderer gameRenderer, LightmapTextureManager lightmapTextureManager, Matrix4f projectionMatrix, CallbackInfo ci) {
+        // The overlay pass runs after this method returns, where the camera basis is gone. Keep a
+        // copy so it can paint with exactly the matrices the sky pass used.
+        SkyFrameCapture.capture(matrices.peek().getPositionMatrix(), projectionMatrix);
+
         if (this.world == null) return;
 
         boolean ageWorld = "mystcraft-reforged".equals(this.world.getRegistryKey().getValue().getNamespace());

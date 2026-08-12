@@ -37,7 +37,7 @@ class WritingDeskScreenHandler(
         deskInventory.onOpen(playerInventory.player)
 
         addSlot(object : Slot(deskInventory, SLOT_BOOK, 30, 36) {
-            override fun canInsert(stack: ItemStack): Boolean = stack.item is DescriptiveBookItem
+            override fun canInsert(stack: ItemStack): Boolean = stack.item is DescriptiveBookItem || stack.isOf(ModItems.LINKING_BOOK)
             override fun getMaxItemCount(): Int = 1
         })
 

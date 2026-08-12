@@ -645,10 +645,10 @@ object AgeProfileManager {
             }
         }
 
-        fun randomRGB(): Int {
-            val argb = java.awt.Color.HSBtoRGB(rand.nextFloat(), 0.5f + rand.nextFloat() * 0.5f, 0.7f + rand.nextFloat() * 0.3f)
-            return argb and 0x00FFFFFF
-        }
+        fun randomRGB(): Int = ColorCategory.sampleVibrantRandom(rand)
+
+        fun resolveColor(spec: mystcraft.flood.generation.CompiledColor?): Int =
+            spec?.resolve(rand) ?: randomRGB()
 
         fun blendChannel(value: Int, target: Int, amount: Float): Int =
             (value + (target - value) * amount).toInt().coerceIn(0, 255)
@@ -671,10 +671,10 @@ object AgeProfileManager {
             return result
         }
 
-        val skyColor = atmosphereColor(compiled.skyColor ?: randomRGB())
-        val fogColor = atmosphereColor(compiled.fogColor ?: randomRGB())
-        val ambientColor = atmosphereColor(compiled.ambientColor ?: compiled.fogColor ?: randomRGB())
-        val cloudColor = atmosphereColor(compiled.cloudColor ?: compiled.fogColor ?: randomRGB())
+        val skyColor = atmosphereColor(compiled.skyColorSpec?.resolve(rand) ?: randomRGB())
+        val fogColor = atmosphereColor(compiled.fogColorSpec?.resolve(rand) ?: randomRGB())
+        val ambientColor = atmosphereColor(compiled.ambientColorSpec?.resolve(rand) ?: compiled.fogColorSpec?.resolve(rand) ?: randomRGB())
+        val cloudColor = atmosphereColor(compiled.cloudColorSpec?.resolve(rand) ?: compiled.fogColorSpec?.resolve(rand) ?: randomRGB())
 
         return AgeProfile(
             id = ageId.toString(),
@@ -683,12 +683,12 @@ object AgeProfileManager {
             colors = ColorSettings(
                 sky = skyColor,
                 fog = fogColor,
-                water = compiled.waterColor ?: randomRGB(),
-                grass = compiled.grassColor ?: randomRGB(),     
-                foliage = compiled.foliageColor ?: randomRGB(),
+                water = resolveColor(compiled.waterColorSpec),
+                grass = resolveColor(compiled.grassColorSpec),     
+                foliage = resolveColor(compiled.foliageColorSpec),
                 ambient = ambientColor,
                 cloud = cloudColor,
-                fireLava = compiled.fireLavaColor ?: 0xFF6A00
+                fireLava = compiled.fireLavaColorSpec?.resolve(rand) ?: 0xFF6A00
             ),
             cloudHeight = compiled.cloudHeight ?: when (terrain) {
                 TerrainType.FLOATING_ISLANDS -> 160.0f

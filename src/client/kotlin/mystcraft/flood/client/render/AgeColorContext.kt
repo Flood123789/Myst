@@ -3,9 +3,10 @@ package mystcraft.flood.client.render
 import mystcraft.flood.MystcraftReforged
 import mystcraft.flood.client.cache.ClientAgeCache
 import mystcraft.flood.generation.profile.AgeProfile
-import net.minecraft.client.world.ClientWorld
+import net.minecraft.client.MinecraftClient
 import net.minecraft.util.Identifier
 import net.minecraft.world.BlockRenderView
+import net.minecraft.world.World
 import java.lang.reflect.Field
 import java.lang.reflect.Method
 
@@ -16,37 +17,51 @@ object AgeColorContext {
     private const val MODERN_SODIUM_PACKAGE = "net.caffeinemc.mods.sodium."
 
     private sealed interface ViewAccessor {
-        fun world(view: BlockRenderView): ClientWorld?
+        fun world(view: BlockRenderView): World?
     }
 
     private data class DistantHorizonsViewAccessor(
         val levelWrapperField: Field,
         val unwrapMethod: Method
     ) : ViewAccessor {
-        override fun world(view: BlockRenderView): ClientWorld? {
+        override fun world(view: BlockRenderView): World? {
             val wrapper = runCatching { levelWrapperField.get(view) }.getOrNull() ?: return null
-            return runCatching { unwrapMethod.invoke(wrapper) as? ClientWorld }.getOrNull()
+            return runCatching { unwrapMethod.invoke(wrapper) as? World }.getOrNull()
         }
     }
 
     private data class WorldFieldAccessor(val worldField: Field) : ViewAccessor {
-        override fun world(view: BlockRenderView): ClientWorld? =
-            runCatching { worldField.get(view) as? ClientWorld }.getOrNull()
+        override fun world(view: BlockRenderView): World? =
+            runCatching { worldField.get(view) as? World }.getOrNull()
+    }
+
+    private data class WorldMethodAccessor(val method: Method) : ViewAccessor {
+        override fun world(view: BlockRenderView): World? =
+            runCatching { method.invoke(view) as? World }.getOrNull()
     }
 
     private object UnsupportedViewAccessor : ViewAccessor {
-        override fun world(view: BlockRenderView): ClientWorld? = null
+        override fun world(view: BlockRenderView): World? = null
     }
 
     private val viewAccessors = object : ClassValue<ViewAccessor>() {
         override fun computeValue(type: Class<*>): ViewAccessor {
-            if (type.name.startsWith(SODIUM_PACKAGE) || type.name.startsWith(MODERN_SODIUM_PACKAGE)) {
-                val worldField = generateSequence(type) { it.superclass }
-                    .flatMap { it.declaredFields.asSequence() }
-                    .firstOrNull { ClientWorld::class.java.isAssignableFrom(it.type) }
-                    ?: return UnsupportedViewAccessor
-                if (!worldField.trySetAccessible()) return UnsupportedViewAccessor
+            val worldMethod = type.methods.firstOrNull {
+                World::class.java.isAssignableFrom(it.returnType) && it.parameterCount == 0
+            }
+            if (worldMethod != null && worldMethod.trySetAccessible()) {
+                return WorldMethodAccessor(worldMethod)
+            }
+
+            val worldField = generateSequence(type) { it.superclass }
+                .flatMap { it.declaredFields.asSequence() }
+                .firstOrNull { World::class.java.isAssignableFrom(it.type) }
+            if (worldField != null && worldField.trySetAccessible()) {
                 return WorldFieldAccessor(worldField)
+            }
+
+            if (type.name.startsWith(SODIUM_PACKAGE) || type.name.startsWith(MODERN_SODIUM_PACKAGE)) {
+                return UnsupportedViewAccessor
             }
 
             if (!type.name.startsWith(DH_PACKAGE)) return UnsupportedViewAccessor
@@ -73,12 +88,15 @@ object AgeColorContext {
 
     @JvmStatic
     fun getAgeId(view: BlockRenderView?): Identifier? {
-        val world = when (view) {
-            is ClientWorld -> view
+        val world: World? = when (view) {
+            is World -> view
             null -> null
             else -> viewAccessors.get(view.javaClass).world(view)
-        } ?: return null
+        } ?: runCatching {
+            MinecraftClient.getInstance().world
+        }.getOrNull()
 
-        return world.registryKey.value.takeIf { it.namespace == MystcraftReforged.MOD_ID }
+        val id = world?.registryKey?.value ?: return null
+        return id.takeIf { it.namespace == MystcraftReforged.MOD_ID }
     }
 }

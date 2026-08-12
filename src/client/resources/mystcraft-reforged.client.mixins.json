@@ -14,10 +14,15 @@
     "ClientWorldColorMixin",
     "ClientPlayerEntityLowGravityMixin",
     "FluidRendererMixin",
+    "GameRendererMixin",
     "InGameOverlayRendererMixin",
     "WorldRendererMixin",
     "MinecraftClientMixin",
-    "SoundManagerMixin"
+    "EntityRenderDispatcherMixin",
+    "BlockModelRendererMixin",
+    "SpriteLoaderMixin",
+    "SoundManagerMixin",
+    "MapRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1

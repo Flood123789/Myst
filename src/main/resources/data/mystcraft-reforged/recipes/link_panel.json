@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "mystcraft-reforged:page"
+    },
+    {
+      "item": "mystcraft-reforged:ink_vial"
+    }
+  ],
+  "result": {
+    "item": "mystcraft-reforged:linkpanel",
+    "count": 1
+  }
+}

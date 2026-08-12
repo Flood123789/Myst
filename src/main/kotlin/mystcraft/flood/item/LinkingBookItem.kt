@@ -85,6 +85,10 @@ class LinkingBookItem(settings: Settings) : Item(settings) {
 
     // === NEW: Adds the hover text ===
     override fun appendTooltip(stack: ItemStack, world: World?, tooltip: MutableList<Text>, context: TooltipContext) {
+        val customName = DisplayedBookHelper.getAgeBookName(stack)
+        if (customName.isNotBlank()) {
+            tooltip.add(Text.literal("Name: ").formatted(Formatting.GRAY).append(Text.literal(customName).formatted(Formatting.AQUA)))
+        }
         val nbt = stack.nbt
         if (nbt != null && nbt.contains("Dimension")) {
             val dim = nbt.getString("Dimension")
