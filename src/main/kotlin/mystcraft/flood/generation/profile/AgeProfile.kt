@@ -19,6 +19,7 @@ data class AgeProfile(
     val physics: PhysicsSettings = PhysicsSettings(),
     val ageState: AgeState = AgeState(),
     var curses: AgeCurseProfile = AgeCurseProfile(),
+    val seasons: SeasonSettings = SeasonSettings(),
     val stability: StabilityProfile,
     val terrainTuning: TerrainTuningProfile = TerrainTuningProfile(),
     var modifiers: MutableList<String> = CopyOnWriteArrayList()
@@ -46,6 +47,14 @@ data class AgeProfile(
 
             if (!root.has("physics")) {
                 profile.physics.gravityScale = 1.0f
+            }
+
+            if (!root.has("seasons") || root.get("seasons").isJsonNull) {
+                profile = profile.copy(seasons = SeasonSettings())
+            } else {
+                val seasons = root.getAsJsonObject("seasons")
+                if (!seasons.has("enabled")) profile.seasons.enabled = true
+                if (!seasons.has("initialized")) profile.seasons.initialized = false
             }
 
             if (!root.has("terrainTuning") || root.get("terrainTuning").isJsonNull) {
@@ -182,6 +191,12 @@ data class TimeSettings(
     val visibleTimeFrozen: Boolean
         get() = temporaryTimeOverride != null || fixedTime != null
 }
+
+data class SeasonSettings(
+    var enabled: Boolean = true,
+    var initialized: Boolean = false,
+    @Transient var tickAccumulator: Float = 0f
+)
 
 data class WeatherSettings(
     var isEndlessRain: Boolean,

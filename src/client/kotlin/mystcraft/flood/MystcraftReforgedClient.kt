@@ -7,6 +7,7 @@ import mystcraft.flood.block.entity.ModBlockEntities
 import mystcraft.flood.client.AgeTravelSoundSuppressor
 import mystcraft.flood.client.cache.ClientAgeCache
 import mystcraft.flood.client.cache.ClientAgeTimeCache
+import mystcraft.flood.client.compat.SereneSeasonsClientCompat
 import mystcraft.flood.client.gui.BookBinderScreen
 import mystcraft.flood.client.gui.EditingTableScreen
 import mystcraft.flood.client.gui.NotebookScreen
@@ -54,6 +55,7 @@ class MystcraftReforgedClient : ClientModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register { client ->
             ClientAgeTimeCache.tick()
+            SereneSeasonsClientCompat.tick(client)
             AgeTravelSoundSuppressor.INSTANCE.tick(client)
             AgeAmbientParticlePainter.tick(client)
             DistantHorizonsCompat.tick()
@@ -93,6 +95,7 @@ class MystcraftReforgedClient : ClientModInitializer {
         ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
             ClientAgeCache.clear()
             ClientAgeTimeCache.clear()
+            SereneSeasonsClientCompat.clear()
             DistantHorizonsCompat.clear()
             MystcraftReforged.LOGGER.info("Cleared Age Cache on disconnect.")
         }

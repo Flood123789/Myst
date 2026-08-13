@@ -1,6 +1,7 @@
 package mystcraft.flood.mixin.client;
 
 import mystcraft.flood.client.cache.ClientAgeCache;
+import mystcraft.flood.client.compat.SereneSeasonsClientCompat;
 import mystcraft.flood.generation.profile.AgeProfile;
 import net.minecraft.client.color.world.BiomeColors;
 import net.minecraft.client.world.ClientWorld;
@@ -15,20 +16,20 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public class BiomeColorsMixin {
     @Inject(method = "getGrassColor", at = @At("HEAD"), cancellable = true)
     private static void mystcraft$getGrassColor(BlockRenderView world, BlockPos pos, CallbackInfoReturnable<Integer> cir) {
-        applyMystcraftColor(world, "grass", cir);
+        applyMystcraftColor(world, pos, "grass", cir);
     }
 
     @Inject(method = "getFoliageColor", at = @At("HEAD"), cancellable = true)
     private static void mystcraft$getFoliageColor(BlockRenderView world, BlockPos pos, CallbackInfoReturnable<Integer> cir) {
-        applyMystcraftColor(world, "foliage", cir);
+        applyMystcraftColor(world, pos, "foliage", cir);
     }
 
     @Inject(method = "getWaterColor", at = @At("HEAD"), cancellable = true)
     private static void mystcraft$getWaterColor(BlockRenderView world, BlockPos pos, CallbackInfoReturnable<Integer> cir) {
-        applyMystcraftColor(world, "water", cir);
+        applyMystcraftColor(world, pos, "water", cir);
     }
 
-    private static void applyMystcraftColor(BlockRenderView view, String type, CallbackInfoReturnable<Integer> cir) {
+    private static void applyMystcraftColor(BlockRenderView view, BlockPos pos, String type, CallbackInfoReturnable<Integer> cir) {
         if (!(view instanceof ClientWorld world)) return;
         if (!"mystcraft-reforged".equals(world.getRegistryKey().getValue().getNamespace())) return;
 
@@ -41,6 +42,11 @@ public class BiomeColorsMixin {
             case "water" -> profile.getColors().getWater() & 0xFFFFFF;
             default -> null;
         };
+        if (color != null && type.equals("grass")) {
+            color = SereneSeasonsClientCompat.INSTANCE.applyGrassColor(color, world, pos);
+        } else if (color != null && type.equals("foliage")) {
+            color = SereneSeasonsClientCompat.INSTANCE.applyFoliageColor(color, world, pos);
+        }
         if (color != null) {
             cir.setReturnValue(color);
         }

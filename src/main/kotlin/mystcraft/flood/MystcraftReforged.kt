@@ -11,6 +11,7 @@ import mystcraft.flood.generation.profile.AgeProfileManager
 import mystcraft.flood.generation.profile.TerrainType
 import mystcraft.flood.generation.BiosphereFeature
 import mystcraft.flood.compat.DistantHorizonsCompat
+import mystcraft.flood.compat.SereneSeasonsCompat
 import mystcraft.flood.item.ModItemGroups
 import mystcraft.flood.item.ModItems
 import mystcraft.flood.network.ModMessages
@@ -271,6 +272,11 @@ object MystcraftReforged : ModInitializer {
                         }
                     }
                 }
+
+                // Every physical Age dimension owns a Serene Seasons calendar.
+                // Derived realms share the root Age's authored clock rate but keep
+                // their own random starting season and saved calendar state.
+                SereneSeasonsCompat.tick(world, profile)
             }
         }
 

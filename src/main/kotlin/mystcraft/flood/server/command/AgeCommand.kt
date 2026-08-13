@@ -2,9 +2,12 @@ package mystcraft.flood.server.command
 
 import com.mojang.brigadier.arguments.FloatArgumentType
 import com.mojang.brigadier.arguments.IntegerArgumentType
+import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import com.mojang.brigadier.context.CommandContext
 import mystcraft.flood.MystcraftReforged
 import mystcraft.flood.access.DimensionInjector
+import mystcraft.flood.compat.SereneSeasonsCompat
+import mystcraft.flood.compat.MYSTCRAFT_SEASON_NAMES
 import mystcraft.flood.generation.AgeCurseManager
 import mystcraft.flood.generation.AgeLifecycleManager
 import mystcraft.flood.generation.AgeSubdimensionManager
@@ -111,7 +114,10 @@ object AgeCommand {
                         )
                     )
 
-                    // === 5. INSTABILITY COMMAND ===
+                    // === 5. OPTIONAL SERENE SEASONS COMMAND ===
+                    .then(buildSeasonCommand())
+
+                    // === 6. INSTABILITY COMMAND ===
                     .then(CommandManager.literal("instability")
                         .then(CommandManager.literal("toggle")
                             .executes { toggleAgeInstability(it) }
@@ -147,6 +153,103 @@ object AgeCommand {
                     )
             )
         }
+    }
+
+    private fun buildSeasonCommand(): LiteralArgumentBuilder<ServerCommandSource> {
+        val setCommand = CommandManager.literal("set")
+        MYSTCRAFT_SEASON_NAMES.forEach { seasonName ->
+            setCommand.then(
+                CommandManager.literal(seasonName)
+                    .executes { setMystcraftSeason(it, seasonName) }
+            )
+        }
+
+        return CommandManager.literal("season")
+            .then(CommandManager.literal("get").executes(::getMystcraftSeason))
+            .then(setCommand)
+            .then(CommandManager.literal("enable").executes { setMystcraftSeasonsEnabled(it, true) })
+            .then(CommandManager.literal("disable").executes { setMystcraftSeasonsEnabled(it, false) })
+    }
+
+    private fun setMystcraftSeason(context: CommandContext<ServerCommandSource>, seasonName: String): Int {
+        val source = context.source
+        val world = source.world
+        val id = world.registryKey.value
+        if (id.namespace != MystcraftReforged.MOD_ID) {
+            source.sendError(Text.literal("You must be in a Mystcraft Age to change its season!"))
+            return 0
+        }
+        if (!SereneSeasonsCompat.isAvailable()) {
+            source.sendError(Text.literal("Serene Seasons is not installed or its compatibility API is unavailable."))
+            return 0
+        }
+
+        val profile = AgeProfileManager.getOrGenerateProfile(world.server, id)
+        val appliedSeason = SereneSeasonsCompat.setSeason(world, profile, seasonName)
+        if (appliedSeason == null) {
+            source.sendError(Text.literal("Could not set the Serene Seasons calendar for this Age."))
+            return 0
+        }
+
+        source.sendFeedback(
+            { Text.literal("Season set to ${appliedSeason.replace('_', ' ')} for Age: $id") },
+            true
+        )
+        return 1
+    }
+
+    private fun getMystcraftSeason(context: CommandContext<ServerCommandSource>): Int {
+        val source = context.source
+        val world = source.world
+        val id = world.registryKey.value
+        if (id.namespace != MystcraftReforged.MOD_ID) {
+            source.sendError(Text.literal("You must be in a Mystcraft Age to inspect its season!"))
+            return 0
+        }
+        if (!SereneSeasonsCompat.isAvailable()) {
+            source.sendError(Text.literal("Serene Seasons is not installed or its compatibility API is unavailable."))
+            return 0
+        }
+
+        val profile = AgeProfileManager.getOrGenerateProfile(world.server, id)
+        val season = SereneSeasonsCompat.currentSeason(world) ?: run {
+            source.sendError(Text.literal("Could not read the Serene Seasons calendar for this Age."))
+            return 0
+        }
+        val state = if (profile.seasons.enabled) "enabled" else "disabled"
+        source.sendFeedback(
+            { Text.literal("Season for Age $id: ${season.replace('_', ' ')} ($state)") },
+            false
+        )
+        return 1
+    }
+
+    private fun setMystcraftSeasonsEnabled(
+        context: CommandContext<ServerCommandSource>,
+        enabled: Boolean
+    ): Int {
+        val source = context.source
+        val currentId = source.world.registryKey.value
+        if (currentId.namespace != MystcraftReforged.MOD_ID) {
+            source.sendError(Text.literal("You must be in a Mystcraft Age to enable or disable seasons!"))
+            return 0
+        }
+
+        val rootAgeId = AgeSubdimensionManager.rootIdOf(currentId)
+        val rootProfile = AgeProfileManager.getOrGenerateProfile(source.server, rootAgeId)
+        rootProfile.seasons.enabled = enabled
+        val familyIds = ModMessages.syncAgeFamily(source.server, rootAgeId)
+        source.server.worlds
+            .filter { it.registryKey.value in familyIds }
+            .forEach { SereneSeasonsCompat.setDimensionEnabled(it.registryKey.value, enabled) }
+
+        val state = if (enabled) "enabled" else "disabled"
+        val suffix = if (SereneSeasonsCompat.isInstalled()) "" else " (saved; Serene Seasons is not installed)"
+        source.sendFeedback(
+            { Text.literal("Seasons are now $state for Age family: $rootAgeId$suffix") },
+            true
+        )
+        return 1
     }
 
     private fun setAgeTime(context: CommandContext<ServerCommandSource>, time: Long): Int {
@@ -337,6 +440,7 @@ object AgeCommand {
     private fun normalizeTimeOfDay(time: Long): Long = ((time % 24000L) + 24000L) % 24000L
 
     private fun syncAgeTime(world: ServerWorld, profile: AgeProfile) {
+        SereneSeasonsCompat.pinDayTime(world)
         world.server.playerManager.playerList.forEach { player ->
             ModMessages.sendDimensionTimeSync(player, world.registryKey.value, profile)
         }

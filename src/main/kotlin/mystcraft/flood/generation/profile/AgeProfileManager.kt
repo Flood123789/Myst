@@ -789,6 +789,7 @@ object AgeProfileManager {
             diagnosedCurses = CopyOnWriteArrayList(refreshed.curses.diagnosedCurses),
             cleansedCurses = CopyOnWriteArrayList(refreshed.curses.cleansedCurses)
         )
+        target.seasons.enabled = refreshed.seasons.enabled
         target.stability.isStable = refreshed.stability.isStable
         target.stability.instabilityScore = refreshed.stability.instabilityScore
         target.stability.effectsEnabled = refreshed.stability.effectsEnabled
@@ -867,6 +868,10 @@ object AgeProfileManager {
                 activeCurses = CopyOnWriteArrayList(rootProfile.curses.activeCurses),
                 diagnosedCurses = CopyOnWriteArrayList(rootProfile.curses.diagnosedCurses),
                 cleansedCurses = CopyOnWriteArrayList(rootProfile.curses.cleansedCurses)
+            ),
+            seasons = SeasonSettings(
+                enabled = rootProfile.seasons.enabled,
+                initialized = existing?.seasons?.initialized ?: false
             ),
             stability = rootProfile.stability.copy(),
             terrainTuning = rootProfile.terrainTuning.copy(),

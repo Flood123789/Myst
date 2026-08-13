@@ -1,6 +1,7 @@
 package mystcraft.flood.client.render
 
 import mystcraft.flood.client.cache.ClientAgeCache
+import mystcraft.flood.client.compat.SereneSeasonsClientCompat
 import net.minecraft.block.Block
 import net.minecraft.block.Blocks
 import net.minecraft.client.MinecraftClient
@@ -28,6 +29,8 @@ object AgePlantTintHelper {
         val foliage = profile.colors.foliage and 0xFFFFFF
         val grass = profile.colors.grass and 0xFFFFFF
         val water = profile.colors.water and 0xFFFFFF
+        val seasonalFoliage = SereneSeasonsClientCompat.applyFoliageColor(foliage, clientWorld, pos)
+        val seasonalGrass = SereneSeasonsClientCompat.applyGrassColor(grass, clientWorld, pos)
 
         return when (block) {
             Blocks.OAK_LEAVES,
@@ -40,7 +43,7 @@ object AgePlantTintHelper {
             Blocks.AZALEA_LEAVES,
             Blocks.FLOWERING_AZALEA_LEAVES,
             Blocks.VINE,
-            Blocks.LILY_PAD -> foliage
+            Blocks.LILY_PAD -> seasonalFoliage
 
             Blocks.CHERRY_LEAVES -> -1
 
@@ -58,7 +61,7 @@ object AgePlantTintHelper {
             Blocks.BIG_DRIPLEAF_STEM,
             Blocks.MOSS_BLOCK,
             Blocks.MOSS_CARPET,
-            Blocks.PINK_PETALS -> grass
+            Blocks.PINK_PETALS -> seasonalGrass
 
             Blocks.WATER -> water
             else -> vanillaTint(block, world, pos)
