@@ -1,0 +1,58 @@
+{
+  "name": "How Stability Is Scored",
+  "category": "mystcraft-reforged:instability",
+  "icon": "minecraft:written_book",
+  "sortnum": 2,
+  "pages": [
+    {
+      "type": "text",
+      "title": "The Seven Pillars",
+      "text": "The compiler looks for seven basics: terrain, biome plan, time, sun, moon, stars, and weather. Each named pillar removes 4 instability; each missing pillar adds 6. A book defining at most two pillars gains another 34, while one defining three or four gains another 16."
+    },
+    {
+      "type": "text",
+      "title": "Terrain Costs",
+      "text": "Terrain then alters the score: $(li)Standard +0$(li)Beta +4$(li)Flat +6$(li)Caves +10$(li)Alpha +12$(li)Floating Islands +15$(li)Nether or End +18$(li)Amplified +20$(li)Biospheres +32$(li)Cities +38$(li)Void -90$()$(br2)An explicitly written Standard terrain page removes another 8."
+    },
+    {
+      "type": "text",
+      "title": "Time and Weather",
+      "text": "A fixed Day, Noon, Night, or Midnight adds 20. Fast or Slow time adds 8. Endless rain adds 6, and endless thunder adds 15. Explicit ordinary weather removes 4. Contradictory time or weather pages add grammar penalties on top of these costs."
+    },
+    {
+      "type": "text",
+      "title": "Biomes",
+      "text": "A single-biome Age removes 14. Vanilla Distribution removes 10. Every biome beyond the first three adds 10. A fully Overworld-like result—Standard terrain, ordinary time, ordinary weather, and no checkerboard—removes another 16."
+    },
+    {
+      "type": "text",
+      "title": "Powerful Laws",
+      "text": "A deliberate Age Effect adds 65. Low Gravity adds 22. No Mobs adds 50; each Extra Passive page adds 25, while each Extra Hostile page surprisingly removes 15. Red and blue suns add 10 each, and each moon page adds 5."
+    },
+    {
+      "type": "text",
+      "title": "Written Landmarks",
+      "text": "Feature pages first carry a cost, but each explicitly named feature also removes 24 from the final score. Most therefore calm the Age overall: Giant Trees +15, Crystals +10, Tendrils +20, Obelisks +15, historic works +14 to +18, exotic surfaces +20, Page Storms +18, Memory Blooms +10, and Sanctuaries +8."
+    },
+    {
+      "type": "text",
+      "title": "Dense Ores",
+      "text": "Dense Ores is the greedy exception. It adds 75 before the 24-point authored-feature relief, for a net contribution of $(thing)+51$(). It is powerful enough to push an otherwise stable score past the first direct-hazard threshold by itself."
+    },
+    {
+      "type": "text",
+      "title": "Sky Detail",
+      "text": "A sky anomaly deliberately named on a page lowers instability by its own value and receives another 3 points of authored-sky relief. Depending on the anomaly, one explicit sky page usually removes $(thing)8 to 12$() total. A Random page receives no such mercy."
+    },
+    {
+      "type": "text",
+      "title": "Grammar Penalties",
+      "text": "An unused color adds 25. Extra rival terrains add 30 each; rival weather laws add 15 each; rival biome controllers add 20. Rival time modes add 20 each, and Fast beside Slow adds another 50. Repeating Fast or Slow also causes shear. Invalid custom color ink adds 10."
+    },
+    {
+      "type": "text",
+      "title": "Random and Loss",
+      "text": "A Random page pays a chaos tax and resolves without the stabilizing credit of an explicit feature. Sparse and random books can also acquire unasked-for laws. Separately, losing the last tracked copy of a linked descriptive-book lineage adds $(thing)200 instability$() to its Age."
+    }
+  ]
+}

@@ -21,6 +21,7 @@ import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
+/** Generates a collapsed observatory landmark for historic-themed Ages. */
 class CollapsedObservatoryFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatureConfig>(codec) {
     override fun generate(context: FeatureContext<DefaultFeatureConfig>): Boolean {
         val world = context.world
@@ -40,6 +41,7 @@ class CollapsedObservatoryFeature(codec: Codec<DefaultFeatureConfig>) : Feature<
             else -> 0.0f
         } * AgeFeatureTuning.chanceMultiplier(profile, HistoricAgeThemes.COLLAPSED_OBSERVATORY)
         if (chance <= 0f) return false
+        CustomStructureOverrides.generateIfPresent(context, "collapsed_observatory", profile, chance)?.let { return it }
 
         val chunkPos = ChunkPos(context.origin)
         val regionSize = if (explicit) 11 else 15

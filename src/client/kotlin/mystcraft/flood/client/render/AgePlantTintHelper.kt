@@ -1,9 +1,7 @@
 package mystcraft.flood.client.render
 
-import mystcraft.flood.client.cache.ClientAgeCache
 import net.minecraft.block.Block
 import net.minecraft.block.Blocks
-import net.minecraft.client.MinecraftClient
 import net.minecraft.client.color.world.BiomeColors
 import net.minecraft.util.math.MathHelper
 import net.minecraft.util.math.BlockPos
@@ -17,14 +15,7 @@ object AgePlantTintHelper {
     private const val DEFAULT_WATER = 0x3F76E4
 
     fun getTintFor(block: Block, world: BlockRenderView?, pos: BlockPos?): Int {
-        val clientWorld = MinecraftClient.getInstance().world
-        val registryKey = clientWorld?.registryKey
-
-        if (registryKey == null || registryKey.value.namespace != "mystcraft-reforged") {
-            return vanillaTint(block, world, pos)
-        }
-
-        val profile = ClientAgeCache.getProperties(registryKey.value) ?: return vanillaTint(block, world, pos)
+        val profile = AgeColorContext.getProfile(world) ?: return vanillaTint(block, world, pos)
         val foliage = profile.colors.foliage and 0xFFFFFF
         val grass = profile.colors.grass and 0xFFFFFF
         val water = profile.colors.water and 0xFFFFFF

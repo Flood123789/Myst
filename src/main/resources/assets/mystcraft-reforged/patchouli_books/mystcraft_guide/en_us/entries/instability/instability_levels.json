@@ -1,0 +1,58 @@
+{
+  "name": "Instability Levels",
+  "category": "mystcraft-reforged:instability",
+  "icon": "mystcraft-reforged:white_decay",
+  "sortnum": 1,
+  "pages": [
+    {
+      "type": "text",
+      "title": "Reading the Score",
+      "text": "Instability is a score beginning at zero. Its symptoms are checked $(thing)once each second$() for every survival traveler in the Age. Higher tiers include every lower tier, so at the default score of 115 an Age may inflict all five families of symptoms. Creative and spectator travelers are exempt. All thresholds, chances, and durations below are configurable defaults."
+    },
+    {
+      "type": "text",
+      "title": "Scores 0-44",
+      "text": "At $(thing)0$(), the Age is stable. Scores $(thing)1 through 44$() are imperfect but produce no direct tier symptoms. This quiet band allows cleansing to make a world livable before the much harder task of reducing its score all the way to zero."
+    },
+    {
+      "type": "text",
+      "title": "Tier I: 45+",
+      "text": "Each second there is a $(thing)5% chance$() to inflict Slowness I and Mining Fatigue I for $(thing)10 seconds$(). Repeated checks can refresh those effects."
+    },
+    {
+      "type": "text",
+      "title": "Tier II: 65+",
+      "text": "In addition to Tier I, each second has a $(thing)3% chance$() to inflict Darkness for $(thing)8 seconds$() and Poison I for $(thing)5 seconds$()."
+    },
+    {
+      "type": "text",
+      "title": "Tier III: 80+",
+      "text": "In addition to the earlier ailments, each second has a $(thing)2% chance$() to call lightning to the surface within roughly ten blocks of the traveler. Shelter helps with the bolt, but not with the lower-tier effects."
+    },
+    {
+      "type": "text",
+      "title": "Tier IV: 100+",
+      "text": "Reality begins to rot. At score 100, each second has a $(thing)5% chance$() to seed decay near each traveler. The chance gains one percentage point per score above 100, up to certainty. One seed is attempted at first, plus another for every 15 excess points, to a maximum of ten."
+    },
+    {
+      "type": "text",
+      "title": "Black and White Decay",
+      "text": "An Age chooses black or white decay from its seed. Black decay drinks fluids, spreads down and sideways, dissolves, and can pull unsupported columns into a collapse. White decay petrifies neighboring blocks while preserving shapes such as slabs, stairs, doors, fences, panes, torches, and lanterns."
+    },
+    {
+      "type": "text",
+      "title": "Tier V: 115+",
+      "text": "In addition to every earlier tier, each second has a $(thing)1% chance$() to create a small power-2 explosion within roughly five blocks of the traveler. At this score the Tier IV decay chance has risen to 20%, with two seed attempts when it triggers."
+    },
+    {
+      "type": "text",
+      "title": "What a Toggle Does",
+      "text": "$(thing)/mystcraft instability toggle$() suspends tier symptoms and makes existing decay dormant throughout the Age family. It does not change the score. Low gravity and a written Age Effect are separate systems with their own controls, so this toggle does not silence them."
+    },
+    {
+      "type": "text",
+      "title": "Changing the Balance",
+      "text": "Mod Menu exposes the functional maximum, all five tier thresholds, every per-second chance, the world-eater increase per score point, and effect durations. Dedicated servers use the host's $(thing)config/mystcraft-reforged-balance.json$(). Invalid ranges are clamped and tier thresholds are kept in ascending order."
+    }
+  ]
+}

@@ -1,9 +1,8 @@
 package mystcraft.flood.mixin.client;
 
-import mystcraft.flood.client.cache.ClientAgeCache;
+import mystcraft.flood.client.render.AgeColorContext;
 import mystcraft.flood.generation.profile.AgeProfile;
 import net.minecraft.client.color.world.BiomeColors;
-import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.BlockRenderView;
 import org.spongepowered.asm.mixin.Mixin;
@@ -29,10 +28,7 @@ public class BiomeColorsMixin {
     }
 
     private static void applyMystcraftColor(BlockRenderView view, String type, CallbackInfoReturnable<Integer> cir) {
-        if (!(view instanceof ClientWorld world)) return;
-        if (!"mystcraft-reforged".equals(world.getRegistryKey().getValue().getNamespace())) return;
-
-        AgeProfile profile = ClientAgeCache.INSTANCE.getProperties(world.getRegistryKey().getValue());
+        AgeProfile profile = AgeColorContext.getProfile(view);
         if (profile == null) return;
 
         Integer color = switch (type) {

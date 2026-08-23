@@ -24,6 +24,7 @@ class SkySphereFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeat
         if (AgeLifecycleManager.isDeadAge(profile)) return false
         if (!profile.modifiers.contains(ChaosAgeThemes.SKY_SPHERES)) return false
         if (profile.terrainType == TerrainType.BIOSPHERES) return false
+        CustomStructureOverrides.generateIfPresent(context, "sky_spheres", profile)?.let { return it }
 
         val chunkPos = ChunkPos(context.origin)
         val regionSize = 8

@@ -8,8 +8,11 @@ import mystcraft.flood.generation.AmbientAgeThemes
 import mystcraft.flood.generation.ChaosAgeThemes
 import mystcraft.flood.generation.ExoticAgeThemes
 import mystcraft.flood.generation.HistoricAgeThemes
+import mystcraft.flood.generation.PhysicalAgeThemes
+import mystcraft.flood.config.MystcraftConfig
 import net.minecraft.registry.Registries
 import net.minecraft.registry.RegistryKeys
+import net.minecraft.registry.tag.BiomeTags
 import net.minecraft.server.MinecraftServer
 import net.minecraft.util.Identifier
 import net.minecraft.util.WorldSavePath
@@ -18,27 +21,42 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.random.Random
 
+/**
+ * Owns the in-memory cache and on-disk JSON representation of every [AgeProfile].
+ *
+ * This is the persistence boundary for Ages. Callers should request profiles here rather than
+ * constructing them themselves so old saves are migrated, missing choices are seeded
+ * deterministically, and derived Nether/End realms inherit the correct root profile.
+ */
 object AgeProfileManager {
     private val profileCache = ConcurrentHashMap<Identifier, AgeProfile>()
+    // The editing UI can provide tuning before the dynamic world exists. The first profile
+    // creation consumes this staging entry, avoiding a second world rebuild.
     private val pendingTerrainTuning = ConcurrentHashMap<Identifier, TerrainTuningProfile>()
 
     private fun normalizeSymbol(symbol: String): String =
         symbol.lowercase().replace("mystcraft-reforged:", "")
 
     private fun weightedRandomTerrain(rand: Random): TerrainType {
+        val pools = MystcraftConfig.current.pagePools
         val pool = buildList {
-            repeat(40) { add(TerrainType.STANDARD) }
-            repeat(9) { add(TerrainType.BETA) }
-            repeat(5) { add(TerrainType.ALPHA) }
-            repeat(10) { add(TerrainType.AMPLIFIED) }
-            repeat(18) { add(TerrainType.FLOATING_ISLANDS) }
-            repeat(16) { add(TerrainType.CAVES) }
-            repeat(14) { add(TerrainType.FLAT) }
-            repeat(3) { add(TerrainType.BIOSPHERES) }
-            repeat(2) { add(TerrainType.CITIES) }
-            repeat(1) { add(TerrainType.VOID) }
+            fun addTerrain(type: TerrainType, page: String, weight: Int) {
+                if (pools.allowsTerrainSymbol(Identifier(MystcraftReforged.MOD_ID, page))) repeat(weight) { add(type) }
+            }
+            addTerrain(TerrainType.STANDARD, "terrain_standard", 18)
+            addTerrain(TerrainType.BETA, "terrain_beta", 6)
+            addTerrain(TerrainType.ALPHA, "terrain_alpha", 6)
+            addTerrain(TerrainType.AMPLIFIED, "terrain_amplified", 10)
+            addTerrain(TerrainType.FLOATING_ISLANDS, "terrain_floating_islands", 18)
+            addTerrain(TerrainType.CAVES, "terrain_caves", 16)
+            addTerrain(TerrainType.FLAT, "terrain_flat", 8)
+            addTerrain(TerrainType.BIOSPHERES, "terrain_biospheres", 6)
+            addTerrain(TerrainType.CITIES, "terrain_cities", 6)
+            addTerrain(TerrainType.NETHER, "terrain_nether", 4)
+            addTerrain(TerrainType.END, "terrain_end", 4)
+            addTerrain(TerrainType.VOID, "terrain_void", 2)
         }
-        return pool.random(rand)
+        return pool.ifEmpty { listOf(TerrainType.STANDARD) }.random(rand)
     }
 
     private fun randomAgeEffectId(rand: Random): String? {
@@ -56,7 +74,7 @@ object AgeProfileManager {
         profileCache[ageId]?.let { cached ->
             if (role != AgeDimensionRole.OVERWORLD && rootAgeId != ageId) {
                 val rootProfile = getOrGenerateProfile(server, rootAgeId)
-                refreshDerivedProfile(ageId, role, rootAgeId, rootProfile, cached)
+                refreshDerivedProfile(server, ageId, role, rootAgeId, rootProfile, cached)
             }
             return cached
         }
@@ -79,7 +97,7 @@ object AgeProfileManager {
 
         if (role != AgeDimensionRole.OVERWORLD && rootAgeId != ageId) {
             val rootProfile = getOrGenerateProfile(server, rootAgeId)
-            if (refreshDerivedProfile(ageId, role, rootAgeId, rootProfile, profile)) {
+            if (refreshDerivedProfile(server, ageId, role, rootAgeId, rootProfile, profile)) {
                 Files.writeString(file, profile.toJson())
             }
         }
@@ -103,12 +121,13 @@ object AgeProfileManager {
         val rootAgeId = AgeSubdimensionManager.rootIdOf(ageId)
         if (role != AgeDimensionRole.OVERWORLD && rootAgeId != ageId) {
             val rootProfile = getOrGenerateProfile(server, rootAgeId)
-            return buildDerivedProfile(ageId, role, rootAgeId, rootProfile, null)
+            return buildDerivedProfile(server, ageId, role, rootAgeId, rootProfile, null)
         }
 
-        val terrainTuning = pendingTerrainTuning.remove(ageId)?.normalized() ?: TerrainTuningProfile()
-        val compiled = AgeCompiler.compile(symbols)
         val rand = Random(ageId.toString().hashCode().toLong())
+        val stagedTerrainTuning = pendingTerrainTuning.remove(ageId)?.normalized()
+        val requestedTerrainTuning = stagedTerrainTuning ?: TerrainTuningProfile()
+        val compiled = AgeCompiler.compile(symbols, rand)
         val normalizedSymbols = symbols.map(::normalizeSymbol)
         val usedRandomPage = normalizedSymbols.any { it == "random" }
         val hasExplicitTerrainPage = normalizedSymbols.any { it.startsWith("terrain_") || it == "city" || it == "cities" || it == "biospheres" }
@@ -182,13 +201,11 @@ object AgeProfileManager {
                 HistoricAgeThemes.COLLAPSED_OBSERVATORY -> if (!activeModifiers.contains(HistoricAgeThemes.COLLAPSED_OBSERVATORY)) { activeModifiers.add(HistoricAgeThemes.COLLAPSED_OBSERVATORY); modifierInstability += 16; if (originalSymbol != "random") explicitInstabilityFeaturePages.add(HistoricAgeThemes.COLLAPSED_OBSERVATORY) }
                 HistoricAgeThemes.ANCIENT_AQUEDUCTS -> if (!activeModifiers.contains(HistoricAgeThemes.ANCIENT_AQUEDUCTS)) { activeModifiers.add(HistoricAgeThemes.ANCIENT_AQUEDUCTS); modifierInstability += 14; if (originalSymbol != "random") explicitInstabilityFeaturePages.add(HistoricAgeThemes.ANCIENT_AQUEDUCTS) }
                 HistoricAgeThemes.GATEWAY_RUINS -> if (!activeModifiers.contains(HistoricAgeThemes.GATEWAY_RUINS)) { activeModifiers.add(HistoricAgeThemes.GATEWAY_RUINS); modifierInstability += 16; if (originalSymbol != "random") explicitInstabilityFeaturePages.add(HistoricAgeThemes.GATEWAY_RUINS) }
-                ExoticAgeThemes.HEX -> if (!activeModifiers.contains(ExoticAgeThemes.HEX)) { activeModifiers.add(ExoticAgeThemes.HEX); modifierInstability += 20; if (originalSymbol != "random") explicitInstabilityFeaturePages.add(ExoticAgeThemes.HEX) }
-                ExoticAgeThemes.WIRE_CELLS -> if (!activeModifiers.contains(ExoticAgeThemes.WIRE_CELLS)) { activeModifiers.add(ExoticAgeThemes.WIRE_CELLS); modifierInstability += 20; if (originalSymbol != "random") explicitInstabilityFeaturePages.add(ExoticAgeThemes.WIRE_CELLS) }
-                ExoticAgeThemes.SEPARATORS -> if (!activeModifiers.contains(ExoticAgeThemes.SEPARATORS)) { activeModifiers.add(ExoticAgeThemes.SEPARATORS); modifierInstability += 20; if (originalSymbol != "random") explicitInstabilityFeaturePages.add(ExoticAgeThemes.SEPARATORS) }
-                ExoticAgeThemes.CABLES -> if (!activeModifiers.contains(ExoticAgeThemes.CABLES)) { activeModifiers.add(ExoticAgeThemes.CABLES); modifierInstability += 20; if (originalSymbol != "random") explicitInstabilityFeaturePages.add(ExoticAgeThemes.CABLES) }
-                ExoticAgeThemes.FRACTAL_CUBES -> if (!activeModifiers.contains(ExoticAgeThemes.FRACTAL_CUBES)) { activeModifiers.add(ExoticAgeThemes.FRACTAL_CUBES); modifierInstability += 20; if (originalSymbol != "random") explicitInstabilityFeaturePages.add(ExoticAgeThemes.FRACTAL_CUBES) }
-                ExoticAgeThemes.LIGHT_FISSURES -> if (!activeModifiers.contains(ExoticAgeThemes.LIGHT_FISSURES)) { activeModifiers.add(ExoticAgeThemes.LIGHT_FISSURES); modifierInstability += 20; if (originalSymbol != "random") explicitInstabilityFeaturePages.add(ExoticAgeThemes.LIGHT_FISSURES) }
-                ExoticAgeThemes.VIRUS -> if (!activeModifiers.contains(ExoticAgeThemes.VIRUS)) { activeModifiers.add(ExoticAgeThemes.VIRUS); modifierInstability += 24; if (originalSymbol != "random") explicitInstabilityFeaturePages.add(ExoticAgeThemes.VIRUS) }
+                in ExoticAgeThemes.ALL -> if (!activeModifiers.contains(cleanSymbol)) {
+                    activeModifiers.add(cleanSymbol)
+                    modifierInstability += if (cleanSymbol == ExoticAgeThemes.VIRUS) 24 else 20
+                    if (originalSymbol != "random") explicitInstabilityFeaturePages.add(cleanSymbol)
+                }
                 AmbientAgeThemes.PAGE_STORMS -> if (!activeModifiers.contains(AmbientAgeThemes.PAGE_STORMS)) { activeModifiers.add(AmbientAgeThemes.PAGE_STORMS); modifierInstability += 18; if (originalSymbol != "random") explicitInstabilityFeaturePages.add(AmbientAgeThemes.PAGE_STORMS) }
                 AmbientAgeThemes.MEMORY_BLOOMS -> if (!activeModifiers.contains(AmbientAgeThemes.MEMORY_BLOOMS)) { activeModifiers.add(AmbientAgeThemes.MEMORY_BLOOMS); modifierInstability += 10; if (originalSymbol != "random") explicitInstabilityFeaturePages.add(AmbientAgeThemes.MEMORY_BLOOMS) }
                 AmbientAgeThemes.STABLE_SANCTUARIES -> if (!activeModifiers.contains(AmbientAgeThemes.STABLE_SANCTUARIES)) { activeModifiers.add(AmbientAgeThemes.STABLE_SANCTUARIES); modifierInstability += 8; if (originalSymbol != "random") explicitInstabilityFeaturePages.add(AmbientAgeThemes.STABLE_SANCTUARIES) }
@@ -283,10 +300,12 @@ object AgeProfileManager {
             "ALPHA" -> TerrainType.ALPHA
             "BETA" -> TerrainType.BETA
             "AMPLIFIED" -> TerrainType.AMPLIFIED
-            "CAVE" -> TerrainType.CAVES
+            "CAVE", "CAVES" -> TerrainType.CAVES
             "FLOATING_ISLANDS" -> TerrainType.FLOATING_ISLANDS
             "BIOSPHERES" -> TerrainType.BIOSPHERES
             "CITIES" -> TerrainType.CITIES
+            "NETHER" -> TerrainType.NETHER
+            "END" -> TerrainType.END
             "STANDARD" -> TerrainType.STANDARD
             "FLAT" -> TerrainType.FLAT
             "VOID" -> TerrainType.VOID
@@ -294,38 +313,53 @@ object AgeProfileManager {
         }
 
         terrain = when {
-            terrainTuning.superFlat -> TerrainType.FLAT
-            terrainTuning.caveWorld -> TerrainType.CAVES
+            requestedTerrainTuning.superFlat -> TerrainType.FLAT
+            requestedTerrainTuning.caveWorld -> TerrainType.CAVES
             else -> terrain
         }
 
-        val finalBiomeMode = when (compiled.biomeController) {
-            "CHECKERBOARD" -> BiomeMode.CHECKERBOARD
-            "VANILLA" -> BiomeMode.VANILLA_DISTRIBUTION
-            else -> if (compiled.biomes.size <= 1) BiomeMode.SINGLE else BiomeMode.WEIGHTED
+        // A biome-only book should still receive the native base terrain for that
+        // biome family. An explicit terrain page remains authoritative, allowing
+        // deliberate combinations such as an Overworld-shaped Nether biome Age.
+        if (!hasExplicitTerrainPage && compiled.biomes.isNotEmpty()) {
+            val biomeRegistry = server.registryManager.get(RegistryKeys.BIOME)
+            val authoredEntries = compiled.biomes.mapNotNull { biomeId ->
+                runCatching { Identifier(biomeId) }.getOrNull()?.let { id ->
+                    biomeRegistry.getEntry(net.minecraft.registry.RegistryKey.of(RegistryKeys.BIOME, id)).orElse(null)
+                }
+            }
+            if (authoredEntries.size == compiled.biomes.size) {
+                terrain = when {
+                    authoredEntries.all { it.isIn(BiomeTags.IS_NETHER) } -> TerrainType.NETHER
+                    authoredEntries.all { it.isIn(BiomeTags.IS_END) } -> TerrainType.END
+                    else -> terrain
+                }
+            }
         }
 
-        val biomesList = if (compiled.biomes.isEmpty()) {
-            // Dynamically fetch EVERY biome registered in the game right now (including Mods!)
-            val allBiomes = server.registryManager.get(RegistryKeys.BIOME).keys.map { it.value.toString() }
-            
-            if (finalBiomeMode == BiomeMode.VANILLA_DISTRIBUTION) {
-                // Leave it completely empty! This is the signal for the JSON Builder
-                // to use the native "minecraft:overworld" multi-noise preset.
-                mutableListOf<BiomeWeight>()
-            } else if (finalBiomeMode == BiomeMode.CHECKERBOARD) {
-                // Checkerboard needs specific biomes to tile, so we pick 3-5 random ones from the whole game
-                val shuffled = allBiomes.shuffled(rand).take(rand.nextInt(3, 6))
-                val weight = 100 / shuffled.size
-                shuffled.map { BiomeWeight(it, weight) }.toMutableList()
-            } else {
-                // Default Single Biome behavior (but now it can pick modded biomes!)
-                mutableListOf(BiomeWeight(allBiomes.random(rand), 100))
+        val finalBiomeMode = AgeBiomeSelection.selectMode(compiled.biomeController, compiled.biomes.size, rand)
+
+        // Dynamically fetch every allowed biome, including modded biomes. Missing biome pages
+        // are a creative gap in Mystcraft's grammar, so fill that gap with a varied layout
+        // instead of silently making every unwritten Age single-biome.
+        val allBiomes = server.registryManager.get(RegistryKeys.BIOME).keys
+            .map { it.value }
+            .filter(MystcraftConfig.current.pagePools::allowsBiome)
+            .map(Identifier::toString)
+            .ifEmpty { listOf("minecraft:plains") }
+        val selectedBiomeIds = when {
+            finalBiomeMode == BiomeMode.VANILLA_DISTRIBUTION -> emptyList()
+            compiled.biomes.isEmpty() -> allBiomes.shuffled(rand).take(
+                AgeBiomeSelection.randomBiomeCount(finalBiomeMode, allBiomes.size, rand)
+            )
+            finalBiomeMode == BiomeMode.CHECKERBOARD && compiled.biomes.distinct().size < 2 -> {
+                val desired = AgeBiomeSelection.randomBiomeCount(finalBiomeMode, allBiomes.size, rand)
+                (compiled.biomes + allBiomes.shuffled(rand)).distinct().take(desired)
             }
-        } else {
-            val weight = 100 / compiled.biomes.size
-            compiled.biomes.map { BiomeWeight(it, weight) }.toMutableList()
+            else -> compiled.biomes.distinct()
         }
+        val biomeWeight = if (selectedBiomeIds.isEmpty()) 100 else 100 / selectedBiomeIds.size
+        val biomesList = selectedBiomeIds.map { BiomeWeight(it, biomeWeight) }.toMutableList()
 
         val timeMode = compiled.timeMode ?: listOf("fast", "slow", "fixed", "normal", "normal").random(rand)
         val weatherMode = compiled.weatherMode ?: listOf("endless_rain", "endless_storm", "no_weather", "normal", "normal").random(rand)
@@ -387,6 +421,8 @@ object AgeProfileManager {
         if (terrain == TerrainType.BIOSPHERES) finalInstability += 32
         if (terrain == TerrainType.FLAT) finalInstability += 6
         if (terrain == TerrainType.CAVES) finalInstability += 10
+        if (terrain == TerrainType.NETHER) finalInstability += 18
+        if (terrain == TerrainType.END) finalInstability += 18
         if (terrain == TerrainType.VOID) finalInstability -= 90
 
         if (timeMode == "fixed") finalInstability += 20
@@ -425,6 +461,31 @@ object AgeProfileManager {
             if (rand.nextFloat() < exoticChance) {
                 activeModifiers.add(ExoticAgeThemes.random(rand))
             }
+        }
+
+        // Resolve this after biome-family inference so a biome-only Nether/End Age receives
+        // variation appropriate to its final terrain rather than its discarded draft terrain.
+        val terrainTuning = if (stagedTerrainTuning == null && !hasExplicitTerrainPage) {
+            AgeTerrainVariation.randomFor(terrain, rand)
+        } else {
+            requestedTerrainTuning
+        }
+
+        // Under-specified Ages receive several block-generating signatures from different
+        // families. A large catalog is meaningless if random generation only samples one entry.
+        if (usedRandomPage || sparseAge || partiallyDefinedAge) {
+            val desiredSignatures = when {
+                usedRandomPage -> 5
+                sparseAge -> 4
+                partiallyDefinedAge -> 3
+                else -> 0
+            }
+            val existingSignatures = PhysicalAgeThemes.ALL.count(activeModifiers::contains)
+            activeModifiers += PhysicalAgeThemes.selectDistinctFamilies(
+                rand,
+                (desiredSignatures - existingSignatures).coerceAtLeast(0),
+                activeModifiers
+            )
         }
 
         if (!activeModifiers.contains("crystal_formations")) {
@@ -601,10 +662,10 @@ object AgeProfileManager {
             }
         }
 
-        fun randomRGB(): Int {
-            val argb = java.awt.Color.HSBtoRGB(rand.nextFloat(), 0.5f + rand.nextFloat() * 0.5f, 0.7f + rand.nextFloat() * 0.3f)
-            return argb and 0x00FFFFFF
-        }
+        fun randomRGB(): Int = ColorCategory.sampleVibrantRandom(rand)
+
+        fun resolveColor(spec: mystcraft.flood.generation.CompiledColor?): Int =
+            spec?.resolve(rand) ?: randomRGB()
 
         fun blendChannel(value: Int, target: Int, amount: Float): Int =
             (value + (target - value) * amount).toInt().coerceIn(0, 255)
@@ -627,10 +688,10 @@ object AgeProfileManager {
             return result
         }
 
-        val skyColor = atmosphereColor(compiled.skyColor ?: randomRGB())
-        val fogColor = atmosphereColor(compiled.fogColor ?: randomRGB())
-        val ambientColor = atmosphereColor(compiled.ambientColor ?: compiled.fogColor ?: randomRGB())
-        val cloudColor = atmosphereColor(compiled.cloudColor ?: compiled.fogColor ?: randomRGB())
+        val skyColor = atmosphereColor(compiled.skyColorSpec?.resolve(rand) ?: randomRGB())
+        val fogColor = atmosphereColor(compiled.fogColorSpec?.resolve(rand) ?: randomRGB())
+        val ambientColor = atmosphereColor(compiled.ambientColorSpec?.resolve(rand) ?: compiled.fogColorSpec?.resolve(rand) ?: randomRGB())
+        val cloudColor = atmosphereColor(compiled.cloudColorSpec?.resolve(rand) ?: compiled.fogColorSpec?.resolve(rand) ?: randomRGB())
 
         return AgeProfile(
             id = ageId.toString(),
@@ -639,17 +700,17 @@ object AgeProfileManager {
             colors = ColorSettings(
                 sky = skyColor,
                 fog = fogColor,
-                water = compiled.waterColor ?: randomRGB(),
-                grass = compiled.grassColor ?: randomRGB(),     
-                foliage = compiled.foliageColor ?: randomRGB(),
+                water = resolveColor(compiled.waterColorSpec),
+                grass = resolveColor(compiled.grassColorSpec),     
+                foliage = resolveColor(compiled.foliageColorSpec),
                 ambient = ambientColor,
                 cloud = cloudColor,
-                fireLava = compiled.fireLavaColor ?: 0xFF6A00
+                fireLava = compiled.fireLavaColorSpec?.resolve(rand) ?: 0xFF6A00
             ),
             cloudHeight = compiled.cloudHeight ?: when (terrain) {
                 TerrainType.FLOATING_ISLANDS -> 160.0f
                 TerrainType.ALPHA, TerrainType.AMPLIFIED -> 208.0f
-                TerrainType.CAVES, TerrainType.VOID -> 128.0f
+                TerrainType.CAVES, TerrainType.NETHER, TerrainType.END, TerrainType.VOID -> 128.0f
                 else -> 192.0f
             },
             time = TimeSettings(
@@ -679,7 +740,9 @@ object AgeProfileManager {
             ),
             biomes = BiomeSet(
                 mode = finalBiomeMode,
-                biomes = biomesList
+                biomes = biomesList,
+                inheritDimensionSource = finalBiomeMode == BiomeMode.VANILLA_DISTRIBUTION ||
+                    (!hasExplicitBiomePages && terrain in setOf(TerrainType.NETHER, TerrainType.END))
             ),
             spawning = SpawnSettings(noMobs || terrainTuning.noMobs, hostileMult, passiveMult),
             ageEffect = AgeEffectProfile(selectedAgeEffectId, true),
@@ -727,13 +790,14 @@ object AgeProfileManager {
             .resolve("${ageId.path}.json")
 
     private fun refreshDerivedProfile(
+        server: MinecraftServer,
         ageId: Identifier,
         role: AgeDimensionRole,
         rootAgeId: Identifier,
         rootProfile: AgeProfile,
         target: AgeProfile
     ): Boolean {
-        val refreshed = buildDerivedProfile(ageId, role, rootAgeId, rootProfile, target)
+        val refreshed = buildDerivedProfile(server, ageId, role, rootAgeId, rootProfile, target)
         if (refreshed == target) {
             return false
         }
@@ -772,6 +836,7 @@ object AgeProfileManager {
         target.weather.temporaryClearTicks = refreshed.weather.temporaryClearTicks
         target.biomes.mode = refreshed.biomes.mode
         target.biomes.biomes = refreshed.biomes.biomes.map { it.copy() }.toMutableList()
+        target.biomes.inheritDimensionSource = refreshed.biomes.inheritDimensionSource
         target.spawning.noMobs = refreshed.spawning.noMobs
         target.spawning.hostileMultiplier = refreshed.spawning.hostileMultiplier
         target.spawning.passiveMultiplier = refreshed.spawning.passiveMultiplier
@@ -806,6 +871,7 @@ object AgeProfileManager {
     }
 
     private fun buildDerivedProfile(
+        server: MinecraftServer,
         ageId: Identifier,
         role: AgeDimensionRole,
         rootAgeId: Identifier,
@@ -813,7 +879,7 @@ object AgeProfileManager {
         existing: AgeProfile?
     ): AgeProfile {
         val displayName = derivedDisplayName(rootProfile, rootAgeId, role)
-        val roleBiomes = when (role) {
+        val fallbackBiomes = when (role) {
             AgeDimensionRole.NETHER -> mutableListOf(
                 BiomeWeight("minecraft:nether_wastes", 34),
                 BiomeWeight("minecraft:crimson_forest", 22),
@@ -830,6 +896,21 @@ object AgeProfileManager {
             )
             AgeDimensionRole.OVERWORLD -> rootProfile.biomes.biomes.map { it.copy() }.toMutableList()
         }
+        val roleBiomes = if (role == AgeDimensionRole.OVERWORLD) {
+            fallbackBiomes
+        } else {
+            val tag = if (role == AgeDimensionRole.NETHER) BiomeTags.IS_NETHER else BiomeTags.IS_END
+            val biomeRegistry = server.registryManager.get(RegistryKeys.BIOME)
+            val discovered = biomeRegistry.keys
+                .mapNotNull { key -> biomeRegistry.getEntry(key).orElse(null)?.takeIf { it.isIn(tag) }?.let { key.value } }
+                .filter(MystcraftConfig.current.pagePools::allowsBiome)
+                .sortedBy(Identifier::toString)
+                .toList()
+            if (discovered.isEmpty()) fallbackBiomes else {
+                val weight = (100 / discovered.size).coerceAtLeast(1)
+                discovered.map { BiomeWeight(it.toString(), weight) }.toMutableList()
+            }
+        }
 
         return AgeProfile(
             id = ageId.toString(),
@@ -844,10 +925,11 @@ object AgeProfileManager {
             weather = rootProfile.weather.copy(),
             biomes = BiomeSet(
                 mode = when (role) {
-                    AgeDimensionRole.NETHER, AgeDimensionRole.END -> BiomeMode.WEIGHTED
+                    AgeDimensionRole.NETHER, AgeDimensionRole.END -> BiomeMode.VANILLA_DISTRIBUTION
                     AgeDimensionRole.OVERWORLD -> rootProfile.biomes.mode
                 },
-                biomes = roleBiomes
+                biomes = roleBiomes,
+                inheritDimensionSource = role != AgeDimensionRole.OVERWORLD || rootProfile.biomes.inheritDimensionSource
             ),
             spawning = rootProfile.spawning.copy(),
             ageEffect = rootProfile.ageEffect.copy(),
@@ -882,5 +964,59 @@ object AgeProfileManager {
                 .replace('-', ' ')
                 .replaceFirstChar { it.uppercase() }
         return "$rootName ${role.label}"
+    }
+}
+
+/** Deterministic policy for filling an Age whose author omitted some or all biome pages. */
+object AgeBiomeSelection {
+    fun selectMode(controller: String?, authoredBiomeCount: Int, rand: Random): BiomeMode = when (controller) {
+        "CHECKERBOARD" -> BiomeMode.CHECKERBOARD
+        "VANILLA", "VANILLA_DISTRIBUTION" -> BiomeMode.VANILLA_DISTRIBUTION
+        "SINGLE" -> BiomeMode.SINGLE
+        else -> when {
+            authoredBiomeCount > 1 -> BiomeMode.WEIGHTED
+            authoredBiomeCount == 1 -> BiomeMode.SINGLE
+            else -> when (rand.nextInt(100)) {
+                in 0..19 -> BiomeMode.SINGLE
+                in 20..64 -> BiomeMode.WEIGHTED
+                in 65..87 -> BiomeMode.CHECKERBOARD
+                else -> BiomeMode.VANILLA_DISTRIBUTION
+            }
+        }
+    }
+
+    fun randomBiomeCount(mode: BiomeMode, availableBiomeCount: Int, rand: Random): Int {
+        val available = availableBiomeCount.coerceAtLeast(1)
+        val desired = when (mode) {
+            BiomeMode.SINGLE -> 1
+            BiomeMode.WEIGHTED -> rand.nextInt(2, 6)
+            BiomeMode.CHECKERBOARD -> rand.nextInt(3, 7)
+            BiomeMode.VANILLA_DISTRIBUTION -> 0
+        }
+        return desired.coerceAtMost(available)
+    }
+}
+
+/** Seeded noise variation used only when neither a terrain page nor editor tuning was supplied. */
+object AgeTerrainVariation {
+    private val TUNABLE_TERRAINS = setOf(
+        TerrainType.STANDARD,
+        TerrainType.BETA,
+        TerrainType.ALPHA,
+        TerrainType.AMPLIFIED,
+        TerrainType.CAVES,
+        TerrainType.FLOATING_ISLANDS,
+        TerrainType.CITIES
+    )
+
+    fun randomFor(terrain: TerrainType, rand: Random): TerrainTuningProfile {
+        if (terrain !in TUNABLE_TERRAINS) return TerrainTuningProfile()
+        return TerrainTuningProfile(
+            terrainTurbulence = rand.nextInt(4, 15),
+            seaLevel = rand.nextInt(6, 12),
+            caveDensity = rand.nextInt(4, 14),
+            biomeSize = rand.nextInt(2, 16),
+            verticalRange = if (rand.nextFloat() < 0.55f) rand.nextInt(6, 13) else null
+        )
     }
 }

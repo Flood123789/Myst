@@ -6,6 +6,9 @@
     "ClientPlayNetworkHandlerAccessor",
     "BlockLeakParticleAccessor",
     "ClientAgeTimeMixin",
+    "ClientAgeTimePacketMixin",
+    "LightmapTextureManagerAccessor",
+    "BiomeColorMixin",
     "BiomeColorsMixin",
     "BackgroundRendererMixin",
     "BlockLeakParticleMixin",
@@ -13,10 +16,15 @@
     "ClientWorldColorMixin",
     "ClientPlayerEntityLowGravityMixin",
     "FluidRendererMixin",
+    "GameRendererMixin",
     "InGameOverlayRendererMixin",
     "WorldRendererMixin",
     "MinecraftClientMixin",
-    "SoundManagerMixin"
+    "EntityRenderDispatcherMixin",
+    "BlockModelRendererMixin",
+    "SpriteLoaderMixin",
+    "SoundManagerMixin",
+    "MapRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1

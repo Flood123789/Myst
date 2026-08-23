@@ -26,6 +26,11 @@ import net.minecraft.world.gen.feature.util.FeatureContext
 import kotlin.math.abs
 import kotlin.math.max
 
+/**
+ * Generates an abandoned archive landmark containing exploration space and Mystcraft page loot.
+ * Placement uses [FeatureBuildHelper] so water, cave interiors, protected blocks, and terrain
+ * clipping follow the same rules as the other large hand-built features.
+ */
 class AbandonedArchiveFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatureConfig>(codec) {
 
     override fun generate(context: FeatureContext<DefaultFeatureConfig>): Boolean {
@@ -52,6 +57,7 @@ class AbandonedArchiveFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defa
             profile.stability.instabilityScore >= 35 -> 0.24f
             else -> 0.14f
         } * AgeFeatureTuning.chanceMultiplier(profile)
+        CustomStructureOverrides.generateIfPresent(context, "abandoned_archive", profile, regionChance)?.let { return it }
         if (regionRand.nextFloat() > regionChance) return false
 
         val ownerChunkX = regionX * archiveRegionSize + 5 + regionRand.nextInt(archiveRegionSize - 10)
@@ -543,7 +549,7 @@ class AbandonedArchiveFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defa
     ) {
         setBlockState(world, chunkPos, pos, Blocks.CHEST.defaultState.with(ChestBlock.FACING, facing))
         val chest = world.getBlockEntity(pos) as? ChestBlockEntity ?: return
-        repeat(2 + random.nextInt(2)) {
+        repeat(FeatureBuildHelper.configuredLostPageCount(random, 2, 3)) {
             chest.setStack(random.nextInt(chest.size()), ItemStack(ModItems.LOST_PAGE))
         }
         if (random.nextFloat() < 0.5f) chest.setStack(random.nextInt(chest.size()), ItemStack(Blocks.BOOKSHELF.asItem()))

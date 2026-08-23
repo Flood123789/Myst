@@ -1,0 +1,53 @@
+{
+  "name": "Terrain and Biomes",
+  "category": "mystcraft-reforged:age_writing",
+  "icon": "minecraft:grass_block",
+  "sortnum": 3,
+  "pages": [
+    {
+      "type": "text",
+      "title": "Terrain Pages",
+      "text": "Twelve terrain laws are known: Standard, Beta, Alpha, Amplified, Caves, Floating Islands, Flat, Void, Biospheres, Cities, Nether, and End. Write only one. If several are present, the last wins and every rival adds a severe grammar penalty."
+    },
+    {
+      "type": "text",
+      "title": "Familiar Shapes",
+      "text": "Standard follows the server's live Overworld generator, including compatible worldgen mods and datapacks, but uses the Age's own seed. Beta and Alpha recall older terrain. Amplified exaggerates height, Caves encloses the world, Floating Islands breaks it into suspended masses, and Flat presses it level."
+    },
+    {
+      "type": "text",
+      "title": "Exceptional Shapes",
+      "text": "Nether and End inherit the server's live generator for that realm, including BetterNether, BetterEnd, and generator replacements, then reseed it for the Age. Named biome pages can replace the inherited biome layout when the generator supports it. Cities build districts; Biospheres suspend glass worlds; Void offers only emergency footing."
+    },
+    {
+      "type": "text",
+      "title": "Biome Pages",
+      "text": "Every registered biome, including biomes supplied by other mods, can become a symbol. One biome creates a stable single-biome Age. Several named biomes form an evenly weighted set unless a controller says otherwise. More than three named biomes add instability."
+    },
+    {
+      "type": "text",
+      "title": "Native Terrain Inference",
+      "text": "If terrain is omitted and every authored biome belongs to the Nether or End, the Age infers that native terrain. Nether biomes therefore receive netherrack and End biomes receive end stone beneath their own surface rules. An explicit terrain page remains authoritative for deliberate unusual combinations."
+    },
+    {
+      "type": "text",
+      "title": "Biome Controllers",
+      "text": "$(thing)Vanilla Distribution$() inherits the live source dimension's complete biome layout and lowers instability. Thus Terralith, BetterNether, and BetterEnd distributions remain intact. $(thing)Checkerboard$() lays chosen biomes in squares. Copper tuning at the Editing Table changes the checker size."
+    },
+    {
+      "type": "text",
+      "title": "Native Life and Features",
+      "text": "A selected biome keeps its registered foliage colors, placed features, structures, and creature lists. Properly tagged mod biomes therefore retain their native plants and mobs. Standard-compatible root Ages also permit stronghold placement even when the selected biome is outside vanilla's usual stronghold list."
+    },
+    {
+      "type": "text",
+      "title": "Cave Ages",
+      "text": "Arrival in a Cave Age searches outward from the world's interior instead of dropping travelers into a ceiling pocket. Cave Ages also attempt extra glow lichen in open chambers. The number of attempts per chunk is configurable, and zero disables the additional lighting."
+    },
+    {
+      "type": "text",
+      "title": "Unwritten Choices",
+      "text": "If terrain is omitted, Standard is most likely; Nether, End, Biospheres, Cities, and Void are rare. If biomes are omitted, the Age chooses from every registered biome unless Vanilla Distribution inherits the source realm's layout. Silence adds instability and invites random details."
+    }
+  ]
+}

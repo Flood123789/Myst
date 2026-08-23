@@ -140,7 +140,9 @@ class BookBinderScreenHandler(
         if (leather.isOf(Items.LEATHER) && mode != null) {
             when (mode) {
                 BookMode.LINKING -> {
-                    output.setStack(0, ItemStack(ModItems.LINKING_BOOK))
+                    val bookStack = ItemStack(ModItems.LINKING_BOOK)
+                    applyDraftName(bookStack)
+                    output.setStack(0, bookStack)
                 }
                 BookMode.BLANK_DESCRIPTIVE -> {
                     val bookStack = ItemStack(ModItems.DESCRIPTIVE_BOOK)
@@ -247,7 +249,7 @@ class BookBinderScreenHandler(
             if (pageStack.isEmpty) continue
 
             when {
-                pageStack.isOf(ModItems.PAGE) -> hasBlankPage = true
+                pageStack.isOf(ModItems.PAGE) || pageStack.isOf(ModItems.LINK_PANEL) -> hasBlankPage = true
                 pageStack.item is SymbolPageItem -> hasSymbolPages = true
                 pageStack.isOf(ModItems.NOTEBOOK) && NotebookItem.getSymbols(pageStack).isNotEmpty() -> hasSymbolPages = true
             }
@@ -264,7 +266,7 @@ class BookBinderScreenHandler(
     private fun consumeSingleBlankPage() {
         for (i in 1 until 57) {
             val pageStack = input.getStack(i)
-            if (pageStack.isOf(ModItems.PAGE)) {
+            if (pageStack.isOf(ModItems.PAGE) || pageStack.isOf(ModItems.LINK_PANEL)) {
                 input.removeStack(i, 1)
                 return
             }

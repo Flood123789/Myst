@@ -38,6 +38,7 @@ class GatewayRuinsFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultF
             else -> 0.0f
         } * AgeFeatureTuning.chanceMultiplier(profile, HistoricAgeThemes.GATEWAY_RUINS)
         if (chance <= 0f) return false
+        CustomStructureOverrides.generateIfPresent(context, "gateway_ruins", profile, chance)?.let { return it }
 
         val chunkPos = ChunkPos(context.origin)
         val regionSize = if (explicit) 10 else 14

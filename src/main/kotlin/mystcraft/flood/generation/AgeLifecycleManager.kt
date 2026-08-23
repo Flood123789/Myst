@@ -25,6 +25,13 @@ import java.util.Comparator
 import kotlin.io.path.exists
 import kotlin.math.ceil
 
+/**
+ * Controls irreversible Age lifecycle operations and their effect on travel.
+ *
+ * Sacrificing an Age marks its whole family dead, blocks ordinary re-entry, exiles players, and
+ * synchronizes/deletes dynamic dimension data as appropriate. Creative and spectator exceptions
+ * are deliberate recovery paths for administrators.
+ */
 object AgeLifecycleManager {
     private const val DEAD_LINK_TEXT = "The ink on the pages has begun to run and the words are unreadable."
     private const val DEAD_AGE_TEXT = "This Age has been sacrificed. Only a hollow echo remains."

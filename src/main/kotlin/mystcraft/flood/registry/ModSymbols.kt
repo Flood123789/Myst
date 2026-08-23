@@ -1,5 +1,6 @@
 package mystcraft.flood.registry
 
+import mystcraft.flood.config.MystcraftConfig
 import mystcraft.flood.item.ModItemGroups
 import mystcraft.flood.item.SymbolPageItem
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
@@ -10,13 +11,24 @@ import net.minecraft.registry.RegistryKeys
 import net.minecraft.util.Identifier
 import net.minecraft.world.biome.BiomeKeys
 
+/**
+ * Canonical catalog of authorable symbol ids and their discovery metadata.
+ * Keep compiler aliases and player-facing Patchouli documentation aligned when adding a symbol.
+ */
 object ModSymbols {
     // Using a MutableSet instead of a List prevents duplicates when you reload worlds!
     val availableSymbols = mutableSetOf<Identifier>()
+    private val biomeSymbols = mutableSetOf<Identifier>()
     val AGE_EFFECT_SYMBOL: Identifier = Identifier("mystcraft-reforged", "age_effect")
     val CURSE_CLEANSING_SYMBOL: Identifier = Identifier("mystcraft-reforged", "curse_cleansing")
 
     private fun isPotionPageSymbol(symbolId: Identifier): Boolean = symbolId == AGE_EFFECT_SYMBOL || Registries.STATUS_EFFECT.containsId(symbolId)
+
+    fun lootableSymbols(): List<Identifier> = availableSymbols.filter { symbol ->
+        MystcraftConfig.current.pagePools.allowsSymbol(symbol, symbol in biomeSymbols)
+    }
+
+    fun isBiomeSymbol(symbol: Identifier): Boolean = symbol in biomeSymbols
 
     fun register() {
         // 1. Scan Status Effects / Potions (Dynamic)
@@ -36,6 +48,8 @@ object ModSymbols {
         // === NEW TERRAIN PAGES ADDED HERE ===
         availableSymbols.add(Identifier("mystcraft-reforged", "terrain_biospheres"))
         availableSymbols.add(Identifier("mystcraft-reforged", "terrain_cities"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "terrain_nether"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "terrain_end"))
 
         // 3. "Baked" Time Settings
         availableSymbols.add(Identifier("mystcraft-reforged", "time_day"))
@@ -75,6 +89,16 @@ object ModSymbols {
         availableSymbols.add(Identifier("mystcraft-reforged", "exotic_fractal_cubes"))
         availableSymbols.add(Identifier("mystcraft-reforged", "exotic_light_fissures"))
         availableSymbols.add(Identifier("mystcraft-reforged", "exotic_virus"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "exotic_colossal_mushrooms"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "exotic_floating_boulders"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "exotic_basalt_spires"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "exotic_glass_dunes"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "exotic_petrified_forests"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "exotic_luminous_groves"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "exotic_coral_fields"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "exotic_ice_needles"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "exotic_obsidian_crags"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "exotic_rune_stones"))
         availableSymbols.add(Identifier("mystcraft-reforged", "page_storms"))
         availableSymbols.add(Identifier("mystcraft-reforged", "memory_blooms"))
         availableSymbols.add(Identifier("mystcraft-reforged", "stable_sanctuaries"))
@@ -138,6 +162,15 @@ object ModSymbols {
         availableSymbols.add(Identifier("mystcraft-reforged", "color_white"))
         availableSymbols.add(Identifier("mystcraft-reforged", "color_yellow"))
         availableSymbols.add(Identifier("mystcraft-reforged", "color_purple"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "color_orange"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "color_cyan"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "color_teal"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "color_pink"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "color_magenta"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "color_lime"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "color_brown"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "color_gray"))
+        availableSymbols.add(Identifier("mystcraft-reforged", "color_light_blue"))
         availableSymbols.add(Identifier("mystcraft-reforged", "color_custom"))
 
         // === NEW STUFF: Celestial Bodies ===
@@ -171,6 +204,7 @@ object ModSymbols {
                 val key = field.get(null) as? RegistryKey<*>
                 if (key != null && key.isOf(RegistryKeys.BIOME)) {
                     availableSymbols.add(key.value)
+                    biomeSymbols.add(key.value)
                 }
             }
         }
@@ -180,19 +214,20 @@ object ModSymbols {
             val biomeRegistry = server.registryManager.get(RegistryKeys.BIOME)
             biomeRegistry.keys.forEach { key ->
                 availableSymbols.add(key.value)
+                biomeSymbols.add(key.value)
             }
         }
 
         // 7. Inject them into your CUSTOM Creative Tab!
         ItemGroupEvents.modifyEntriesEvent(ModItemGroups.MYSTCRAFT_PAGES_KEY).register { entries ->
             // Sorting them alphabetically by their path so the menu isn't a chaotic mess
-            availableSymbols.sortedBy { it.path }.filterNot(::isPotionPageSymbol).forEach { symbolId ->
+            availableSymbols.sortedBy(SymbolPageItem::catalogSortKey).filterNot(::isPotionPageSymbol).forEach { symbolId ->
                 entries.add(SymbolPageItem.createStack(symbolId))
             }
         }
 
         ItemGroupEvents.modifyEntriesEvent(ModItemGroups.MYSTCRAFT_EFFECTS_KEY).register { entries ->
-            availableSymbols.sortedBy { it.path }.filter(::isPotionPageSymbol).forEach { symbolId ->
+            availableSymbols.sortedBy(SymbolPageItem::catalogSortKey).filter(::isPotionPageSymbol).forEach { symbolId ->
                 entries.add(SymbolPageItem.createStack(symbolId))
             }
         }

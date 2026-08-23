@@ -30,6 +30,7 @@ class GiantTreeFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeat
         val profile = AgeProfileManager.getOrGenerateProfile(serverWorld.server, ageId)
         if (AgeLifecycleManager.isDeadAge(profile)) return false
         if (!profile.modifiers.contains("giant_trees")) return false
+        CustomStructureOverrides.generateIfPresent(context, "giant_trees", profile)?.let { return it }
 
         // 1 in 15 chunks
         if (random.nextInt(15) != 0) return false

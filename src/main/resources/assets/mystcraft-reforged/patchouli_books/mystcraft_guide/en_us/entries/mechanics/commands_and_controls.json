@@ -6,11 +6,48 @@
   "pages": [
     {
       "type": "text",
-      "text": "Realm stewards possess sterner words under $(thing)/mystcraft$(). The chief ones are $(li)/mystcraft time set ...$(li)/mystcraft weather ...$(li)/mystcraft instability toggle$(li)/mystcraft age_effect toggle$(li)/mystcraft sacrifice <age>$()."
+      "title": "Authority",
+      "text": "Every command under $(thing)/mystcraft$() requires permission level 2. Most controls act on the Mystcraft Age beneath the steward's feet. $(thing)create_age$(), $(thing)tp$(), and $(thing)sacrifice$() are the exceptions that name or create another realm."
     },
     {
       "type": "text",
-      "text": "Most such words act upon the Age beneath your boots, unless another Age is named outright. Use them for stewardship, rescue, testing, or careful curation. Do not mistake them for ordinary traveler's tools."
+      "title": "Creating and Traveling",
+      "text": "$(li)/mystcraft create_age creates a randomly written Age.$(li)/mystcraft tp <dimension> sends the executing player to that world's surface.$(li)/mystcraft sacrifice <dimension> permanently sacrifices the named Mystcraft Age without requiring held books."
+    },
+    {
+      "type": "text",
+      "title": "Temporary Time",
+      "text": "$(li)/mystcraft time set <day|noon|night|midnight|ticks> freezes the visible sky at that time until restart or resume.$(li)/mystcraft time resume clears that temporary override and returns to the Age's authored fixed or moving time."
+    },
+    {
+      "type": "text",
+      "title": "Permanent Time",
+      "text": "$(li)/mystcraft time permanent set <day|noon|night|midnight|ticks> rewrites the Age's saved time law.$()$(br2)If the Age was already fixed, it remains fixed at the new time. Otherwise its moving clock is set to that value and continues."
+    },
+    {
+      "type": "text",
+      "title": "Weather",
+      "text": "$(li)/mystcraft weather clear gives temporary clear weather.$(li)/mystcraft weather resume removes the temporary clearing.$(li)/mystcraft weather <normal|rain|thunder> rewrites the saved weather law.$(li)/mystcraft weather permanent <clear|normal|rain|thunder> provides the same persistent choices, including no weather."
+    },
+    {
+      "type": "text",
+      "title": "Serene Seasons",
+      "text": "When optional Serene Seasons is installed, each Age begins in a random sub-season and follows that Age's own time scale. A stopped clock also stops its seasons.$(br2)$(li)/mystcraft season reports the current state.$(li)/mystcraft season set <season> changes it.$(li)/mystcraft season <enable|disable> controls progression."
+    },
+    {
+      "type": "text",
+      "title": "Instability and Curses",
+      "text": "$(li)/mystcraft instability toggle suspends or restores tier symptoms without changing the score.$(li)/mystcraft curse list reports removable curses.$(li)/mystcraft curse cleanse removes the strongest curse for free and applies its normal instability relief."
+    },
+    {
+      "type": "text",
+      "title": "Effects and Gravity",
+      "text": "$(li)/mystcraft age_effect toggle silences or restores the written status effect.$(li)/mystcraft gravity get reports the current scale.$(li)/mystcraft gravity set <0.05..2.0> permanently sets gravity. These controls are independent of the instability-effects toggle."
+    },
+    {
+      "type": "text",
+      "title": "Balance Configuration",
+      "text": "With Mod Menu and Cloth Config installed, open Mystcraft Reforged's configuration to tune instability, world features, page loot, cave lighting, and page pools. See $(l:mystcraft-reforged:mechanics/balance_configuration)Balance Configuration$() for every setting and blacklist format."
     }
   ]
 }

@@ -2,10 +2,12 @@ package mystcraft.flood.compat
 
 import mystcraft.flood.MystcraftReforged
 import net.fabricmc.loader.api.FabricLoader
+import net.minecraft.util.Identifier
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Method
 import java.lang.reflect.Proxy
 import java.util.Collections
+import java.util.WeakHashMap
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -13,12 +15,14 @@ object DistantHorizonsCompat {
     private const val DH_API = "com.seibel.distanthorizons.api.DhApi"
     private const val DH_DELAYED = "com.seibel.distanthorizons.api.DhApi\$Delayed"
     private const val SCAN_INTERVAL_NANOS = 2_000_000_000L
+    private const val REFRESH_RETRY_NANOS = 250_000_000L
 
     private val loaded: Boolean by lazy {
         val loader = FabricLoader.getInstance()
         loader.isModLoaded("distanthorizons") || loader.isModLoaded("distant_horizons")
     }
-    private val registeredLevels = Collections.synchronizedSet(mutableSetOf<String>())
+    private val registeredLevels = Collections.synchronizedMap(WeakHashMap<Any, Boolean>())
+    private val dirtyColorDimensions = Collections.synchronizedSet(mutableSetOf<String>())
     private val warningLogged = AtomicBoolean(false)
     private val activeLogged = AtomicBoolean(false)
 
@@ -28,50 +32,118 @@ object DistantHorizonsCompat {
     @Volatile
     private var disabled = false
 
+    @Volatile
+    private var currentDimension: String? = null
+
+    @Volatile
+    private var colorRefreshPending = false
+
+    @Volatile
+    private var nextRefreshNanos = 0L
+
+    /** Server-side scan; no client render cache is available here. */
     fun tick() {
         if (!loaded || disabled) return
         val now = System.nanoTime()
         if (now < nextScanNanos) return
         nextScanNanos = now + SCAN_INTERVAL_NANOS
-        scanLoadedLevels()
+        scanLoadedLevels(null)
+    }
+
+    fun tick(dimension: Identifier?, paletteReady: Boolean) {
+        if (!loaded || disabled) return
+
+        val dimensionName = dimension?.toString()
+        if (dimensionName != currentDimension) {
+            currentDimension = dimensionName
+            colorRefreshPending = dimensionName != null
+            nextScanNanos = 0L
+            nextRefreshNanos = 0L
+        }
+
+        if (dimensionName != null && dirtyColorDimensions.contains(dimensionName)) {
+            colorRefreshPending = true
+        }
+
+        val now = System.nanoTime()
+        val nextWorkNanos = if (colorRefreshPending) nextRefreshNanos else nextScanNanos
+        if (now < nextWorkNanos) return
+
+        if (colorRefreshPending) {
+            nextRefreshNanos = now + REFRESH_RETRY_NANOS
+        } else {
+            nextScanNanos = now + SCAN_INTERVAL_NANOS
+        }
+
+        val currentLevelLoaded = scanLoadedLevels(dimensionName)
+        if (colorRefreshPending && paletteReady && currentLevelLoaded && clearRenderDataCache()) {
+            colorRefreshPending = false
+            if (dimensionName != null) dirtyColorDimensions.remove(dimensionName)
+            nextScanNanos = now + SCAN_INTERVAL_NANOS
+        }
+    }
+
+    fun requestColorRefresh(dimension: Identifier) {
+        if (!loaded || disabled) return
+        val dimensionName = dimension.toString()
+        dirtyColorDimensions.add(dimensionName)
+        if (dimensionName == currentDimension) {
+            colorRefreshPending = true
+            nextRefreshNanos = 0L
+        }
     }
 
     fun clear() {
         registeredLevels.clear()
+        dirtyColorDimensions.clear()
+        currentDimension = null
+        colorRefreshPending = false
         nextScanNanos = 0L
+        nextRefreshNanos = 0L
     }
 
-    private fun scanLoadedLevels() {
+    private fun scanLoadedLevels(currentDimension: String?): Boolean {
         try {
-            val worldProxy = Class.forName(DH_DELAYED).getField("worldProxy").get(null) ?: return
+            val worldProxy = Class.forName(DH_DELAYED).getField("worldProxy").get(null) ?: return false
             val worldLoaded = worldProxy.javaClass.methods.firstOrNull {
                 it.name == "worldLoaded" && it.parameterCount == 0
             }
-            if (worldLoaded != null && worldLoaded.invoke(worldProxy) != true) return
+            if (worldLoaded != null && worldLoaded.invoke(worldProxy) != true) return false
 
             val levels = worldProxy.javaClass.methods.firstOrNull {
                 it.name == "getAllLoadedLevelWrappers" && it.parameterCount == 0
-            }?.invoke(worldProxy) as? Iterable<*> ?: return
+            }?.invoke(worldProxy) as? Iterable<*> ?: return false
 
-            val overrideRegister = Class.forName(DH_API).getField("worldGenOverrides").get(null) ?: return
+            val overrideRegister = Class.forName(DH_API).getField("worldGenOverrides").get(null) ?: return false
             val registerMethod = overrideRegister.javaClass.methods.firstOrNull {
                 it.name == "registerWorldGeneratorOverride" && it.parameterCount == 2
-            } ?: return
-            val generatorInterface = registerMethod.parameterTypes.getOrNull(1) ?: return
+            } ?: return false
+            val generatorInterface = registerMethod.parameterTypes.getOrNull(1) ?: return false
+
+            var currentLevelLoaded = false
 
             for (level in levels) {
                 if (level == null) continue
                 val identityValues = readLevelIdentity(level)
+                if (matchesDimension(identityValues, currentDimension)) {
+                    currentLevelLoaded = true
+                }
                 if (!isMystcraftAge(identityValues)) continue
 
-                val identity = identityValues.firstOrNull { it.isNotBlank() }
-                    ?: "level-${System.identityHashCode(level)}"
-                if (!registeredLevels.add(identity)) continue
+                val isNewLevel = synchronized(registeredLevels) {
+                    if (registeredLevels.containsKey(level)) {
+                        false
+                    } else {
+                        registeredLevels[level] = true
+                        true
+                    }
+                }
+                if (!isNewLevel) continue
 
                 val generator = createNoOpWorldGenerator(generatorInterface)
                 val result = registerMethod.invoke(overrideRegister, level, generator)
                 if (!apiResultSuccess(result)) {
-                    registeredLevels.remove(identity)
+                    registeredLevels.remove(level)
                     continue
                 }
 
@@ -79,8 +151,10 @@ object DistantHorizonsCompat {
                     MystcraftReforged.LOGGER.info("Distant Horizons compat active: disabling DH distant generation inside Mystcraft ages.")
                 }
             }
+            return currentLevelLoaded
         } catch (_: ClassNotFoundException) {
             disabled = true
+            return false
         } catch (throwable: Throwable) {
             if (warningLogged.compareAndSet(false, true)) {
                 MystcraftReforged.LOGGER.warn(
@@ -88,6 +162,28 @@ object DistantHorizonsCompat {
                     throwable
                 )
             }
+            return false
+        }
+    }
+
+    private fun clearRenderDataCache(): Boolean {
+        return try {
+            val renderProxy = Class.forName(DH_DELAYED).getField("renderProxy").get(null) ?: return false
+            val clearMethod = renderProxy.javaClass.methods.firstOrNull {
+                it.name == "clearRenderDataCache" && it.parameterCount == 0
+            } ?: return false
+            apiResultSuccess(clearMethod.invoke(renderProxy))
+        } catch (_: ClassNotFoundException) {
+            disabled = true
+            false
+        } catch (throwable: Throwable) {
+            if (warningLogged.compareAndSet(false, true)) {
+                MystcraftReforged.LOGGER.warn(
+                    "Distant Horizons compat could not refresh its cached environment colors.",
+                    throwable
+                )
+            }
+            false
         }
     }
 
@@ -137,6 +233,15 @@ object DistantHorizonsCompat {
                 value.contains("${MystcraftReforged.MOD_ID}\\age_") ||
                 value.contains("${MystcraftReforged.MOD_ID}/age_") ||
                 (value.contains(MystcraftReforged.MOD_ID) && value.contains("age_"))
+        }
+    }
+
+    private fun matchesDimension(identityValues: List<String>, dimension: String?): Boolean {
+        if (dimension == null) return false
+        val expected = dimension.lowercase()
+        return identityValues.any { raw ->
+            val value = raw.lowercase()
+            value == expected || value.endsWith("@$expected") || value.contains(expected)
         }
     }
 

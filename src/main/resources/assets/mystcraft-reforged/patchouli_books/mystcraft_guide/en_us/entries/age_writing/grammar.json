@@ -6,17 +6,17 @@
     {
       "type": "text",
       "title": "The Art of Writing",
-      "text": "An Age is not a chest to be filled, but a sentence to be spoken. Remember this law above all: $(c)the omen must come before the thing it changes.$() $(br)$(br)Place a color before the thing to be colored. Place the rare $(thing)Age Effect$() sign before the affliction it names."
+      "text": "An Age is not a chest to be filled, but a sentence to be spoken. Remember this law above all: $(c)a color must come before the thing it changes.$() $(br)$(br)Place a color immediately before its target. An $(thing)Age Effect$() marker must be paired with a non-instant status-effect page; their relative order does not matter."
     },
     {
       "type": "text",
       "title": "Grammar Leaks",
-      "text": "A loose omen is a leak in the binding. A color with nothing to stain, or an Age Effect with no malady following it, leaves the ink searching for meaning. Ink that must guess is ink that bites."
+      "text": "A loose omen is a leak in the binding. A color with nothing to stain adds a heavy penalty. An Age Effect marker with no status effect, or a status effect with no marker, also leaves the ink searching for meaning. Ink that must guess is ink that bites."
     },
     {
       "type": "text",
       "title": "Contradictions",
-      "text": "Do not command the same river to run both east and west. $(c)Fast Time$() beside $(c)Slow Time$(), or rival shapes of land in one breath, will not always stop the Age from forming. It will merely teach the Age to suffer."
+      "text": "Do not command the same river to run both east and west. $(c)Fast Time$() beside $(c)Slow Time$(), rival shapes of land, rival weather, or both biome controllers will not stop the Age from forming. The last applicable choice wins, while every contradiction raises instability."
     },
     {
       "type": "text",

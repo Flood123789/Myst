@@ -1,10 +1,16 @@
 {
   "variants": {
-    "facing=north": { "model": "mystcraft-reforged:block/book_receptacle" },
-    "facing=east":  { "model": "mystcraft-reforged:block/book_receptacle", "y": 90 },
-    "facing=south": { "model": "mystcraft-reforged:block/book_receptacle", "y": 180 },
-    "facing=west":  { "model": "mystcraft-reforged:block/book_receptacle", "y": 270 },
-    "facing=up":    { "model": "mystcraft-reforged:block/book_receptacle", "x": 270 },
-    "facing=down":  { "model": "mystcraft-reforged:block/book_receptacle", "x": 90 }
+    "facing=north,painted_backing=false": { "model": "mystcraft-reforged:block/book_receptacle" },
+    "facing=east,painted_backing=false":  { "model": "mystcraft-reforged:block/book_receptacle", "y": 90 },
+    "facing=south,painted_backing=false": { "model": "mystcraft-reforged:block/book_receptacle", "y": 180 },
+    "facing=west,painted_backing=false":  { "model": "mystcraft-reforged:block/book_receptacle", "y": 270 },
+    "facing=up,painted_backing=false":    { "model": "mystcraft-reforged:block/book_receptacle", "x": 270 },
+    "facing=down,painted_backing=false":  { "model": "mystcraft-reforged:block/book_receptacle", "x": 90 },
+    "facing=north,painted_backing=true": { "model": "mystcraft-reforged:block/book_receptacle_painted" },
+    "facing=east,painted_backing=true":  { "model": "mystcraft-reforged:block/book_receptacle_painted", "y": 90 },
+    "facing=south,painted_backing=true": { "model": "mystcraft-reforged:block/book_receptacle_painted", "y": 180 },
+    "facing=west,painted_backing=true":  { "model": "mystcraft-reforged:block/book_receptacle_painted", "y": 270 },
+    "facing=up,painted_backing=true":    { "model": "mystcraft-reforged:block/book_receptacle_painted", "x": 270 },
+    "facing=down,painted_backing=true":  { "model": "mystcraft-reforged:block/book_receptacle_painted", "x": 90 }
   }
 }

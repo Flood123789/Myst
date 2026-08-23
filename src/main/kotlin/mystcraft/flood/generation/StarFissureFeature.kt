@@ -3,7 +3,6 @@ package mystcraft.flood.generation
 import com.mojang.serialization.Codec
 import mystcraft.flood.MystcraftReforged
 import mystcraft.flood.generation.profile.AgeProfileManager
-import mystcraft.flood.generation.profile.TerrainType
 import net.minecraft.block.BlockState
 import net.minecraft.block.Blocks
 import net.minecraft.util.math.BlockPos
@@ -26,33 +25,36 @@ class StarFissureFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFe
         if (!AgeSubdimensionManager.isPrimaryAgeRealm(serverWorld.registryKey.value)) return false
         val profile = AgeProfileManager.getOrGenerateProfile(serverWorld.server, serverWorld.registryKey.value)
         if (AgeLifecycleManager.isDeadAge(profile)) return false
-        if (profile.terrainType == TerrainType.BIOSPHERES) return false
 
         val chunkPos = ChunkPos(origin)
-        val regionSize = 24
+        val regionSize = StarFissurePlacement.REGION_SIZE
         val regionX = Math.floorDiv(chunkPos.x, regionSize)
         val regionZ = Math.floorDiv(chunkPos.z, regionSize)
         val seed = profile.seed + regionX * 7_721_533L + regionZ * 3_911_141L + 0x57A7F155L
         val regionRand = java.util.Random(seed)
-        val chance = when {
-            profile.stability.instabilityScore >= 80 -> 0.34f
-            profile.stability.instabilityScore >= 45 -> 0.24f
-            else -> 0.12f
-        }
-        if (regionRand.nextFloat() > chance) return false
+        val guaranteedExit = StarFissurePlacement.isGuaranteedExitRegion(regionX, regionZ)
+        if (!guaranteedExit && regionRand.nextFloat() > StarFissurePlacement.chanceFor(profile.stability.instabilityScore)) return false
 
         val ownerChunkX = regionX * regionSize + 3 + regionRand.nextInt(regionSize - 6)
         val ownerChunkZ = regionZ * regionSize + 3 + regionRand.nextInt(regionSize - 6)
         if (chunkPos.x != ownerChunkX || chunkPos.z != ownerChunkZ) return false
-        if (!AgeFeatureTuning.canPlaceMajorFeature(profile, chunkPos, AgeFeatureTuning.STAR_FISSURE, 10)) return false
-
         // 3. Find the absolute surface of the terrain
         val centerX = ownerChunkX * 16 + 8 + regionRand.nextInt(7) - 3
         val centerZ = ownerChunkZ * 16 + 8 + regionRand.nextInt(7) - 3
-        val ground = FeatureBuildHelper.findGround(world, centerX, centerZ) ?: return false
-        if (ground.y < 19) return false
+        val ground = FeatureBuildHelper.findGround(world, centerX, centerZ)
+            ?: if (guaranteedExit) {
+                // Ocean Ages still need an exit; the tear drains its own core through the water.
+                FeatureBuildHelper.findGround(world, centerX, centerZ, FeatureBuildHelper.WaterMode.SURFACE)
+            } else {
+                null
+            }
+        if (ground != null && ground.y < world.bottomY + 20 && !guaranteedExit) return false
 
-        val centerPos = ground.up()
+        // Void Ages have no ground to discover. Starting the carve in midair still creates the
+        // indestructible return plane at the bottom of the world for a falling traveler.
+        val centerPos = ground?.up()
+            ?: if (guaranteedExit) BlockPos(centerX, world.bottomY + world.height / 2, centerZ)
+            else return false
         val topY = centerPos.y
 
         // ==========================================
@@ -85,7 +87,7 @@ class StarFissureFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFe
         var driftX = 0.0f
         var driftZ = 0.0f
 
-        for (y in topY downTo -64) {
+        for (y in topY downTo world.bottomY) {
             driftX += (random.nextFloat() - 0.5f) * 1.5f
             driftZ += (random.nextFloat() - 0.5f) * 1.5f
             
@@ -108,7 +110,7 @@ class StarFissureFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFe
 
                     // CORE VOID
                     if (distance <= currentRadius) {
-                        if (y == -64) {
+                        if (y == world.bottomY) {
                             safeSetBlock(world, serverWorld, origin, currentPos, ModBlocks.STAR_FISSURE.defaultState, allowUnbreakable = true)
                         } else {
                             // Use safeSetBlock to erase blocks even in neighboring chunks
@@ -157,7 +159,7 @@ class StarFissureFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFe
         if (isSafeToRead(origin, target)) {
             val existing = world.getBlockState(target)
             // Abort only if it hits bedrock/unbreakable blocks and the current carve is not allowed to pierce them.
-            if (!allowUnbreakable && target.y > -64 && existing.getHardness(world, target) < 0.0f) return 
+            if (!allowUnbreakable && target.y > serverWorld.bottomY && existing.getHardness(world, target) < 0.0f) return
             
             // Flag 2 prevents neighbor updates cascading during worldgen
             world.setBlockState(target, state, 2)
@@ -165,5 +167,19 @@ class StarFissureFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFe
             // Queue the block placement for when the chunk actually loads
             DeferredTreePlacer.add(serverWorld, target, state, false)
         }
+    }
+}
+
+/** Placement policy kept separate from the feature so the no-trap guarantee is testable. */
+object StarFissurePlacement {
+    const val REGION_SIZE = 24
+
+    /** The Age arrival area, within roughly 350 blocks of (0, 0). */
+    fun isGuaranteedExitRegion(regionX: Int, regionZ: Int): Boolean = regionX == 0 && regionZ == 0
+
+    fun chanceFor(instabilityScore: Int): Float = when {
+        instabilityScore >= 80 -> 0.34f
+        instabilityScore >= 45 -> 0.24f
+        else -> 0.12f
     }
 }

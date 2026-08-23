@@ -17,6 +17,13 @@ import net.minecraft.util.math.Direction
 import net.minecraft.util.math.random.Random
 import net.minecraft.world.World
 
+/**
+ * Shared spreading and shape-preservation behavior for every white-decay block variant.
+ *
+ * White decay can copy the geometry of the block it consumes, so slabs, stairs, fences, panes,
+ * doors, lights, and walls delegate here instead of each implementing a different spread rule.
+ * All mutations remain subject to [DecayManager]'s global tick budget.
+ */
 object WhiteDecayLogic {
     fun neighborUpdate(block: Block, state: BlockState, world: World, pos: BlockPos) {
         val serverWorld = world as? ServerWorld ?: return

@@ -7,13 +7,21 @@ import mystcraft.flood.client.cache.ClientAgeTimeCache
 import mystcraft.flood.client.gui.DescriptiveBookScreen
 import mystcraft.flood.client.gui.LinkingBookScreen
 import mystcraft.flood.generation.profile.AgeProfile
+import mystcraft.flood.compat.DistantHorizonsCompat
 import mystcraft.flood.mixin.client.ClientPlayNetworkHandlerAccessor
+import mystcraft.flood.mixin.client.LightmapTextureManagerAccessor
 import mystcraft.flood.network.ModMessages
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking
 import net.minecraft.util.Hand
 import net.minecraft.registry.RegistryKey
 import net.minecraft.registry.RegistryKeys
 
+/**
+ * Installs receivers for server-authored Age state and book UI messages.
+ *
+ * Network callbacks may run off the render thread, so every cache, screen, world-key, or renderer
+ * mutation is scheduled through `client.execute`. These caches are presentation state only.
+ */
 object ClientMessages {
     fun registerS2CPackets() {
         MystcraftReforged.LOGGER.info("[CLIENT-NET] Registering dimension sync receiver.")
@@ -30,11 +38,24 @@ object ClientMessages {
             
             client.execute {
                 try {
-                    // 1. Store the JSON profile in our client-side cache
+                    // Cache the snapshot before exposing its world key; render hooks can run as
+                    // soon as the key becomes visible and expect profile/time data to exist.
                     ClientAgeCache.update(ageId, profile)
                     ClientAgeTimeCache.update(ageId, visibleTime, timeScale, timeFrozen)
+                    (client.gameRenderer.lightmapTextureManager as LightmapTextureManagerAccessor)
+                        .`mystcraft$setDirty`(true)
+                    DistantHorizonsCompat.requestColorRefresh(ageId)
+                    MystcraftReforged.LOGGER.info(
+                        "[CLIENT-NET] Cached Age {} at time {} with sky #{}, fog #{}, water #{}",
+                        ageId,
+                        visibleTime,
+                        profile.colors.sky.toString(16).padStart(6, '0'),
+                        profile.colors.fog.toString(16).padStart(6, '0'),
+                        profile.colors.water.toString(16).padStart(6, '0')
+                    )
                     
-                    // 2. Inject into the client's locked world list so the renderer doesn't panic
+                    // Dynamic worlds are absent from the immutable login packet. Extend the
+                    // client's known-key set so vanilla accepts the later dimension transfer.
                     val accessor = handler as ClientPlayNetworkHandlerAccessor
                     val currentKeys = accessor.`mystcraft$getWorldKeys`().toMutableSet()
                     currentKeys.add(worldKey)
@@ -59,6 +80,8 @@ object ClientMessages {
 
             client.execute {
                 ClientAgeTimeCache.update(ageId, visibleTime, timeScale, timeFrozen)
+                (client.gameRenderer.lightmapTextureManager as LightmapTextureManagerAccessor)
+                    .`mystcraft$setDirty`(true)
             }
         }
 

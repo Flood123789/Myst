@@ -42,7 +42,8 @@ class LostPageItem(settings: Settings) : Item(settings) {
     }
 
     private fun pickWeightedSymbol(random: net.minecraft.util.math.random.Random): net.minecraft.util.Identifier {
-        val weighted = ModSymbols.availableSymbols.map { symbol -> symbol to weightFor(symbol) }
+        val candidates = ModSymbols.lootableSymbols().ifEmpty { listOf(net.minecraft.util.Identifier("mystcraft-reforged", "terrain_standard")) }
+        val weighted = candidates.map { symbol -> symbol to weightFor(symbol) }
         val totalWeight = weighted.sumOf { it.second }.coerceAtLeast(1)
         var roll = random.nextInt(totalWeight)
 

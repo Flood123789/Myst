@@ -1,6 +1,7 @@
 package mystcraft.flood.block
 
 import mystcraft.flood.block.entity.BookReceptacleBlockEntity
+import mystcraft.flood.item.ModItems
 import net.minecraft.block.Block
 import net.minecraft.block.BlockRenderType
 import net.minecraft.block.BlockState
@@ -8,12 +9,15 @@ import net.minecraft.block.BlockWithEntity
 import net.minecraft.block.ShapeContext
 import net.minecraft.block.entity.BlockEntity
 import net.minecraft.entity.ItemEntity
+import net.minecraft.entity.LivingEntity
 import net.minecraft.entity.player.PlayerEntity
+import net.minecraft.item.ItemStack
 import net.minecraft.item.ItemPlacementContext
 import net.minecraft.item.Items
 import net.minecraft.text.Text
 import net.minecraft.state.StateManager
 import net.minecraft.state.property.Properties
+import net.minecraft.state.property.BooleanProperty
 import net.minecraft.util.ActionResult
 import net.minecraft.util.Hand
 import net.minecraft.util.ItemScatterer
@@ -30,7 +34,9 @@ class BookReceptacleBlock(settings: Settings) : BlockWithEntity(settings) {
 
     init {
         // Now uses full 6-axis FACING!
-        defaultState = stateManager.defaultState.with(Properties.FACING, Direction.NORTH)
+        defaultState = stateManager.defaultState
+            .with(Properties.FACING, Direction.NORTH)
+            .with(PAINTED_BACKING, false)
     }
 
     @Deprecated("Deprecated in Java")
@@ -52,7 +58,7 @@ class BookReceptacleBlock(settings: Settings) : BlockWithEntity(settings) {
     }
 
     override fun appendProperties(builder: StateManager.Builder<Block, BlockState>) {
-        builder.add(Properties.FACING)
+        builder.add(Properties.FACING, PAINTED_BACKING)
     }
 
     override fun getPlacementState(ctx: ItemPlacementContext): BlockState {
@@ -60,31 +66,68 @@ class BookReceptacleBlock(settings: Settings) : BlockWithEntity(settings) {
         return defaultState.with(Properties.FACING, ctx.side)
     }
 
+    override fun onPlaced(
+        world: World,
+        pos: BlockPos,
+        state: BlockState,
+        placer: LivingEntity?,
+        itemStack: ItemStack
+    ) {
+        super.onPlaced(world, pos, state, placer, itemStack)
+        val facing = state.get(Properties.FACING)
+        val support = world.getBlockEntity(pos.offset(facing.opposite)) as? mystcraft.flood.block.entity.PaintedCrystalBlockEntity
+        if (support?.getPaintedState(facing) != null) {
+            world.setBlockState(pos, state.with(PAINTED_BACKING, true), 3)
+        }
+    }
+
     override fun createBlockEntity(pos: BlockPos, state: BlockState): BlockEntity {
         return BookReceptacleBlockEntity(pos, state)
+    }
+
+    override fun onBreak(world: World, pos: BlockPos, state: BlockState, player: PlayerEntity) {
+        // Runs before vanilla clears the block. Tearing the portal down from here keeps
+        // onStateReplaced free of nested setBlockState calls: those run while the chunk is
+        // mid-write, and a block change they cause at this position makes World#removeBlock
+        // report failure, which cancels this block's own loot drop.
+        releaseContents(world, pos)
+        super.onBreak(world, pos, state, player)
     }
 
     @Deprecated("Deprecated in Java")
     override fun onStateReplaced(state: BlockState, world: World, pos: BlockPos, newState: BlockState, moved: Boolean) {
         if (!state.isOf(newState.block)) {
-            val be = world.getBlockEntity(pos) as? BookReceptacleBlockEntity
-            if (be != null) {
-                val bookStack = be.inventory.getStack(0).copy()
-                if (!bookStack.isEmpty) {
-                    ItemScatterer.spawn(world, pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble(), bookStack)
-                }
-                be.extinguishPortal()
-            }
+            releaseContents(world, pos)
             super.onStateReplaced(state, world, pos, newState, moved)
         }
     }
 
+    /** Pops the stored book and shuts the portal down. Safe to run twice for one removal. */
+    private fun releaseContents(world: World, pos: BlockPos) {
+        if (world.isClient) return
+        val be = world.getBlockEntity(pos) as? BookReceptacleBlockEntity ?: return
+
+        val bookStack = be.inventory.getStack(0).copy()
+        if (!bookStack.isEmpty) {
+            be.inventory.setStack(0, ItemStack.EMPTY)
+            ItemScatterer.spawn(world, pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble(), bookStack)
+        }
+        be.extinguishPortal()
+    }
+
     @Deprecated("Deprecated in Java")
     override fun onUse(state: BlockState, world: World, pos: BlockPos, player: PlayerEntity, hand: Hand, hit: BlockHitResult): ActionResult {
+        val stackInHand = player.getStackInHand(hand)
+
+        // Ink vials paint the crystal backing instead of being filed away as a book,
+        // so hand the click off to the vial's own use logic.
+        if (stackInHand.isOf(ModItems.BLOCK_INK_VIAL) || stackInHand.isOf(ModItems.INK_VIAL)) {
+            return ActionResult.PASS
+        }
+
         if (world.isClient) return ActionResult.SUCCESS
 
         val be = world.getBlockEntity(pos) as? BookReceptacleBlockEntity ?: return ActionResult.PASS
-        val stackInHand = player.getStackInHand(hand)
 
         if (be.hasBook()) {
             if (stackInHand.isOf(Items.SHEARS)) {
@@ -130,5 +173,9 @@ class BookReceptacleBlock(settings: Settings) : BlockWithEntity(settings) {
             return ActionResult.SUCCESS
         }
         return ActionResult.PASS
+    }
+
+    companion object {
+        val PAINTED_BACKING: BooleanProperty = BooleanProperty.of("painted_backing")
     }
 }

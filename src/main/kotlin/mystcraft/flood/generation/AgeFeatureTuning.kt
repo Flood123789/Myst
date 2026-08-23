@@ -1,7 +1,9 @@
 package mystcraft.flood.generation
 
+import mystcraft.flood.config.MystcraftConfig
 import mystcraft.flood.generation.profile.AgeProfile
 import net.minecraft.util.math.ChunkPos
+import kotlin.math.roundToInt
 
 object AgeFeatureTuning {
     const val ABANDONED_ARCHIVE = "abandoned_archive"
@@ -24,6 +26,16 @@ object AgeFeatureTuning {
         ExoticAgeThemes.FRACTAL_CUBES,
         ExoticAgeThemes.LIGHT_FISSURES,
         ExoticAgeThemes.VIRUS,
+        ExoticAgeThemes.COLOSSAL_MUSHROOMS,
+        ExoticAgeThemes.FLOATING_BOULDERS,
+        ExoticAgeThemes.BASALT_SPIRES,
+        ExoticAgeThemes.GLASS_DUNES,
+        ExoticAgeThemes.PETRIFIED_FORESTS,
+        ExoticAgeThemes.LUMINOUS_GROVES,
+        ExoticAgeThemes.CORAL_FIELDS,
+        ExoticAgeThemes.ICE_NEEDLES,
+        ExoticAgeThemes.OBSIDIAN_CRAGS,
+        ExoticAgeThemes.RUNE_STONES,
         AmbientAgeThemes.PAGE_STORMS,
         AmbientAgeThemes.MEMORY_BLOOMS,
         AmbientAgeThemes.STABLE_SANCTUARIES,
@@ -74,8 +86,17 @@ object AgeFeatureTuning {
         HistoricAgeThemes.GATEWAY_RUINS,
         AmbientAgeThemes.PAGE_STORMS,
         AmbientAgeThemes.MEMORY_BLOOMS,
-        AmbientAgeThemes.STABLE_SANCTUARIES,
-        STAR_FISSURE
+        AmbientAgeThemes.STABLE_SANCTUARIES
+    )
+
+    private val PAGE_LOOT_FEATURE_IDS = setOf(
+        ABANDONED_ARCHIVE,
+        HistoricAgeThemes.FORGOTTEN_RUINS,
+        HistoricAgeThemes.COLLAPSED_OBSERVATORY,
+        HistoricAgeThemes.ANCIENT_AQUEDUCTS,
+        HistoricAgeThemes.GATEWAY_RUINS,
+        AmbientAgeThemes.PAGE_STORMS,
+        AmbientAgeThemes.STABLE_SANCTUARIES
     )
 
     private fun extraFeatureCount(profile: AgeProfile, exempt: String? = null): Int =
@@ -87,12 +108,21 @@ object AgeFeatureTuning {
 
     fun rarityRollDivisor(profile: AgeProfile, base: Int, exempt: String? = null): Int {
         val extra = extraFeatureCount(profile, exempt)
-        return (base * (1.0f + extra * 0.30f)).toInt().coerceAtLeast(1)
+        val multiplier = configuredSpawnMultiplier(exempt)
+        if (multiplier <= 0f) return Int.MAX_VALUE
+        return (base * (1.0f + extra * 0.30f) / multiplier).roundToInt().coerceAtLeast(1)
     }
 
     fun chanceMultiplier(profile: AgeProfile, exempt: String? = null): Float {
         val extra = extraFeatureCount(profile, exempt)
-        return (1.0f - extra * 0.10f).coerceAtLeast(0.35f)
+        val crowding = (1.0f - extra * 0.10f).coerceAtLeast(0.35f)
+        return (crowding * configuredSpawnMultiplier(exempt)).coerceIn(0f, 1f)
+    }
+
+    private fun configuredSpawnMultiplier(featureId: String?): Float {
+        val config = MystcraftConfig.current.worldGeneration
+        val pageMultiplier = if (featureId in PAGE_LOOT_FEATURE_IDS) config.pageFeatureSpawnRateMultiplier else 1.0f
+        return config.featureSpawnRateMultiplier * pageMultiplier
     }
 
     fun canPlaceMajorFeature(

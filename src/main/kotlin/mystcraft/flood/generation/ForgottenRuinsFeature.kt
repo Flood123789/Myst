@@ -29,6 +29,11 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.roundToInt
 
+/**
+ * Builds one of several deterministic ruined-landmark compositions for historic-themed Ages.
+ * Individual blocks are varied from seeded local coordinates, making the result independent of
+ * the order in which neighboring chunks happen to request feature generation.
+ */
 class ForgottenRuinsFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatureConfig>(codec) {
 
     override fun generate(context: FeatureContext<DefaultFeatureConfig>): Boolean {
@@ -53,6 +58,7 @@ class ForgottenRuinsFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defaul
             else -> 0.0f
         } * AgeFeatureTuning.chanceMultiplier(profile, HistoricAgeThemes.FORGOTTEN_RUINS)
         if (spawnChance <= 0f) return false
+        CustomStructureOverrides.generateIfPresent(context, "forgotten_ruins", profile, spawnChance)?.let { return it }
 
         val chunkPos = ChunkPos(origin)
         val cultureRegionSize = 36
@@ -258,12 +264,34 @@ class ForgottenRuinsFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defaul
             }
         }
 
-        for (dx in -halfW + 1..halfW - 1) {
-            val leftRoof = center.add(dx, height + 1 - abs(dx) / 3, -halfD + 1)
-            val rightRoof = center.add(dx, height + 1 - abs(dx) / 3, halfD - 1)
-            if (!damaged || (dx and 1) == 0) {
-                setBlock(world, chunkPos, leftRoof, culture.slab)
-                setBlock(world, chunkPos, rightRoof, culture.slab)
+        // Give the house a recognizable pitched roof. The former version placed only two
+        // disconnected slab strips one block above the walls, which read as random debris rather
+        // than the remains of a building. Damage now removes sections from a complete roof.
+        val roofBaseY = height
+        for (dz in -halfD - 1..halfD + 1) {
+            for (step in 0 until halfW) {
+                val left = center.add(-halfW + step, roofBaseY + step, dz)
+                val right = center.add(halfW - step, roofBaseY + step, dz)
+                if (!damaged || (left.x * 17 + left.z * 31).mod(13) != 0) {
+                    setBlockState(
+                        world,
+                        chunkPos,
+                        left,
+                        culture.stair.defaultState.with(Properties.HORIZONTAL_FACING, Direction.EAST)
+                    )
+                }
+                if (!damaged || (right.x * 17 + right.z * 31).mod(13) != 0) {
+                    setBlockState(
+                        world,
+                        chunkPos,
+                        right,
+                        culture.stair.defaultState.with(Properties.HORIZONTAL_FACING, Direction.WEST)
+                    )
+                }
+            }
+            val ridge = center.add(0, roofBaseY + halfW, dz)
+            if (!damaged || (ridge.x * 17 + ridge.z * 31).mod(11) != 0) {
+                setBlock(world, chunkPos, ridge, culture.slab)
             }
         }
 
@@ -578,7 +606,7 @@ class ForgottenRuinsFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defaul
         setBlockState(world, chunkPos, pos, Blocks.CHEST.defaultState.with(ChestBlock.FACING, facing))
         val chest = world.getBlockEntity(pos) as? ChestBlockEntity ?: return
         if (pageLoot) {
-            repeat(1 + rand.nextInt(2)) {
+            repeat(FeatureBuildHelper.configuredLostPageCount(rand, 1, 2)) {
                 chest.setStack(rand.nextInt(chest.size()), ItemStack(ModItems.LOST_PAGE))
             }
         }
