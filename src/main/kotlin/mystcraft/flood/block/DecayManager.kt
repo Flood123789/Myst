@@ -2,15 +2,20 @@ package mystcraft.flood.block
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 
+/**
+ * Server-wide work budget shared by every spreading decay block.
+ *
+ * Decay implementations must acquire permission before changing blocks. A global (rather than
+ * per-Age) budget prevents several unstable Ages from multiplying worst-case tick cost.
+ */
 object DecayManager {
-    // The maximum number of Decay operations allowed across the ENTIRE server per tick.
-    // 100 is a very safe number that won't drop TPS.
+    // One operation is one unit requested by decay logic; expensive shapes can request more.
     private const val MAX_OPERATIONS_PER_TICK = 100
     
     var operationsThisTick = 0
 
     fun register() {
-        // At the start of every single server tick, reset the counter to 0!
+        // Reset before worlds tick so all dimensions compete within one server-tick budget.
         ServerTickEvents.START_SERVER_TICK.register {
             operationsThisTick = 0
         }

@@ -2,6 +2,7 @@ package mystcraft.flood.generation
 
 import mystcraft.flood.MystcraftReforged
 import mystcraft.flood.access.DimensionInjector
+import mystcraft.flood.generation.instability.InstabilityThresholds
 import mystcraft.flood.generation.profile.AgeDimensionRole
 import mystcraft.flood.generation.profile.AgeProfile
 import mystcraft.flood.generation.profile.AgeProfileManager
@@ -12,8 +13,15 @@ import net.minecraft.server.world.ServerWorld
 import net.minecraft.util.Identifier
 import net.minecraft.world.World
 
+/**
+ * Defines and manages the three-realm family belonging to a root Age.
+ *
+ * A suffix maps an id to its Overworld, Nether, or End role. Derived realms inherit authored
+ * profile state from the root; this manager is therefore the required normalization point before
+ * profile lookup, portal routing, lifecycle changes, or family-wide synchronization.
+ */
 object AgeSubdimensionManager {
-    const val SUBDIMENSION_INSTABILITY_MAX = 25
+    val SUBDIMENSION_INSTABILITY_MAX: Int get() = InstabilityThresholds.OVERWORLD_FUNCTIONS
 
     @JvmStatic
     fun roleOf(ageId: Identifier): AgeDimensionRole = when {

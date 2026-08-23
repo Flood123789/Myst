@@ -26,6 +26,7 @@ class TendrilsFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatu
         val profile = AgeProfileManager.getOrGenerateProfile(serverWorld.server, ageId)
         if (AgeLifecycleManager.isDeadAge(profile)) return false
         if (!profile.modifiers.contains("tendrils")) return false
+        CustomStructureOverrides.generateIfPresent(context, "tendrils", profile)?.let { return it }
 
         // Rarity: 1 in 20 chunks
         if (random.nextInt(20) != 0) return false

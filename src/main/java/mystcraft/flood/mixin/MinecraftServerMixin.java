@@ -8,6 +8,7 @@ import mystcraft.flood.generation.AgeSubdimensionManager;
 import mystcraft.flood.generation.ImmersivePortalsCompat;
 import mystcraft.flood.generation.profile.AgeDimensionRole;
 import mystcraft.flood.generation.profile.AgeProfile;
+import mystcraft.flood.generation.profile.TerrainType;
 import mystcraft.flood.network.ModMessages;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents;
 import net.minecraft.entity.boss.dragon.EnderDragonFight;
@@ -71,15 +72,20 @@ public abstract class MinecraftServerMixin implements DimensionInjector {
             Registry<DimensionType> typeRegistry = this.getRegistryManager().get(RegistryKeys.DIMENSION_TYPE);
 
             AgeDimensionRole role = AgeSubdimensionManager.INSTANCE.roleOf(ageId);
-            RegistryKey<DimensionType> dimensionTypeKey = RegistryKey.of(
-                    RegistryKeys.DIMENSION_TYPE,
-                    new Identifier("mystcraft-reforged", role.getDimensionTypePath())
-            );
-            RegistryEntry<DimensionType> typeEntry = typeRegistry.getEntry(dimensionTypeKey).orElseThrow();
-
             Pair<ChunkGenerator, AgeProfile> result = AgeBuilder.INSTANCE.buildGenerator(server, ageId, symbols);
             ChunkGenerator customGen = result.getFirst();
             AgeProfile profile = result.getSecond();
+            String dimensionTypePath = role.getDimensionTypePath();
+            if (role == AgeDimensionRole.OVERWORLD && profile.getTerrainType() == TerrainType.NETHER) {
+                dimensionTypePath = AgeDimensionRole.NETHER.getDimensionTypePath();
+            } else if (role == AgeDimensionRole.OVERWORLD && profile.getTerrainType() == TerrainType.END) {
+                dimensionTypePath = AgeDimensionRole.END.getDimensionTypePath();
+            }
+            RegistryKey<DimensionType> dimensionTypeKey = RegistryKey.of(
+                    RegistryKeys.DIMENSION_TYPE,
+                    new Identifier("mystcraft-reforged", dimensionTypePath)
+            );
+            RegistryEntry<DimensionType> typeEntry = typeRegistry.getEntry(dimensionTypeKey).orElseThrow();
             DimensionOptions liveOptions = new DimensionOptions(typeEntry, customGen);
 
             SimpleRegistry<DimensionOptions> simpleOptionsRegistry = (SimpleRegistry<DimensionOptions>) optionsRegistry;

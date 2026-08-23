@@ -35,6 +35,13 @@ import net.minecraft.world.TeleportTarget
 import net.minecraft.world.World
 import java.nio.file.Files
 
+/**
+ * An authored link that creates an Age on first activation and reuses it thereafter.
+ *
+ * Ordered symbols, display name, and resolved Age id live in item NBT. World creation, safe-entry
+ * search, teleport, anchored-book placement, and respawn binding are kept server-side; the client
+ * screen only previews the description and sends an activation request.
+ */
 class DescriptiveBookItem(settings: Settings) : Item(settings) {
     override fun use(world: World, user: PlayerEntity, hand: Hand): TypedActionResult<ItemStack> {
         val stack = user.getStackInHand(hand)

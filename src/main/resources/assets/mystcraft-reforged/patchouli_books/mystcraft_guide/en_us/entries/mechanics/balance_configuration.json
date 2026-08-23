@@ -1,0 +1,38 @@
+{
+  "name": "Balance Configuration",
+  "category": "mystcraft-reforged:mechanics",
+  "icon": "minecraft:comparator",
+  "sortnum": 4,
+  "pages": [
+    {
+      "type": "text",
+      "title": "Where Settings Live",
+      "text": "With Mod Menu and Cloth Config installed, open Mystcraft Reforged's configuration from the Mods screen. Every setting is also stored in $(thing)config/mystcraft-reforged-balance.json$(). In multiplayer, the host or dedicated server's file governs world behavior; a remote player's local copy cannot change the server."
+    },
+    {
+      "type": "text",
+      "title": "Instability",
+      "text": "The Instability category controls the maximum score for stronghold End portals and Age Nether portals, all five symptom thresholds, each per-second trigger chance, decay scaling per excess score point, and effect durations. Defaults are 25 for realm functions and 45/65/80/100/115 for the five tiers."
+    },
+    {
+      "type": "text",
+      "title": "World Features",
+      "text": "$(thing)All feature spawn multiplier$() scales Mystcraft world features together. $(thing)Page feature spawn multiplier$() adds a second scale to structures that can yield pages. $(thing)Cave glow lichen attempts/chunk$() controls supplemental Cave Age lighting. A multiplier or attempt count of zero disables that family."
+    },
+    {
+      "type": "text",
+      "title": "Page Loot",
+      "text": "Vanilla-chest settings control the chance and minimum/maximum Lost Pages added to supported vanilla loot tables. Age-feature settings separately control whether a feature chest receives Lost Pages and multiply its usual count. Chances use decimal fractions: $(thing)1.0$() is certain, $(thing)0.25$() is one chance in four, and $(thing)0$() disables it."
+    },
+    {
+      "type": "text",
+      "title": "Page Pool Blacklists",
+      "text": "Biome namespaces exclude an entire mod, such as $(thing)examplemod$(). Biome page IDs accept full IDs such as $(thing)minecraft:deep_dark$(). Terrain and general symbol lists accept either a full ID or path, such as $(thing)terrain_void$() or $(thing)mystcraft-reforged:dense_ores$(). Blacklists affect random selection and Lost Page revelation, not an already authored page."
+    },
+    {
+      "type": "text",
+      "title": "Safety and Validation",
+      "text": "Rates are clamped to safe ranges, page minimums cannot exceed their maximums, blacklist entries are trimmed and normalized, and instability tiers remain strictly ordered. The config file is created with defaults on first launch and rewritten in normalized form whenever it is saved."
+    }
+  ]
+}

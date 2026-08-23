@@ -25,8 +25,21 @@ import java.util.concurrent.Executor
 import kotlin.math.max
 import kotlin.math.min
 
+/**
+ * Chunk-generator wrapper that overlays deterministic Lost City roads and structures on a
+ * delegate terrain generator.
+ *
+ * Delegation preserves normal biome, noise, carving, and structure behavior. City work is split
+ * by generation phase and clipped to the current chunk, which is essential because Minecraft may
+ * generate neighboring chunks concurrently and in any order.
+ */
 class LostCityChunkGenerator(
-    private val delegate: ChunkGenerator,
+    /**
+     * Exposed because this generator is not a [net.minecraft.world.gen.chunk.NoiseChunkGenerator].
+     * ThreadedAnvilChunkStorage only derives the world's NoiseConfig from a generator that is one,
+     * so ThreadedAnvilChunkStorageMixin has to reach the delegate to rebuild it.
+     */
+    val delegate: ChunkGenerator,
     private val cityBiomeSource: BiomeSource,
     private val seed: Long = 0L
 ) : ChunkGenerator(cityBiomeSource) {

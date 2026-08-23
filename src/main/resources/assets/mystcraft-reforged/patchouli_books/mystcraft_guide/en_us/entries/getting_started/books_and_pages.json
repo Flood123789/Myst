@@ -6,7 +6,7 @@
   "pages": [
     {
       "type": "text",
-      "text": "$(item)Empty Pages$() are clean vellum awaiting a command. $(item)Symbol Pages$() are words with teeth: terrain, weather, color, sun, hunger, mercy. $(item)Lost Pages$() are sealed scraps from older hands, and they reveal themselves only when studied."
+      "text": "$(item)Empty Pages$() are made from paper and await a command. $(item)Symbol Pages$() are words with teeth: terrain, weather, color, sun, hunger, mercy. $(item)Lost Pages$() are sealed scraps found in stronghold libraries and Age structures; use one to reveal a weighted random symbol."
     },
     {
       "type": "text",
@@ -14,7 +14,7 @@
     },
     {
       "type": "text",
-      "text": "$(item)Leather$() with an $(item)Empty Page$() makes a $(item)Linking Book$(). It remembers the place where it was written. Loose symbols nearby are spared, for a return path should not devour the map that made the journey."
+      "text": "$(item)Leather$() with an $(item)Empty Page$() makes an unlinked $(item)Linking Book$(). Use it once to bind your exact dimension, position, standing height, pitch, and nearest cardinal facing. Loose symbols nearby are spared, for a return path should not devour the map that made the journey."
     },
     {
       "type": "text",
@@ -34,7 +34,7 @@
     },
     {
       "type": "text",
-      "text": "Even when cast to the ground by hand, a descriptive book dislikes becoming common litter. It settles into that same anchored form instead of lying loose. Only a freshly broken anchor spills a brief ordinary book, and only for a moment, before the world decides whether to seize it again."
+      "text": "Even when cast to the ground by hand, a $(thing)linked$() descriptive book dislikes becoming common litter. It settles into that same anchored form instead of lying loose. Touch or use an anchor to recover it safely. Breaking one releases an ordinary item with a brief two-second grace period before it may anchor again."
     }
   ]
 }

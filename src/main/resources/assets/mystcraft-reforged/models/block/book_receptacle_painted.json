@@ -1,0 +1,16 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "mystcraft-reforged:block/crystal_block",
+    "slot": "mystcraft-reforged:block/book_receptacle_slot"
+  },
+  "elements": [
+    {
+      "from": [ 0.0, 0.0, 9.98 ],
+      "to": [ 16.0, 16.0, 10.0 ],
+      "faces": {
+        "north": { "texture": "#slot", "uv": [ 0.0, 0.0, 16.0, 16.0 ] }
+      }
+    }
+  ]
+}

@@ -35,6 +35,7 @@ class StableSanctuaryFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defau
             else -> 0.10f
         } * AgeFeatureTuning.chanceMultiplier(profile, AmbientAgeThemes.STABLE_SANCTUARIES)
         if (chance <= 0f) return false
+        CustomStructureOverrides.generateIfPresent(context, "stable_sanctuaries", profile, chance)?.let { return it }
 
         val chunkPos = ChunkPos(context.origin)
         val regionSize = if (explicit) 12 else 18

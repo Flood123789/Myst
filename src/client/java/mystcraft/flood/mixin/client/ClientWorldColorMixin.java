@@ -14,8 +14,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(ClientWorld.class)
 public class ClientWorldColorMixin {
-    private static final double CLOUD_BLEND = 0.55;
-
     @Inject(method = "getCloudsColor", at = @At("RETURN"), cancellable = true)
     private void mystcraft$getCloudsColor(float tickDelta, CallbackInfoReturnable<Vec3d> cir) {
         ClientWorld world = (ClientWorld) (Object) this;
@@ -28,18 +26,20 @@ public class ClientWorldColorMixin {
             return;
         }
 
-        Vec3d target = colorToVec(profile.getColors().getCloud());
-        Vec3d base = cir.getReturnValue();
-        if (base == null) {
-            cir.setReturnValue(target);
+        cir.setReturnValue(colorToVec(profile.getColors().getCloud()));
+    }
+
+    @Inject(method = "getSkyColor", at = @At("HEAD"), cancellable = true)
+    private void mystcraft$getSkyColor(Vec3d cameraPos, float tickDelta, CallbackInfoReturnable<Vec3d> cir) {
+        ClientWorld world = (ClientWorld) (Object) this;
+        if (!"mystcraft-reforged".equals(world.getRegistryKey().getValue().getNamespace())) {
             return;
         }
 
-        cir.setReturnValue(new Vec3d(
-                lerp(base.x, target.x, CLOUD_BLEND),
-                lerp(base.y, target.y, CLOUD_BLEND),
-                lerp(base.z, target.z, CLOUD_BLEND)
-        ));
+        AgeProfile profile = ClientAgeCache.INSTANCE.getProperties(world.getRegistryKey().getValue());
+        if (profile != null) {
+            cir.setReturnValue(colorToVec(profile.getColors().getSky()));
+        }
     }
 
     @Inject(method = "getColor", at = @At("HEAD"), cancellable = true)
@@ -65,9 +65,5 @@ public class ClientWorldColorMixin {
                 ((color >> 8) & 0xFF) / 255.0,
                 (color & 0xFF) / 255.0
         );
-    }
-
-    private static double lerp(double from, double to, double amount) {
-        return from * (1.0 - amount) + to * amount;
     }
 }

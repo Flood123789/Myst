@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "mystcraft-reforged:crystal_block"
+    "mystcraft-reforged:crystal_block",
+    "mystcraft-reforged:book_receptacle"
   ]
 }

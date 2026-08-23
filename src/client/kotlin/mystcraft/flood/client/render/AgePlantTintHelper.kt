@@ -1,10 +1,7 @@
 package mystcraft.flood.client.render
 
-import mystcraft.flood.client.cache.ClientAgeCache
-import mystcraft.flood.client.compat.SereneSeasonsClientCompat
 import net.minecraft.block.Block
 import net.minecraft.block.Blocks
-import net.minecraft.client.MinecraftClient
 import net.minecraft.client.color.world.BiomeColors
 import net.minecraft.util.math.MathHelper
 import net.minecraft.util.math.BlockPos
@@ -18,19 +15,10 @@ object AgePlantTintHelper {
     private const val DEFAULT_WATER = 0x3F76E4
 
     fun getTintFor(block: Block, world: BlockRenderView?, pos: BlockPos?): Int {
-        val clientWorld = MinecraftClient.getInstance().world
-        val registryKey = clientWorld?.registryKey
-
-        if (registryKey == null || registryKey.value.namespace != "mystcraft-reforged") {
-            return vanillaTint(block, world, pos)
-        }
-
-        val profile = ClientAgeCache.getProperties(registryKey.value) ?: return vanillaTint(block, world, pos)
+        val profile = AgeColorContext.getProfile(world) ?: return vanillaTint(block, world, pos)
         val foliage = profile.colors.foliage and 0xFFFFFF
         val grass = profile.colors.grass and 0xFFFFFF
         val water = profile.colors.water and 0xFFFFFF
-        val seasonalFoliage = SereneSeasonsClientCompat.applyFoliageColor(foliage, clientWorld, pos)
-        val seasonalGrass = SereneSeasonsClientCompat.applyGrassColor(grass, clientWorld, pos)
 
         return when (block) {
             Blocks.OAK_LEAVES,
@@ -43,7 +31,7 @@ object AgePlantTintHelper {
             Blocks.AZALEA_LEAVES,
             Blocks.FLOWERING_AZALEA_LEAVES,
             Blocks.VINE,
-            Blocks.LILY_PAD -> seasonalFoliage
+            Blocks.LILY_PAD -> foliage
 
             Blocks.CHERRY_LEAVES -> -1
 
@@ -61,7 +49,7 @@ object AgePlantTintHelper {
             Blocks.BIG_DRIPLEAF_STEM,
             Blocks.MOSS_BLOCK,
             Blocks.MOSS_CARPET,
-            Blocks.PINK_PETALS -> seasonalGrass
+            Blocks.PINK_PETALS -> grass
 
             Blocks.WATER -> water
             else -> vanillaTint(block, world, pos)

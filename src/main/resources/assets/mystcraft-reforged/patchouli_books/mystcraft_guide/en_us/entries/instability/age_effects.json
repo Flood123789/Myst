@@ -2,15 +2,15 @@
   "name": "Age Effects",
   "category": "mystcraft-reforged:instability",
   "icon": "mystcraft-reforged:symbol_page",
-  "sortnum": 1,
+  "sortnum": 3,
   "pages": [
     {
       "type": "text",
-      "text": "$(thing)Effect Pages$() are curses and blessings kept apart from ordinary symbols. To bind one, place the rare $(thing)Age Effect$() sign before the chosen potion effect. Thereafter the Age may touch living travelers with that power, unseen and without the usual shimmer."
+      "text": "$(thing)Effect Pages$() are curses and blessings kept apart from ordinary symbols. To bind one, include the rare $(thing)Age Effect$() marker and one non-instant status-effect page. Their relative order does not matter; if several effects are present, the last is chosen and the disagreement adds instability."
     },
     {
       "type": "text",
-      "text": "An Age Effect is not the same as instability. A calm Age may still carry one deliberate enchantment, just as a peaceful lake may hide a deep current. Such pages are costly to seek, and chance uncovers them only rarely."
+      "text": "An Age Effect is not the same as instability. Once each second, every survival traveler has a 6% chance to receive the chosen effect for 9 seconds, without particles or an icon. Creative and spectator travelers are exempt. Writing one adds 65 instability before other adjustments."
     },
     {
       "type": "text",

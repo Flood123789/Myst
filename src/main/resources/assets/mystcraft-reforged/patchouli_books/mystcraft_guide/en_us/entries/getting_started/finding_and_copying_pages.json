@@ -1,0 +1,33 @@
+{
+  "name": "Finding and Copying Pages",
+  "category": "mystcraft-reforged:getting_started",
+  "icon": "mystcraft-reforged:lost_page",
+  "sortnum": 3,
+  "pages": [
+    {
+      "type": "text",
+      "title": "Lost Pages",
+      "text": "By default, vanilla stronghold libraries receive two to five Lost Pages in their loot. Abandoned archives and many Age landmarks also hide them, including cities, forgotten ruins, floating castles, exotic structures, aqueducts, gateways, and obelisks. Chest chances and page counts are configurable."
+    },
+    {
+      "type": "text",
+      "title": "Revelation",
+      "text": "Use a Lost Page to reveal one random Symbol Page; the scrap is consumed. Common writing appears often. Age Effect is exceptionally rare, status effects are rare, and Cities, Biospheres, Dense Ores, No Mobs, and Exotic Virus are among the rarest named symbols. Configured biome, terrain, or symbol blacklists remove matching pages from this pool."
+    },
+    {
+      "type": "text",
+      "title": "Notebooks",
+      "text": "A Notebook is a reusable ordered library of up to 56 symbols. Open it, place Symbol Pages in reading order, and name the collection if desired. The Binder and Writing Desk read that order without consuming the Notebook or its stored pages."
+    },
+    {
+      "type": "text",
+      "title": "Printing Symbols",
+      "text": "At a Printing Table, place a filled Notebook in the source slot and an Empty Page in the material slot. Select the desired symbol with the arrows, then take the output. The Empty Page is consumed only when the printed page is removed."
+    },
+    {
+      "type": "text",
+      "title": "Copying Books",
+      "text": "A Linking Book or Descriptive Book plus one leather produces an exact copy at the Printing Table. Names, symbols, destination, preview, and binding lineage are preserved. A copied Descriptive Book points to the same Age; it never creates another one."
+    }
+  ]
+}

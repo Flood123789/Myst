@@ -2,7 +2,7 @@
   "name": "Age Sacrifice",
   "icon": "minecraft:flint_and_steel",
   "category": "mystcraft-reforged:instability",
-  "sortnum": 2,
+  "sortnum": 4,
   "pages": [
     {
       "type": "text",
@@ -15,11 +15,11 @@
     },
     {
       "type": "text",
-      "text": "The steadier the offering, the deeper the cleansing. Do not expect tidy arithmetic from hungry ink; it takes a measure of the gap between the worlds and shaves the target's fever by that proportion."
+      "text": "The rite compares the scores. Its reduction percentage is $(thing)(target - sacrifice) / 18$(), clamped between 1% and 60%. The target then loses that percentage of its current score, rounded upward. Thus a much steadier offering heals far more, but no single sacrifice removes over 60%."
     },
     {
       "type": "text",
-      "text": "The offered Age becomes a corpse: void land, empty heavens, no weather, no common road, no living generation, and books whose words run like tears. Ordinary travelers are expelled from such remains."
+      "text": "The offered Age becomes a corpse and its family inherits the death: the root dimension data is erased, future terrain becomes void, heavens and weather are blanked, spawning and effects stop, and books become unreadable. Ordinary travelers are expelled; creative and spectator travelers may inspect the hollow."
     }
   ]
 }

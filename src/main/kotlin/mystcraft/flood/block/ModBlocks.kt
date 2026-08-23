@@ -6,7 +6,6 @@ import net.fabricmc.fabric.api.`object`.builder.v1.block.FabricBlockSettings
 import net.minecraft.block.AbstractBlock
 import net.minecraft.block.Block
 import net.minecraft.block.Blocks
-import net.minecraft.block.GlassBlock
 import net.minecraft.block.MapColor
 import net.minecraft.item.BlockItem
 import net.minecraft.item.Item
@@ -16,6 +15,7 @@ import net.minecraft.registry.Registry
 import net.minecraft.sound.BlockSoundGroup
 import net.minecraft.util.Identifier
 
+/** Owns block and matching BlockItem registry ids; block entities are registered separately. */
 object ModBlocks {
     val BOOK_BINDER = registerBlock("book_binder", BookBinderBlock(FabricBlockSettings.copyOf(Blocks.OAK_PLANKS)))
     val WRITING_DESK = registerBlock("writingdesk", WritingDeskBlock(FabricBlockSettings.copyOf(Blocks.OAK_PLANKS)))
@@ -23,7 +23,7 @@ object ModBlocks {
     val PRINTING_TABLE = registerBlock("printing_table", PrintingTableBlock(FabricBlockSettings.copyOf(Blocks.OAK_PLANKS)))
     val BOOK_STAND = registerBlock("bookstand", BookStandBlock(FabricBlockSettings.copyOf(Blocks.OAK_PLANKS).nonOpaque()))
 
-    val CRYSTAL_BLOCK = registerBlock("crystal_block", GlassBlock(
+    val CRYSTAL_BLOCK = registerBlock("crystal_block", PaintableCrystalBlock(
         AbstractBlock.Settings.create()
             .mapColor(MapColor.DIAMOND_BLUE)
             .strength(1.5f)

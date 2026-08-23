@@ -1,8 +1,10 @@
 package mystcraft.flood.registry
 
+import mystcraft.flood.config.MystcraftConfig
 import mystcraft.flood.item.ModItems
 import net.fabricmc.fabric.api.loot.v2.LootTableEvents
 import net.minecraft.loot.LootPool
+import net.minecraft.loot.condition.RandomChanceLootCondition
 import net.minecraft.loot.entry.ItemEntry
 import net.minecraft.loot.provider.number.UniformLootNumberProvider
 import net.minecraft.util.Identifier
@@ -19,10 +21,12 @@ object ModLoot {
             
             // If the game is generating one of these specific chests...
             if (id == STRONGHOLD_LIBRARY || id == ABANDONED_ARCHIVE) {
-                
-                // Create a new loot pool that drops between 2 and 5 Lost Pages
+                val loot = MystcraftConfig.current.loot
+
+                // Configurable Lost Page rolls for vanilla/data-driven chests.
                 val pagePool = LootPool.builder()
-                    .rolls(UniformLootNumberProvider.create(2.0f, 5.0f))
+                    .rolls(UniformLootNumberProvider.create(loot.vanillaChestMinPages.toFloat(), loot.vanillaChestMaxPages.toFloat()))
+                    .conditionally(RandomChanceLootCondition.builder(loot.vanillaChestPageChance))
                     .with(ItemEntry.builder(ModItems.LOST_PAGE))
 
                 // Inject our pool into the chest!

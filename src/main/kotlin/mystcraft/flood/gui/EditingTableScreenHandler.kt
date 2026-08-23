@@ -22,6 +22,11 @@ import net.minecraft.text.Text
 import net.minecraft.util.Formatting
 import net.minecraft.util.Identifier
 
+/**
+ * Server-side inventory and validation for the Editing Table.
+ * The paired client screen proposes tuning/name changes, while this handler verifies the active
+ * container and inputs before writing NBT or staging terrain settings for Age creation.
+ */
 class EditingTableScreenHandler(
     syncId: Int,
     private val playerInventory: PlayerInventory,

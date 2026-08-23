@@ -2,19 +2,19 @@
   "name": "Sky Anomalies",
   "category": "mystcraft-reforged:age_writing",
   "icon": "mystcraft-reforged:symbol_page",
-  "sortnum": 3,
+  "sortnum": 5,
   "pages": [
     {
       "type": "text",
-      "text": "$(thing)Sky anomaly pages$() describe impossible things that live in the skybox: auroras, rainbows, rifts, nebulae, glyphs, galaxies, prism rings, lanterns, fracture webs, celestial script, and stranger lights besides."
+      "text": "$(thing)Sky anomaly pages$() describe impossible things that live in the skybox: auroras, rainbows, shooting stars, comets, rifts, nebulae, glyphs, galaxies, prism rings, lanterns, fracture webs, celestial script, bright or dark skies, and stranger lights besides."
     },
     {
       "type": "text",
-      "text": "These pages are mostly visual. They should not add server-heavy structures or chunk generation. A sky written with care can feel wildly different while remaining cheap for a server to carry."
+      "text": "Most of these pages are visual and add no chunk structures. $(thing)Meteor Showers$() and $(thing)Sky Spheres$() are exceptions: they generate physical features. Motes, ash, spores, and void particles are a separate ambient family rendered around travelers."
     },
     {
       "type": "text",
-      "text": "An authored sky anomaly is a stabilizing detail. The Age knows what mood its heavens are meant to wear, so it improvises less. Randomly gained sky anomalies can still feel chaotic, especially in sparse books."
+      "text": "An authored visual sky anomaly lowers instability by roughly 8 to 12 points, depending on the page. The Age knows what mood its heavens are meant to wear, so it improvises less. A sky anomaly gained through Random receives no authored relief."
     },
     {
       "type": "text",

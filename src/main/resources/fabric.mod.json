@@ -24,6 +24,12 @@
         "adapter": "kotlin"
       }
     ],
+    "modmenu": [
+      {
+        "value": "mystcraft.flood.client.MystcraftModMenu",
+        "adapter": "kotlin"
+      }
+    ],
     "fabric-datagen": [
       {
         "value": "mystcraft.flood.MystcraftReforgedDataGenerator",
@@ -48,7 +54,9 @@
 
   "suggests": {
     "lostcities": "*",
+    "sereneseasons": "*",
     "patchouli": "*",
-    "sereneseasons": "*"
+    "modmenu": "*",
+    "cloth-config": "*"
   }
 }

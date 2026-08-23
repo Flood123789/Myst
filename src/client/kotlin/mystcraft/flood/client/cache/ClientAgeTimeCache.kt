@@ -12,8 +12,6 @@ import java.util.concurrent.ConcurrentHashMap
  * timeline without borrowing the active dimension's day/night state.
  */
 object ClientAgeTimeCache {
-    data class ClockRate(val timeScale: Float, val frozen: Boolean)
-
     private data class Anchor(
         val visibleTime: Long,
         val timeScale: Float,
@@ -42,10 +40,8 @@ object ClientAgeTimeCache {
         )
     }
 
-    fun getClockRate(id: Identifier): ClockRate? {
-        val anchor = anchors[id] ?: return null
-        return ClockRate(anchor.timeScale, anchor.frozen)
-    }
+    /** True once the server-authoritative Mystcraft clock has arrived for this Age. */
+    fun hasAuthoritativeTime(id: Identifier): Boolean = anchors.containsKey(id)
 
     fun clear() {
         anchors.clear()

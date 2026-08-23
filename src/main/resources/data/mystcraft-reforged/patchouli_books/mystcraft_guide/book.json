@@ -1,7 +1,7 @@
 {
   "name": "The Wayfarer's Primer",
   "landing_text": "I leave these notes for the next hand brave enough to stain paper with living ink. Herein are the habits of Ages, the temper of symbols, the mercy of linking books, and the old warnings I learned by losing boots, blood, and friends to worlds that should never have opened.",
-  "version": 1,
+  "version": 2,
   "creative_tab": "mystcraft-reforged:mystcraft_group",
   "model": "mystcraft-reforged:guide_book",
   "use_resource_pack": true,

@@ -26,6 +26,13 @@ import net.minecraft.util.Hand
 import net.minecraft.util.Identifier
 import net.minecraft.util.math.BlockPos
 
+/**
+ * Common network contract and server-side packet handlers.
+ *
+ * `C2S` handlers treat packet data as an untrusted request: the active screen, held item, slot,
+ * permissions, and values must be re-validated on the server before state changes. The `S2C`
+ * helpers serialize authoritative profile snapshots for client rendering and book previews.
+ */
 object ModMessages {
     val DIMENSION_SYNC = Identifier(MystcraftReforged.MOD_ID, "dimension_sync")
     val DIMENSION_TIME_SYNC = Identifier(MystcraftReforged.MOD_ID, "dimension_time_sync")
@@ -165,7 +172,7 @@ object ModMessages {
                     renameDisplayedDescriptiveBook(server, player, standPos, requestedName)
                 } else if (hand != null) {
                     val stack = player.getStackInHand(hand)
-                    if (resolveDescriptiveBook(stack) != null) {
+                    if (resolveDescriptiveBook(stack) != null || stack.isOf(ModItems.LINKING_BOOK)) {
                         renameDescriptiveBookStack(server, stack, requestedName)
                         syncPlayerInventory(player)
                     }
@@ -295,7 +302,7 @@ object ModMessages {
         if (standPos == null) return
         val blockEntity = player.serverWorld.getBlockEntity(standPos) as? BookStandBlockEntity ?: return
         val stack = blockEntity.getBook()
-        if (resolveDescriptiveBook(stack) == null) return
+        if (resolveDescriptiveBook(stack) == null && !stack.isOf(ModItems.LINKING_BOOK)) return
         renameDescriptiveBookStack(server, stack, requestedName)
         blockEntity.markBookDirty()
     }

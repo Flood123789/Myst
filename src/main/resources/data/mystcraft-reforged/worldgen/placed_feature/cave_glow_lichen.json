@@ -1,0 +1,8 @@
+{
+  "feature": "mystcraft-reforged:cave_glow_lichen",
+  "placement": [
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

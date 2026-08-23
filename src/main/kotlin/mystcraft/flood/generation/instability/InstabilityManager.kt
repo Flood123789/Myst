@@ -6,6 +6,7 @@ import mystcraft.flood.generation.AgeLifecycleManager
 import mystcraft.flood.generation.physics.LowGravityPhysics
 import mystcraft.flood.generation.profile.AgeProfile
 import mystcraft.flood.generation.profile.AgeProfileManager
+import mystcraft.flood.config.MystcraftConfig
 import net.minecraft.entity.effect.StatusEffect
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import net.minecraft.block.Blocks
@@ -16,6 +17,13 @@ import net.minecraft.server.world.ServerWorld
 import net.minecraft.util.math.Vec3d
 import net.minecraft.world.World.ExplosionSourceType
 
+/**
+ * Applies runtime consequences of an Age's instability score.
+ *
+ * Lightweight physics runs every world tick; random status, lightning, decay, and explosion
+ * checks run once per second. Thresholds define escalation order while balance config controls
+ * probabilities, keeping save meaning stable when server owners tune effect frequency.
+ */
 object InstabilityManager {
 
     fun register() {
@@ -30,6 +38,8 @@ object InstabilityManager {
         val profile = AgeProfileManager.getOrGenerateProfile(world.server, world.registryKey.value)
         if (AgeLifecycleManager.isDeadAge(profile)) return
 
+        // Gravity affects motion and must remain smooth, while destructive/random effects are
+        // deliberately throttled to a one-second cadence.
         applyLowGravity(world, profile)
         if (world.time % 20L != 0L) return
 
@@ -37,6 +47,7 @@ object InstabilityManager {
         if (profile.stability.isStable || !profile.stability.effectsEnabled || profile.stability.instabilityScore <= 0) return
 
         val score = profile.stability.instabilityScore
+        val balance = MystcraftConfig.current.instability
         val naturalDecayState = getNaturalDecayState(profile)
 
         for (player in world.players) {
@@ -45,25 +56,25 @@ object InstabilityManager {
             val rand = world.random
 
             // ==========================================
-            // TIER 1: Mild Decay (Score 10+)
+            // TIER 1: Mild Decay (Score 45+)
             // ==========================================
-            if (score >= 10 && rand.nextFloat() < 0.05f) { 
-                player.addStatusEffect(StatusEffectInstance(StatusEffects.SLOWNESS, 200, 0, false, false))
-                player.addStatusEffect(StatusEffectInstance(StatusEffects.MINING_FATIGUE, 200, 0, false, false))
+            if (score >= InstabilityThresholds.MILD_DECAY && rand.nextFloat() < balance.mildChancePerSecond) {
+                player.addStatusEffect(StatusEffectInstance(StatusEffects.SLOWNESS, balance.mildDurationTicks, 0, false, false))
+                player.addStatusEffect(StatusEffectInstance(StatusEffects.MINING_FATIGUE, balance.mildDurationTicks, 0, false, false))
             }
 
             // ==========================================
-            // TIER 2: Moderate Decay (Score 20+)
+            // TIER 2: Moderate Decay (Score 65+)
             // ==========================================
-            if (score >= 20 && rand.nextFloat() < 0.03f) { 
-                player.addStatusEffect(StatusEffectInstance(StatusEffects.NAUSEA, 160, 0, false, false))
-                player.addStatusEffect(StatusEffectInstance(StatusEffects.POISON, 100, 0, false, false))
+            if (score >= InstabilityThresholds.MODERATE_DECAY && rand.nextFloat() < balance.moderateChancePerSecond) {
+                player.addStatusEffect(StatusEffectInstance(StatusEffects.DARKNESS, balance.darknessDurationTicks, 0, false, false))
+                player.addStatusEffect(StatusEffectInstance(StatusEffects.POISON, balance.poisonDurationTicks, 0, false, false))
             }
 
             // ==========================================
-            // TIER 3: Severe Decay (Score 30+)
+            // TIER 3: Severe Decay (Score 80+)
             // ==========================================
-            if (score >= 30 && rand.nextFloat() < 0.02f) { 
+            if (score >= InstabilityThresholds.SEVERE_DECAY && rand.nextFloat() < balance.severeChancePerSecond) {
                 val offsetX = rand.nextInt(20) - 10
                 val offsetZ = rand.nextInt(20) - 10
                 val strikePos = player.blockPos.add(offsetX, 0, offsetZ)
@@ -77,16 +88,16 @@ object InstabilityManager {
             }
 
             // ==========================================
-            // TIER 4: The World Eater (Score 40+)
+            // TIER 4: The World Eater (Score 100+)
             // ==========================================
-            if (score >= 40) {
-                val overload = score - 40
+            if (score >= InstabilityThresholds.WORLD_EATER) {
+                val overload = score - InstabilityThresholds.WORLD_EATER
                 
-                // Frequency Math: Base 5% chance. Adds 1% for every 1 point over 40. Coerced to max 100%.
-                val spawnChance = (0.05f + (overload * 0.01f)).coerceAtMost(1.0f)
+                // Frequency Math: Base 5% chance. Adds 1% for every point over the threshold. Coerced to max 100%.
+                val spawnChance = (balance.worldEaterBaseChancePerSecond + (overload * balance.worldEaterChancePerPoint)).coerceAtMost(1.0f)
                 
                 if (rand.nextFloat() < spawnChance) {
-                    // Quantity Math: Base 1 seed. Adds 1 extra seed for every 15 points over 40. Coerced to max 10 seeds.
+                    // Quantity Math: Base 1 seed. Adds 1 extra seed for every 15 overload points. Coerced to max 10 seeds.
                     val maxSeeds = (1 + (overload / 15)).coerceAtMost(10)
                     
                     for (i in 0 until maxSeeds) {
@@ -105,10 +116,10 @@ object InstabilityManager {
             }
 
             // ==========================================
-            // TIER 5: Critical Collapse (Score 50+)
+            // TIER 5: Critical Collapse (Score 115+)
             // Symptoms: Spontaneous small explosions!
             // ==========================================
-            if (score >= 50 && rand.nextFloat() < 0.01f) { 
+            if (score >= InstabilityThresholds.CRITICAL_COLLAPSE && rand.nextFloat() < balance.criticalChancePerSecond) {
                 val offsetX = rand.nextInt(10) - 5
                 val offsetZ = rand.nextInt(10) - 5
                 val boomPos = player.blockPos.add(offsetX, 0, offsetZ)

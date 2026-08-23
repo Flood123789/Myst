@@ -32,6 +32,11 @@ private fun positiveHash(x: Int, y: Int, z: Int): Int {
     return hash and Int.MAX_VALUE
 }
 
+/**
+ * Constructs the glass shell, interior terrain, and safe-entry area of a biosphere cell.
+ * Sphere centers come from [BiosphereLayout], allowing the chunk generator, feature placement,
+ * and travel safety code to agree on the same geometry without sharing mutable state.
+ */
 class BiosphereFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatureConfig>(codec) {
 
     companion object {

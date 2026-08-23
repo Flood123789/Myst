@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "minecraft:leather"
+    },
+    {
+      "item": "mystcraft-reforged:linkpanel"
+    }
+  ],
+  "result": {
+    "item": "mystcraft-reforged:linkingbook",
+    "count": 1
+  }
+}

@@ -35,6 +35,7 @@ class FloatingCastleFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defaul
         val profile = AgeProfileManager.getOrGenerateProfile(serverWorld.server, serverWorld.registryKey.value)
         if (AgeLifecycleManager.isDeadAge(profile)) return false
         if (profile.terrainType == TerrainType.BIOSPHERES) return false
+        CustomStructureOverrides.generateIfPresent(context, "floating_castle", profile)?.let { return it }
 
         val chunkPos = ChunkPos(origin)
         val structureManager = serverWorld.structureTemplateManager
@@ -127,7 +128,7 @@ class FloatingCastleFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defaul
             if (!isPosInCurrentChunk(info.pos, chunkPos)) continue
             val blockEntity = world.getBlockEntity(info.pos)
             if (blockEntity is ChestBlockEntity && blockEntity.isEmpty) {
-                val pageCount = 2 + random.nextInt(4)
+                val pageCount = FeatureBuildHelper.configuredLostPageCount(random, 2, 5)
                 repeat(pageCount) {
                     blockEntity.setStack(random.nextInt(blockEntity.size()), ItemStack(ModItems.LOST_PAGE))
                 }

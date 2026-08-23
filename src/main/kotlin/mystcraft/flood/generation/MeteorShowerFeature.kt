@@ -25,6 +25,7 @@ class MeteorShowerFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultF
         if (AgeLifecycleManager.isDeadAge(profile)) return false
         if (!profile.modifiers.contains(ChaosAgeThemes.METEOR_SHOWERS)) return false
         if (profile.terrainType == TerrainType.BIOSPHERES || profile.terrainType == TerrainType.CITIES) return false
+        CustomStructureOverrides.generateIfPresent(context, "meteor_showers", profile, 1f / 34f)?.let { return it }
 
         val origin = context.origin
         val chunkPos = ChunkPos(origin)

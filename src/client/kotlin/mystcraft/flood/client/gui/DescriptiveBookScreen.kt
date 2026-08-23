@@ -20,6 +20,11 @@ import net.minecraft.util.Hand
 import net.minecraft.util.Identifier
 import net.minecraft.util.math.BlockPos
 
+/**
+ * Read-only book UI for an authored or linked Descriptive Book.
+ * Content comes from [DescriptiveBookSurveyBuilder]; activation and renaming are requests sent to
+ * the authoritative server rather than direct edits to the client-side ItemStack copy.
+ */
 class DescriptiveBookScreen(
     private val stack: ItemStack,
     private val hand: Hand?,

@@ -7,17 +7,17 @@
     {
       "type": "text",
       "title": "What Raises It",
-      "text": "Instability is born of three old sins: silence, contradiction, and greed. Sparse books, random vows, clashing commands, strange terrain, cruel weather, crowded biomes, and mighty landmarks all make an Age restless. Worst of all is losing the descriptive book itself. When the bound volume is truly destroyed or allowed to vanish, the Age suffers a savage wound of two hundred instability."
+      "text": "Instability is a numeric score born of silence, contradiction, and greed. Sparse books, random vows, clashing commands, costly terrain, cruel weather, crowded biomes, and powerful laws all change it. Losing the last tracked copy of a linked descriptive-book lineage adds a savage $(thing)200 instability$()."
     },
     {
       "type": "text",
       "title": "What Lowers It",
-      "text": "A named thing is calmer than an unnamed one. Give the Age land, biomes, time, sun, moon, stars, and weather. A single biome is a lullaby. A familiar world-shape is another. Even danger behaves better when invited by name instead of arriving through accident."
+      "text": "A named thing is calmer than an unnamed one. Define terrain, biomes, time, sun, moon, stars, and weather. A single biome, Vanilla Distribution, Standard terrain, normal weather, authored landmarks, and explicit sky details all grant relief. See $(l:mystcraft-reforged:instability/stability_scoring)How Stability Is Scored$() for the exact values."
     },
     {
       "type": "text",
       "title": "Effects",
-      "text": "Every Age keeps a hidden fever. When it rises, the first signs are weakness and ill luck. Then come lightning, blasts, and decay creeping like mold through reality. The rot may bloom black or white, for each Age chooses its own pallor."
+      "text": "By default, symptoms begin at score 45 and accumulate at 65, 80, 100, and 115: slowness and fatigue; darkness and poison; lightning; black or white decay; then explosions. Low nonzero instability does not cause direct symptoms, so an Age need not reach zero to become livable. See $(l:mystcraft-reforged:instability/instability_levels)Instability Levels$() for rates and configuration."
     },
     {
       "type": "text",
@@ -27,7 +27,7 @@
     {
       "type": "text",
       "title": "Cleansing",
-      "text": "Set the linked descriptive book in the $(thing)Editing Table$() with a $(item)Curse Cleansing$() symbol page, one ink vial, four lapis, and an amethyst shard. The table lifts the strongest legible curse first and eases a little instability, but sacrifices and careful writing still do the heavier healing."
+      "text": "Set the linked descriptive book in the $(thing)Editing Table$() with a $(item)Curse Cleansing$() page, one ink vial, four lapis, and an amethyst shard. The strongest curse is removed first. Relief is: harmful effect 24, storm 18, hostile surge 16, lifeless silence 14, time lock 12, low gravity 10, rain 8, starless sky 6."
     },
     {
       "type": "text",

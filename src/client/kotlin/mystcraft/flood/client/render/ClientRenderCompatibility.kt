@@ -62,12 +62,6 @@ object ClientRenderCompatibility {
     fun canUseRenderSystemCloudTint(): Boolean = !isIrisShadowPass()
 
     @JvmStatic
-    fun canUseCustomSkyOverlay(): Boolean = !isIrisShadowPass() && (!isShaderPackActive() || distantHorizonsLoaded)
-
-    @JvmStatic
-    fun canUseShaderFallbackSkyOverlay(): Boolean = isShaderPackActive() && !isIrisShadowPass() && !distantHorizonsLoaded
-
-    @JvmStatic
     fun canUseCustomCloudHeight(): Boolean = !isShaderPackActive() && !distantHorizonsLoaded
 
     @JvmStatic

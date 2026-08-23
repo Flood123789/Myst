@@ -14,11 +14,13 @@ import net.minecraft.registry.Registries
 import net.minecraft.util.Identifier
 import kotlin.math.abs
 
+/** One already-formatted page in the read-only Descriptive Book survey. */
 data class DescriptiveBookSurveyPage(
     val title: String,
     val paragraphs: List<String>
 )
 
+/** View model consumed by [DescriptiveBookScreen]; it contains no mutable game state. */
 data class DescriptiveBookSurvey(
     val title: String,
     val subtitle: String,
@@ -29,6 +31,13 @@ data class DescriptiveBookSurvey(
     val pages: List<DescriptiveBookSurveyPage>
 )
 
+/**
+ * Translates book NBT plus an optional synced [AgeProfile] into human-readable survey pages.
+ *
+ * Unlinked books are previewed through [AgeCompiler]; linked books prefer the server-authored
+ * client-cache snapshot. Keeping this translation outside the screen prevents rendering code
+ * from duplicating grammar and profile interpretation.
+ */
 object DescriptiveBookSurveyBuilder {
     fun build(stack: ItemStack): DescriptiveBookSurvey {
         val ageId = stack.nbt?.getString("Age_ID")?.let(Identifier::tryParse)
@@ -606,6 +615,8 @@ object DescriptiveBookSurveyBuilder {
         TerrainType.FLAT -> "broad flat country with little relief"
         TerrainType.BIOSPHERES -> "domed worlds held apart in glass-like pockets"
         TerrainType.CITIES -> "ordered ruins and urban bones"
+        TerrainType.NETHER -> "a Nether-shaped realm built from burning stone"
+        TerrainType.END -> "an End-shaped realm of islands over the void"
         TerrainType.VOID -> "a near-empty gulf with little but sky and hazard"
     }
 

@@ -29,6 +29,11 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
+/**
+ * Legacy city-grid feature retained for data compatibility and focused city placement.
+ * New full city terrain is coordinated by [LostCityChunkGenerator] and [LostCityLayout]; do not
+ * make their grid constants diverge or roads will fail to meet across generation paths.
+ */
 class CityGridFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatureConfig>(codec) {
 
     companion object {
@@ -1971,7 +1976,7 @@ class CityGridFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatu
         world.setBlockState(pos, Blocks.CHEST.defaultState.with(Properties.HORIZONTAL_FACING, facing), 2)
         val chest = world.getBlockEntity(pos)
         if (chest is ChestBlockEntity) {
-            repeat(max(1, pages)) {
+            repeat(FeatureBuildHelper.configuredLostPageCount(world.random, max(1, pages), max(1, pages))) {
                 chest.setStack((it * 7) % chest.size(), ItemStack(ModItems.LOST_PAGE))
             }
         }

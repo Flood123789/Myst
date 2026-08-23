@@ -1,0 +1,53 @@
+{
+  "name": "Crafting the Craft",
+  "category": "mystcraft-reforged:getting_started",
+  "icon": "mystcraft-reforged:writingdesk",
+  "sortnum": 2,
+  "pages": [
+    {
+      "type": "crafting",
+      "title": "Pages and Notebooks",
+      "recipe": "mystcraft-reforged:page",
+      "recipe2": "mystcraft-reforged:notebook",
+      "text": "Paper becomes an Empty Page. Leather and two Empty Pages make a Notebook, which stores up to 56 ordered Symbol Pages and may be named in its own screen."
+    },
+    {
+      "type": "crafting",
+      "title": "The Book Binder",
+      "recipe": "mystcraft-reforged:book_binder",
+      "text": "The Binder combines leather with loose symbols or a filled Notebook to make a Descriptive Book. Leather alone makes a blank Descriptive Book; add one Empty Page instead to bind a Linking Book."
+    },
+    {
+      "type": "crafting",
+      "title": "Ink and Authorship",
+      "recipe": "mystcraft-reforged:ink_vial",
+      "recipe2": "mystcraft-reforged:writingdesk",
+      "text": "Ink Vials are used by the Writing Desk and curse cleansing. The Desk copies a Notebook into an unlinked Descriptive Book and renames descriptive bindings."
+    },
+    {
+      "type": "crafting",
+      "title": "Editing and Printing",
+      "recipe": "mystcraft-reforged:editing_table",
+      "recipe2": "mystcraft-reforged:printing_table",
+      "text": "The Editing Table tunes an unlinked book or cleanses a linked one. The Printing Table turns a Notebook symbol into a loose page, or duplicates a linked book."
+    },
+    {
+      "type": "crafting",
+      "title": "Displaying Books",
+      "recipe": "mystcraft-reforged:bookstand",
+      "text": "Use a Linking Book or Descriptive Book on an empty Bookstand to display it. Use the stand normally to read or activate the book; crouch-use it to take the book back. Breaking the stand also returns its book."
+    },
+    {
+      "type": "crafting",
+      "title": "Portal Receptacles",
+      "recipe": "mystcraft-reforged:book_receptacle",
+      "text": "A Book Receptacle replaces one Crystal in a portal frame and holds the linked book that powers it. Crystal itself has no ordinary recipe: recover it from crystal formations, tendrils, and certain obelisks with an iron pickaxe or better."
+    },
+    {
+      "type": "crafting",
+      "title": "The Primer",
+      "recipe": "mystcraft-reforged:guide_book",
+      "text": "The Wayfarer's Primer is crafted directly from leather and three Empty Pages. Patchouli is optional for the mod, but must be installed for this item to open the illustrated guide."
+    }
+  ]
+}

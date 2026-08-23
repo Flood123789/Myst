@@ -42,3 +42,8 @@ replay_*.log
 .gradle/
 .gradle-user/
 .gradle-user-local/
+# kotlin incremental build
+.kotlin/
+
+# scratch downloads
+.tmp/

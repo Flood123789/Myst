@@ -22,6 +22,7 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
 
+/** Generates seeded archaeological remains as an optional historic Age landmark. */
 class AncientRemainsFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatureConfig>(codec) {
 
     override fun generate(context: FeatureContext<DefaultFeatureConfig>): Boolean {
@@ -46,6 +47,7 @@ class AncientRemainsFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defaul
             else -> 0.0f
         } * AgeFeatureTuning.chanceMultiplier(profile, HistoricAgeThemes.ANCIENT_BONES)
         if (spawnChance <= 0f) return false
+        CustomStructureOverrides.generateIfPresent(context, "ancient_remains", profile, spawnChance)?.let { return it }
 
         val chunkPos = ChunkPos(origin)
         val regionSize = if (explicit) 9 else 12
