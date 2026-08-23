@@ -28,6 +28,7 @@ class CrystalFormationFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defa
         val profile = AgeProfileManager.getOrGenerateProfile(serverWorld.server, ageId)
         if (AgeLifecycleManager.isDeadAge(profile)) return false
         if (!profile.modifiers.contains("crystal_formations")) return false
+        CustomStructureOverrides.generateIfPresent(context, "crystal_formations", profile)?.let { return it }
 
         // Rarity: crystals should feel like rare discoveries even when the page is present.
         if (random.nextInt(1000) != 0) return false

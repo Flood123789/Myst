@@ -32,6 +32,21 @@ import kotlin.math.sqrt
  */
 class ExoticSurfaceFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeatureConfig>(codec) {
 
+    companion object {
+        private val NATURAL_THEMES = setOf(
+            ExoticAgeThemes.COLOSSAL_MUSHROOMS,
+            ExoticAgeThemes.FLOATING_BOULDERS,
+            ExoticAgeThemes.BASALT_SPIRES,
+            ExoticAgeThemes.GLASS_DUNES,
+            ExoticAgeThemes.PETRIFIED_FORESTS,
+            ExoticAgeThemes.LUMINOUS_GROVES,
+            ExoticAgeThemes.CORAL_FIELDS,
+            ExoticAgeThemes.ICE_NEEDLES,
+            ExoticAgeThemes.OBSIDIAN_CRAGS,
+            ExoticAgeThemes.RUNE_STONES
+        )
+    }
+
     override fun generate(context: FeatureContext<DefaultFeatureConfig>): Boolean {
         val world = context.world
         val origin = context.origin
@@ -45,6 +60,7 @@ class ExoticSurfaceFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Default
         val theme = ExoticAgeThemes.fromModifiers(profile.modifiers) ?: return false
 
         if (profile.terrainType == TerrainType.CITIES || profile.terrainType == TerrainType.BIOSPHERES) return false
+        CustomStructureOverrides.generateIfPresent(context, theme, profile)?.let { return it }
 
         val chunkPos = ChunkPos(origin)
         var placed = false
@@ -63,7 +79,8 @@ class ExoticSurfaceFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Default
             placed = placeAmbient(theme, world, chunkPos, ground, seededRand) || placed
         }
 
-        if (seededRand.nextInt(5) == 0) {
+        val majorDivisor = if (theme in NATURAL_THEMES) 3 else 5
+        if (seededRand.nextInt(majorDivisor) == 0) {
             val centerX = origin.x + 5 + seededRand.nextInt(6)
             val centerZ = origin.z + 5 + seededRand.nextInt(6)
             val ground = getGround(world, centerX, centerZ) ?: return placed
@@ -143,6 +160,7 @@ class ExoticSurfaceFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Default
                 else placeVirusTower(world, chunkPos, ground.add(0, 1, 0), 8, 4, false)
                 true
             }
+            in NATURAL_THEMES -> placeNaturalTheme(theme, world, chunkPos, ground, rand, false)
             else -> false
         }
     }
@@ -199,8 +217,178 @@ class ExoticSurfaceFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Default
                 }
                 true
             }
+            in NATURAL_THEMES -> placeNaturalTheme(theme, world, chunkPos, ground, rand, true)
             else -> false
         }
+    }
+
+    private fun placeNaturalTheme(
+        theme: String,
+        world: StructureWorldAccess,
+        chunkPos: ChunkPos,
+        ground: BlockPos,
+        rand: java.util.Random,
+        major: Boolean
+    ): Boolean {
+        when (theme) {
+            ExoticAgeThemes.COLOSSAL_MUSHROOMS -> {
+                val count = if (major) 4 else 1
+                repeat(count) { index ->
+                    val offset = formationOffset(index, major, rand)
+                    placeColossalMushroom(world, chunkPos, ground.add(offset), 8 + rand.nextInt(if (major) 13 else 6), 3 + rand.nextInt(if (major) 4 else 2), rand)
+                }
+            }
+            ExoticAgeThemes.FLOATING_BOULDERS -> {
+                val count = if (major) 5 else 1
+                repeat(count) { index ->
+                    val offset = formationOffset(index, major, rand)
+                    placeFloatingBoulder(world, chunkPos, ground.add(offset).up(7 + rand.nextInt(if (major) 14 else 6)), 2 + rand.nextInt(if (major) 4 else 2), rand)
+                }
+            }
+            ExoticAgeThemes.BASALT_SPIRES -> placeSpireField(world, chunkPos, ground, Blocks.BASALT, Blocks.POLISHED_BASALT, if (major) 7 else 3, if (major) 24 else 13, rand)
+            ExoticAgeThemes.GLASS_DUNES -> placeGlassDune(world, chunkPos, ground, if (major) 9 else 5, rand)
+            ExoticAgeThemes.PETRIFIED_FORESTS -> placeAlienGrove(world, chunkPos, ground, if (major) 7 else 2, false, rand)
+            ExoticAgeThemes.LUMINOUS_GROVES -> placeAlienGrove(world, chunkPos, ground, if (major) 6 else 2, true, rand)
+            ExoticAgeThemes.CORAL_FIELDS -> placeCoralField(world, chunkPos, ground, if (major) 18 else 7, rand)
+            ExoticAgeThemes.ICE_NEEDLES -> placeSpireField(world, chunkPos, ground, Blocks.PACKED_ICE, Blocks.BLUE_ICE, if (major) 8 else 3, if (major) 26 else 14, rand)
+            ExoticAgeThemes.OBSIDIAN_CRAGS -> placeSpireField(world, chunkPos, ground, Blocks.OBSIDIAN, Blocks.CRYING_OBSIDIAN, if (major) 6 else 2, if (major) 20 else 11, rand)
+            ExoticAgeThemes.RUNE_STONES -> placeRuneCircle(world, chunkPos, ground, if (major) 8 else 4, rand)
+        }
+        return true
+    }
+
+    private fun formationOffset(index: Int, spread: Boolean, rand: java.util.Random): BlockPos {
+        if (!spread || index == 0) return BlockPos.ORIGIN
+        return BlockPos(rand.nextInt(15) - 7, 0, rand.nextInt(15) - 7)
+    }
+
+    private fun placeColossalMushroom(
+        world: StructureWorldAccess,
+        chunkPos: ChunkPos,
+        base: BlockPos,
+        height: Int,
+        radius: Int,
+        rand: java.util.Random
+    ) {
+        for (y in 1..height) setBlock(world, chunkPos, base.up(y), Blocks.MUSHROOM_STEM)
+        val cap = if (rand.nextBoolean()) Blocks.RED_MUSHROOM_BLOCK else Blocks.BROWN_MUSHROOM_BLOCK
+        val capCenter = base.up(height)
+        for (dx in -radius..radius) for (dz in -radius..radius) {
+            val distance = dx * dx + dz * dz
+            if (distance <= radius * radius + 1) {
+                val lift = if (distance < (radius - 1) * (radius - 1)) 1 else 0
+                setBlock(world, chunkPos, capCenter.add(dx, lift, dz), cap)
+            }
+        }
+        setBlock(world, chunkPos, capCenter.up(2), Blocks.SHROOMLIGHT)
+    }
+
+    private fun placeFloatingBoulder(world: StructureWorldAccess, chunkPos: ChunkPos, center: BlockPos, radius: Int, rand: java.util.Random) {
+        for (dx in -radius..radius) for (dy in -radius..radius) for (dz in -radius..radius) {
+            val distance = dx * dx + dy * dy + dz * dz
+            if (distance <= radius * radius + rand.nextInt(3) - 1) {
+                val block = when (rand.nextInt(6)) {
+                    0 -> Blocks.MOSSY_COBBLESTONE
+                    1 -> Blocks.TUFF
+                    else -> Blocks.STONE
+                }
+                setBlock(world, chunkPos, center.add(dx, dy, dz), block)
+            }
+        }
+        for (drop in 1..radius + 2) {
+            if (rand.nextFloat() < 0.82f) setBlock(world, chunkPos, center.down(radius + drop), Blocks.POINTED_DRIPSTONE)
+        }
+    }
+
+    private fun placeSpireField(
+        world: StructureWorldAccess,
+        chunkPos: ChunkPos,
+        center: BlockPos,
+        body: Block,
+        accent: Block,
+        count: Int,
+        maxHeight: Int,
+        rand: java.util.Random
+    ) {
+        repeat(count) { index ->
+            val offset = formationOffset(index, true, rand)
+            val base = center.add(offset)
+            val height = maxHeight / 2 + rand.nextInt((maxHeight / 2).coerceAtLeast(1))
+            for (y in 0..height) {
+                val radius = when {
+                    y < height / 4 -> 2
+                    y < height * 3 / 4 -> 1
+                    else -> 0
+                }
+                for (dx in -radius..radius) for (dz in -radius..radius) {
+                    if (abs(dx) + abs(dz) <= radius + 1) {
+                        setBlock(world, chunkPos, base.add(dx, y + 1, dz), if ((y + dx + dz).mod(7) == 0) accent else body)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun placeGlassDune(world: StructureWorldAccess, chunkPos: ChunkPos, center: BlockPos, radius: Int, rand: java.util.Random) {
+        for (dx in -radius..radius) for (dz in -radius..radius) {
+            val distance = sqrt((dx * dx + dz * dz).toDouble())
+            if (distance > radius) continue
+            val height = ((radius - distance) * 0.55).roundToInt().coerceAtLeast(1)
+            for (y in 0 until height) {
+                val block = when ((dx * 3 + dz * 5 + y).mod(6)) {
+                    0 -> Blocks.LIGHT_BLUE_STAINED_GLASS
+                    1 -> Blocks.AMETHYST_BLOCK
+                    else -> if (rand.nextInt(5) == 0) Blocks.GLASS else Blocks.SAND
+                }
+                setBlock(world, chunkPos, center.add(dx, y + 1, dz), block)
+            }
+        }
+    }
+
+    private fun placeAlienGrove(world: StructureWorldAccess, chunkPos: ChunkPos, center: BlockPos, count: Int, luminous: Boolean, rand: java.util.Random) {
+        repeat(count) { index ->
+            val base = center.add(formationOffset(index, true, rand))
+            val height = 6 + rand.nextInt(if (luminous) 9 else 12)
+            val trunk = if (luminous) Blocks.WARPED_STEM else Blocks.STRIPPED_DARK_OAK_LOG
+            for (y in 1..height) setBlock(world, chunkPos, base.up(y), trunk)
+            for (direction in Direction.Type.HORIZONTAL) {
+                val length = 2 + rand.nextInt(4)
+                for (step in 1..length) setBlock(world, chunkPos, base.up(height - 2 + step / 2).offset(direction, step), trunk)
+                val tip = base.up(height - 2 + length / 2).offset(direction, length)
+                if (luminous) {
+                    setBlock(world, chunkPos, tip, Blocks.SHROOMLIGHT)
+                    setBlock(world, chunkPos, tip.up(), Blocks.FLOWERING_AZALEA_LEAVES)
+                } else {
+                    setBlock(world, chunkPos, tip.down(), Blocks.SOUL_LANTERN)
+                }
+            }
+        }
+    }
+
+    private fun placeCoralField(world: StructureWorldAccess, chunkPos: ChunkPos, center: BlockPos, count: Int, rand: java.util.Random) {
+        val corals = listOf(Blocks.TUBE_CORAL_BLOCK, Blocks.BRAIN_CORAL_BLOCK, Blocks.BUBBLE_CORAL_BLOCK, Blocks.FIRE_CORAL_BLOCK, Blocks.HORN_CORAL_BLOCK)
+        repeat(count) { index ->
+            val base = center.add(formationOffset(index, true, rand))
+            val block = corals[rand.nextInt(corals.size)]
+            val height = 2 + rand.nextInt(6)
+            for (y in 1..height) setBlock(world, chunkPos, base.up(y), block)
+            if (rand.nextBoolean()) setBlock(world, chunkPos, base.up(height + 1), Blocks.SEA_LANTERN)
+        }
+    }
+
+    private fun placeRuneCircle(world: StructureWorldAccess, chunkPos: ChunkPos, center: BlockPos, count: Int, rand: java.util.Random) {
+        val radius = if (count > 4) 7 else 4
+        repeat(count) { index ->
+            val angle = Math.PI * 2.0 * index / count
+            val base = center.add((cos(angle) * radius).roundToInt(), 1, (sin(angle) * radius).roundToInt())
+            val height = 3 + rand.nextInt(5)
+            for (y in 0 until height) {
+                val block = if (y == height - 2) Blocks.CRYING_OBSIDIAN else Blocks.CHISELED_DEEPSLATE
+                setBlock(world, chunkPos, base.up(y), block)
+            }
+            setBlock(world, chunkPos, base.up(height), Blocks.SOUL_LANTERN)
+        }
+        setBlock(world, chunkPos, center.up(), Blocks.LODESTONE)
     }
 
     private fun placeHexBush(world: StructureWorldAccess, chunkPos: ChunkPos, base: BlockPos, height: Int) {

@@ -200,8 +200,8 @@ object SkyRenderConfig {
     fun resolvedLayer(): SkyLayer? = when (current.mode) {
         SkyRenderMode.OFF -> null
         SkyRenderMode.SKY_PASS -> SkyLayer.SKY_PASS
-        SkyRenderMode.OVERLAY -> if (shaderPackActive()) SkyLayer.SKY_PASS else SkyLayer.OVERLAY
-        SkyRenderMode.AUTO -> SkyLayer.SKY_PASS
+        SkyRenderMode.OVERLAY -> SkyLayer.OVERLAY
+        SkyRenderMode.AUTO -> if (shaderPackActive()) SkyLayer.OVERLAY else SkyLayer.SKY_PASS
     }
 
     @JvmStatic

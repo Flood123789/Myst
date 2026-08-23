@@ -35,6 +35,7 @@ class FloatingCastleFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defaul
         val profile = AgeProfileManager.getOrGenerateProfile(serverWorld.server, serverWorld.registryKey.value)
         if (AgeLifecycleManager.isDeadAge(profile)) return false
         if (profile.terrainType == TerrainType.BIOSPHERES) return false
+        CustomStructureOverrides.generateIfPresent(context, "floating_castle", profile)?.let { return it }
 
         val chunkPos = ChunkPos(origin)
         val structureManager = serverWorld.structureTemplateManager

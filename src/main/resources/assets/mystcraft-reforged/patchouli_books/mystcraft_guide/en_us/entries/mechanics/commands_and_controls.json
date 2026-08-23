@@ -31,6 +31,11 @@
     },
     {
       "type": "text",
+      "title": "Serene Seasons",
+      "text": "When optional Serene Seasons is installed, each Age begins in a random sub-season and follows that Age's own time scale. A stopped clock also stops its seasons.$(br2)$(li)/mystcraft season reports the current state.$(li)/mystcraft season set <season> changes it.$(li)/mystcraft season <enable|disable> controls progression."
+    },
+    {
+      "type": "text",
       "title": "Instability and Curses",
       "text": "$(li)/mystcraft instability toggle suspends or restores tier symptoms without changing the score.$(li)/mystcraft curse list reports removable curses.$(li)/mystcraft curse cleanse removes the strongest curse for free and applies its normal instability relief."
     },

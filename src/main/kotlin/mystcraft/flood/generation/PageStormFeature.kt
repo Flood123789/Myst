@@ -39,6 +39,7 @@ class PageStormFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFeat
             else -> 0.0f
         } * AgeFeatureTuning.chanceMultiplier(profile, AmbientAgeThemes.PAGE_STORMS)
         if (chance <= 0f) return false
+        CustomStructureOverrides.generateIfPresent(context, "page_storms", profile, chance)?.let { return it }
 
         val chunkPos = ChunkPos(context.origin)
         val regionSize = if (explicit) 11 else 16

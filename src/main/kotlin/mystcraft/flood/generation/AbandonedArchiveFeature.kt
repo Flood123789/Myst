@@ -57,6 +57,7 @@ class AbandonedArchiveFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defa
             profile.stability.instabilityScore >= 35 -> 0.24f
             else -> 0.14f
         } * AgeFeatureTuning.chanceMultiplier(profile)
+        CustomStructureOverrides.generateIfPresent(context, "abandoned_archive", profile, regionChance)?.let { return it }
         if (regionRand.nextFloat() > regionChance) return false
 
         val ownerChunkX = regionX * archiveRegionSize + 5 + regionRand.nextInt(archiveRegionSize - 10)

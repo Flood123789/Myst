@@ -40,6 +40,9 @@ object ClientAgeTimeCache {
         )
     }
 
+    /** True once the server-authoritative Mystcraft clock has arrived for this Age. */
+    fun hasAuthoritativeTime(id: Identifier): Boolean = anchors.containsKey(id)
+
     fun clear() {
         anchors.clear()
         clientTick = 0L

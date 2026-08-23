@@ -34,6 +34,19 @@ class AgeCompilerCatalogTest {
     }
 
     @Test
+    fun `random pages are deterministic and can select real terrain symbols`() {
+        val first = AgeCompiler.compile(listOf("random"), kotlin.random.Random(42))
+        val second = AgeCompiler.compile(listOf("random"), kotlin.random.Random(42))
+        assertEquals(first, second)
+
+        val generatedTerrains = (0 until 200).mapNotNull { seed ->
+            AgeCompiler.compile(listOf("random"), kotlin.random.Random(seed)).terrainType
+        }
+        assertTrue(generatedTerrains.isNotEmpty())
+        assertTrue(generatedTerrains.all { it in setOf("FLOATING_ISLANDS", "AMPLIFIED", "ALPHA", "BETA", "CAVES", "FLAT", "BIOSPHERES", "CITIES", "NETHER", "END", "VOID") })
+    }
+
+    @Test
     fun `custom hex color remains exact across random seeds`() {
         val compiled = AgeCompiler.compile(listOf("color_custom:#FF00AA", "color_grass"))
         val spec = compiled.grassColorSpec as CompiledColor.Exact

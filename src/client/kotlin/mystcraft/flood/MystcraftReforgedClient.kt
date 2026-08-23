@@ -27,6 +27,7 @@ import mystcraft.flood.client.render.PageIconItemRenderer
 import mystcraft.flood.client.render.PaintedCrystalBlockEntityRenderer
 import mystcraft.flood.item.CrystalPaint
 import mystcraft.flood.compat.DistantHorizonsCompat
+import mystcraft.flood.compat.SereneSeasonsCompat
 import mystcraft.flood.entity.ModEntities
 import mystcraft.flood.gui.ModScreens
 import mystcraft.flood.item.NotebookItem
@@ -72,6 +73,7 @@ class MystcraftReforgedClient : ClientModInitializer {
             AgeTravelSoundSuppressor.INSTANCE.tick(client)
             AgeAmbientParticlePainter.tick(client)
             val dimension = client.world?.registryKey?.value
+            SereneSeasonsCompat.tickClient(dimension)
             val paletteReady = dimension != null && (
                 dimension.namespace != MystcraftReforged.MOD_ID || ClientAgeCache.getProperties(dimension) != null
             )
@@ -95,6 +97,7 @@ class MystcraftReforgedClient : ClientModInitializer {
             ClientAgeCache.clear()
             ClientAgeTimeCache.clear()
             DistantHorizonsCompat.clear()
+            SereneSeasonsCompat.clear()
             MystcraftReforged.LOGGER.info("Cleared Age Cache on disconnect.")
         }
         

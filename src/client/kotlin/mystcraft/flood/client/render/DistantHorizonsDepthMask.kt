@@ -49,7 +49,7 @@ object DistantHorizonsDepthMask {
 
     /** Returns true when LOD depth was stamped, so the caller knows the mask covers DH terrain. */
     fun stampLodDepth(): Boolean {
-        if (!loaded || disabled || ClientRenderCompatibility.isShaderPackActive()) return false
+        if (!loaded || disabled) return false
         val shader = program ?: return false
         val depthTexture = depthTextureId() ?: return false
 

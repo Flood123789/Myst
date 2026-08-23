@@ -54,6 +54,7 @@
 
   "suggests": {
     "lostcities": "*",
+    "sereneseasons": "*",
     "patchouli": "*",
     "modmenu": "*",
     "cloth-config": "*"

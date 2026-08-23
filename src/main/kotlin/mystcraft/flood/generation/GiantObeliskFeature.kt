@@ -34,6 +34,7 @@ class GiantObeliskFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultF
         val profile = AgeProfileManager.getOrGenerateProfile(serverWorld.server, ageId)
         if (AgeLifecycleManager.isDeadAge(profile)) return false
         if (!profile.modifiers.contains("giant_obelisks")) return false
+        CustomStructureOverrides.generateIfPresent(context, "giant_obelisks", profile)?.let { return it }
 
         // 3. Rarity Check: 1 in 1000 chunks.
         // Increase this number to make them rarer, decrease it to see them more often.

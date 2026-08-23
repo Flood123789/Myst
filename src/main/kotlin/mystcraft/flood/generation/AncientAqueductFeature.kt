@@ -36,6 +36,7 @@ class AncientAqueductFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defau
             else -> 0.0f
         } * AgeFeatureTuning.chanceMultiplier(profile, HistoricAgeThemes.ANCIENT_AQUEDUCTS)
         if (chance <= 0f) return false
+        CustomStructureOverrides.generateIfPresent(context, "ancient_aqueducts", profile, chance)?.let { return it }
 
         val chunkPos = ChunkPos(context.origin)
         val regionSize = if (explicit) 12 else 18

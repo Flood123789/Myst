@@ -52,10 +52,12 @@ object PageIconItemRenderer : BuiltinItemRendererRegistry.DynamicItemRenderer {
         val renderLight = if (mode == ModelTransformationMode.GUI) LightmapTextureManager.MAX_LIGHT_COORDINATE else light
 
         matrices.push()
+        // ItemRenderer translates builtin models by -0.5 before delegating here. Undo that once
+        // so both the generated paper model and our centered (-0.5..0.5) ink quads share exactly
+        // the transform supplied by symbol_page.json. Passing [mode] to renderItem here would
+        // apply held/ground transforms a second time (the bug in the original implementation).
         matrices.translate(0.5, 0.5, 0.5)
         itemRenderer.renderItem(baseStack, ModelTransformationMode.NONE, false, matrices, vertexConsumers, renderLight, overlay, baseModel)
-        matrices.pop()
-
         drawPaperGlow(matrices, vertexConsumers, renderLight, overlay)
         drawBorder(matrices, vertexConsumers, renderLight, overlay)
 
@@ -64,6 +66,7 @@ object PageIconItemRenderer : BuiltinItemRendererRegistry.DynamicItemRenderer {
         } else {
             drawSymbol(stack.nbt?.getString("Symbol"), matrices, vertexConsumers, renderLight, overlay)
         }
+        matrices.pop()
     }
 
     private fun drawSymbol(symbolId: String?, matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
@@ -177,6 +180,16 @@ object PageIconItemRenderer : BuiltinItemRendererRegistry.DynamicItemRenderer {
 
     private fun drawExotic(clean: String, matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
         when {
+            clean.contains("colossal_mushrooms") -> drawMushroom(matrices, providers, light, overlay)
+            clean.contains("floating_boulders") -> drawFloatingBoulders(matrices, providers, light, overlay)
+            clean.contains("basalt_spires") -> drawSpireGlyph(matrices, providers, 0xFF4A4652.toInt(), light, overlay)
+            clean.contains("glass_dunes") -> drawDunes(matrices, providers, light, overlay)
+            clean.contains("petrified_forests") -> drawPetrifiedTree(matrices, providers, light, overlay)
+            clean.contains("luminous_groves") -> drawLuminousGrove(matrices, providers, light, overlay)
+            clean.contains("coral_fields") -> drawCoral(matrices, providers, light, overlay)
+            clean.contains("ice_needles") -> drawSpireGlyph(matrices, providers, 0xFFBDEBFF.toInt(), light, overlay)
+            clean.contains("obsidian_crags") -> drawSpireGlyph(matrices, providers, 0xFF35234D.toInt(), light, overlay)
+            clean.contains("rune_stones") -> drawRuneStones(matrices, providers, light, overlay)
             clean.contains("hex") -> drawHex(matrices, providers, light, overlay)
             clean.contains("wire") -> drawWire(matrices, providers, light, overlay)
             clean.contains("separator") -> drawSeparator(matrices, providers, light, overlay)
@@ -185,6 +198,63 @@ object PageIconItemRenderer : BuiltinItemRendererRegistry.DynamicItemRenderer {
             clean.contains("virus") -> drawVirus(matrices, providers, light, overlay)
             else -> drawLightFissure(matrices, providers, light, overlay)
         }
+    }
+
+    private fun drawMushroom(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
+        rect(matrices, providers, 7.2f, 7.2f, 8.8f, 12.5f, PAPER, light, overlay)
+        rect(matrices, providers, 4.1f, 5.0f, 11.9f, 7.6f, RED, light, overlay)
+        rect(matrices, providers, 5.5f, 3.8f, 10.5f, 5.4f, RED, light, overlay)
+        star(matrices, providers, 6.2f, 5.6f, 0.35f, PAPER, light, overlay)
+        star(matrices, providers, 9.8f, 5.2f, 0.35f, PAPER, light, overlay)
+    }
+
+    private fun drawFloatingBoulders(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
+        rect(matrices, providers, 4.0f, 4.5f, 8.3f, 7.8f, GRAY, light, overlay)
+        rect(matrices, providers, 8.4f, 8.0f, 12.0f, 11.0f, 0xFF707883.toInt(), light, overlay)
+        line(matrices, providers, 6.1f, 8.6f, 6.1f, 11.8f, 0.45f, BLUE, light, overlay)
+        line(matrices, providers, 10.2f, 4.3f, 10.2f, 6.7f, 0.45f, BLUE, light, overlay)
+    }
+
+    private fun drawSpireGlyph(matrices: MatrixStack, providers: VertexConsumerProvider, color: Int, light: Int, overlay: Int) {
+        line(matrices, providers, 4.2f, 12.0f, 6.2f, 5.8f, 1.2f, color, light, overlay)
+        line(matrices, providers, 7.2f, 12.2f, 8.4f, 3.5f, 1.5f, color, light, overlay)
+        line(matrices, providers, 10.0f, 12.0f, 11.2f, 6.8f, 1.1f, color, light, overlay)
+    }
+
+    private fun drawDunes(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
+        line(matrices, providers, 3.5f, 10.8f, 7.4f, 7.0f, 1.0f, GOLD, light, overlay)
+        line(matrices, providers, 7.4f, 7.0f, 12.5f, 11.2f, 1.0f, 0xFF8CE7EE.toInt(), light, overlay)
+        line(matrices, providers, 4.4f, 12.2f, 11.8f, 12.2f, 0.55f, SILVER, light, overlay)
+    }
+
+    private fun drawPetrifiedTree(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
+        rect(matrices, providers, 7.2f, 6.2f, 8.8f, 12.4f, GRAY, light, overlay)
+        line(matrices, providers, 8.0f, 7.4f, 4.7f, 4.7f, 0.8f, GRAY, light, overlay)
+        line(matrices, providers, 8.0f, 8.3f, 11.5f, 5.2f, 0.8f, GRAY, light, overlay)
+        line(matrices, providers, 5.0f, 4.8f, 4.1f, 3.7f, 0.55f, GRAY, light, overlay)
+    }
+
+    private fun drawLuminousGrove(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
+        drawTree(matrices, providers, light, overlay)
+        star(matrices, providers, 4.3f, 4.0f, 0.55f, TEAL, light, overlay)
+        star(matrices, providers, 11.8f, 6.0f, 0.5f, PURPLE, light, overlay)
+        star(matrices, providers, 4.2f, 10.2f, 0.4f, GOLD, light, overlay)
+    }
+
+    private fun drawCoral(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
+        line(matrices, providers, 8f, 12.5f, 8f, 5.0f, 0.9f, RED, light, overlay)
+        line(matrices, providers, 8f, 8.3f, 4.8f, 6.0f, 0.8f, 0xFFFF79B9.toInt(), light, overlay)
+        line(matrices, providers, 8f, 9.5f, 11.5f, 6.7f, 0.8f, 0xFFFF9A69.toInt(), light, overlay)
+        line(matrices, providers, 4.8f, 6.0f, 4.2f, 4.4f, 0.65f, 0xFFFF79B9.toInt(), light, overlay)
+        line(matrices, providers, 11.5f, 6.7f, 12.0f, 4.8f, 0.65f, 0xFFFF9A69.toInt(), light, overlay)
+    }
+
+    private fun drawRuneStones(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
+        rect(matrices, providers, 4.0f, 6.0f, 6.2f, 12.0f, GRAY, light, overlay)
+        rect(matrices, providers, 9.8f, 5.0f, 12.0f, 12.0f, GRAY, light, overlay)
+        line(matrices, providers, 7.0f, 9.0f, 9.0f, 7.0f, 0.55f, PURPLE, light, overlay)
+        line(matrices, providers, 7.0f, 7.0f, 9.0f, 9.0f, 0.55f, PURPLE, light, overlay)
+        star(matrices, providers, 8.0f, 4.2f, 0.5f, PURPLE, light, overlay)
     }
 
     private fun drawBorder(matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {

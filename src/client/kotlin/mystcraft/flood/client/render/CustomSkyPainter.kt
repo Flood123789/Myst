@@ -138,13 +138,52 @@ object CustomSkyPainter {
         tickDelta: Float,
         layer: SkyLayer
     ) {
-        if (world.registryKey.value.namespace != "mystcraft-reforged") return
-        val depthTest = layer == SkyLayer.OVERLAY && SkyRenderConfig.overlayMasksToSky()
+        paintSky(world, matrices, projectionMatrix, tickDelta, layer, false)
+    }
 
-        if (SkyRenderConfig.drawsOn(SkyElements.SKY_TINT, layer)) {
-            paintSkyTint(world, matrices, projectionMatrix, SkyRenderConfig.tintOpacity(layer), depthTest)
+    /**
+     * Paints the Age sky in the vanilla sky stage while testing against Distant Horizons' copied
+     * LOD depth. This is intentionally not used by the late overlay path: at that point a shader
+     * pack may be using a temporal composite target rather than the world's stable depth buffer.
+     */
+    @JvmStatic
+    fun paintSkyWithDistantHorizonsOcclusion(
+        world: ClientWorld,
+        matrices: MatrixStack,
+        projectionMatrix: Matrix4f,
+        tickDelta: Float
+    ) {
+        val hasLodDepth = DistantHorizonsDepthMask.stampLodDepth()
+        paintSky(world, matrices, projectionMatrix, tickDelta, SkyLayer.SKY_PASS, hasLodDepth)
+    }
+
+    private fun paintSky(
+        world: ClientWorld,
+        matrices: MatrixStack,
+        projectionMatrix: Matrix4f,
+        tickDelta: Float,
+        layer: SkyLayer,
+        forceSkyDepthMask: Boolean
+    ) {
+        if (world.registryKey.value.namespace != "mystcraft-reforged") return
+        val depthTest = forceSkyDepthMask || (layer == SkyLayer.OVERLAY && SkyRenderConfig.overlayMasksToSky())
+
+        if (forceSkyDepthMask) {
+            // The sky is geometrically near (~100 blocks) while DH terrain can be much farther
+            // away. Put the authored elements on the far plane, matching the sky itself, so the
+            // copied LOD depth occludes only covered pixels.
+            GL11.glDepthRange(1.0, 1.0)
         }
-        paintExtraSky(world, matrices, projectionMatrix, tickDelta, depthTest, layer)
+        try {
+            if (SkyRenderConfig.drawsOn(SkyElements.SKY_TINT, layer)) {
+                paintSkyTint(world, matrices, projectionMatrix, SkyRenderConfig.tintOpacity(layer), depthTest)
+            }
+            paintExtraSky(world, matrices, projectionMatrix, tickDelta, depthTest, layer)
+        } finally {
+            if (forceSkyDepthMask) {
+                GL11.glDepthRange(0.0, 1.0)
+            }
+        }
     }
 
     /**
@@ -341,7 +380,7 @@ object CustomSkyPainter {
                 // rotation behind it, so they sit exactly where the sky pass would have put them.
                 if (drawBaseBodies && drawSuns && profile.time.sunNormalCount > 0) {
                     drawCelestialBody(matrices, buffer, tessellator, SUN_TEXTURE,
-                        1.0f, skyAngle, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f)
+                        1.0f, skyAngle, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.98f)
                 }
                 if (drawBaseBodies && drawMoons && profile.time.moonCount > 0) {
                     drawCelestialBody(matrices, buffer, tessellator, MOON_PHASES,

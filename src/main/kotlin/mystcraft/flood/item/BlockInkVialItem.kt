@@ -12,6 +12,8 @@ import net.minecraft.sound.SoundEvents
 import net.minecraft.text.Text
 import net.minecraft.util.ActionResult
 import net.minecraft.util.Formatting
+import net.minecraft.util.math.BlockPos
+import net.minecraft.util.math.Direction
 import net.minecraft.state.property.Properties
 import net.minecraft.world.World
 
@@ -19,17 +21,31 @@ class BlockInkVialItem(settings: Settings) : Item(settings) {
     override fun useOnBlock(context: ItemUsageContext): ActionResult {
         val world = context.world
         val state = world.getBlockState(context.blockPos)
-        if (!state.isOf(ModBlocks.CRYSTAL_BLOCK)) return ActionResult.PASS
+        return when {
+            state.isOf(ModBlocks.CRYSTAL_BLOCK) -> paintCrystalFace(context, context.blockPos, context.side)
+            // The receptacle renders the paint of the crystal it is mounted against, so
+            // dyeing the panel dyes that crystal face no matter which side you click.
+            state.isOf(ModBlocks.BOOK_RECEPTACLE) -> {
+                val facing = state.get(Properties.FACING)
+                paintCrystalFace(context, context.blockPos.offset(facing.opposite), facing)
+            }
+            else -> ActionResult.PASS
+        }
+    }
+
+    private fun paintCrystalFace(context: ItemUsageContext, crystalPos: BlockPos, face: Direction): ActionResult {
+        val world = context.world
+        if (!world.getBlockState(crystalPos).isOf(ModBlocks.CRYSTAL_BLOCK)) return ActionResult.PASS
 
         val sample = CrystalPaint.getSample(context.stack) ?: return ActionResult.FAIL
         if (!world.isClient) {
-            val crystal = world.getBlockEntity(context.blockPos) as? PaintedCrystalBlockEntity
+            val crystal = world.getBlockEntity(crystalPos) as? PaintedCrystalBlockEntity
                 ?: return ActionResult.FAIL
-            crystal.setPaintedState(context.side, sample)
-            val receptaclePos = context.blockPos.offset(context.side)
+            crystal.setPaintedState(face, sample)
+            val receptaclePos = crystalPos.offset(face)
             val receptacleState = world.getBlockState(receptaclePos)
             if (receptacleState.isOf(ModBlocks.BOOK_RECEPTACLE) &&
-                receptacleState.get(Properties.FACING) == context.side
+                receptacleState.get(Properties.FACING) == face
             ) {
                 world.setBlockState(
                     receptaclePos,
@@ -39,7 +55,7 @@ class BlockInkVialItem(settings: Settings) : Item(settings) {
             }
             world.playSound(
                 null,
-                context.blockPos,
+                crystalPos,
                 SoundEvents.ITEM_INK_SAC_USE,
                 SoundCategory.BLOCKS,
                 1.0f,

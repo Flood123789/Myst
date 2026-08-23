@@ -98,7 +98,7 @@ data class CompiledAgeData(
  * compiler has no world or save-file side effects, which keeps previewing and unit testing cheap.
  */
 object AgeCompiler {
-    fun compile(symbols: List<String>): CompiledAgeData {
+    fun compile(symbols: List<String>, rand: kotlin.random.Random = kotlin.random.Random.Default): CompiledAgeData {
         val data = CompiledAgeData()
         
         val pendingColors = mutableListOf<CompiledColor>()
@@ -115,10 +115,10 @@ object AgeCompiler {
             
             if (clean == "random") {
                 val wildcards = listOf(
-                    "floating_islands", "amplified", "alpha", "beta", "cave", "flat", "biospheres", "cities", "nether", "end",
+                    "terrain_floating_islands", "terrain_amplified", "terrain_alpha", "terrain_beta", "terrain_caves", "terrain_flat",
+                    "terrain_biospheres", "terrain_cities", "terrain_nether", "terrain_end",
                     "time_fast", "time_fixed", 
                     "weather_storm", "weather_rain", "weather_normal",
-                    "red", "purple", "black", "green",
                     "biome_checkerboard", "biome_vanilla", "low_gravity",
                     HistoricAgeThemes.COLLAPSED_OBSERVATORY, HistoricAgeThemes.ANCIENT_AQUEDUCTS, HistoricAgeThemes.GATEWAY_RUINS,
                     AmbientAgeThemes.PAGE_STORMS, AmbientAgeThemes.MEMORY_BLOOMS, AmbientAgeThemes.STABLE_SANCTUARIES
@@ -126,7 +126,7 @@ object AgeCompiler {
                     ChaosAgeThemes.METEOR_SHOWERS, ChaosAgeThemes.SKY_SPHERES,
                     ChaosAgeThemes.PARTICLE_MOTES, ChaosAgeThemes.PARTICLE_ASH, ChaosAgeThemes.PARTICLE_SPORES, ChaosAgeThemes.PARTICLE_VOID
                 )
-                clean = if (kotlin.random.Random.nextFloat() < 0.01f) "void" else wildcards.random()
+                clean = if (rand.nextFloat() < 0.01f) "terrain_void" else wildcards.random(rand)
                 data.conflictInstability += 5
             }
             
@@ -220,7 +220,10 @@ object AgeCompiler {
                 clean == "low_gravity" -> data.lowGravity = true
 
                 else -> {
-                    if (isStatusEffectId(clean)) {
+                    if (isProfileOnlySymbol(clean)) {
+                        // Parsed by AgeProfileManager; it is intentionally not part of the
+                        // compiler's exclusive terrain/biome/color grammar.
+                    } else if (isStatusEffectId(clean)) {
                         ageEffectCandidates.add(clean)
                     } else if (clean.startsWith("biome_") || ModSymbols.isBiomeSymbol(Identifier.tryParse(clean) ?: Identifier("minecraft", "plains"))) {
                         var biomeId = clean.replace("biome_", "")
@@ -306,8 +309,22 @@ object AgeCompiler {
         return data
     }
 
+    private fun isProfileOnlySymbol(symbol: String): Boolean =
+        symbol in PROFILE_ONLY_SYMBOLS ||
+            symbol in HistoricAgeThemes.ALL ||
+            symbol in AmbientAgeThemes.ALL ||
+            symbol in ExoticAgeThemes.ALL ||
+            symbol in ChaosAgeThemes.ALL
+
     private fun isStatusEffectId(symbol: String): Boolean {
         val id = Identifier.tryParse(symbol) ?: return false
         return Registries.STATUS_EFFECT.containsId(id)
     }
+
+    private val PROFILE_ONLY_SYMBOLS = setOf(
+        "dense_ores", "giant_trees", "crystal_formations", "tendrils", "obelisks",
+        "spawning_no_mobs", "spawning_extra_hostile", "spawning_extra_passive",
+        "sun_normal", "sun_red", "sun_blue", "moon_normal", "moon_extra",
+        "stars_normal", "stars_dense", "no_stars"
+    )
 }

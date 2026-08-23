@@ -3,7 +3,6 @@ package mystcraft.flood.mixin.client;
 import com.mojang.blaze3d.systems.RenderSystem;
 import mystcraft.flood.client.config.SkyLayer;
 import mystcraft.flood.client.config.SkyRenderConfig;
-import mystcraft.flood.client.render.ClientRenderCompatibility;
 import mystcraft.flood.client.render.CustomSkyPainter;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.GameRenderer;
@@ -33,7 +32,6 @@ public class GameRendererMixin {
         )
     )
     private void mystcraft$paintSkyOverlay(float tickDelta, long limitTime, MatrixStack matrices, CallbackInfo ci) {
-        if (ClientRenderCompatibility.isShaderPackActive()) return;
         ClientWorld world = MinecraftClient.getInstance().world;
         if (world == null) return;
         if (!SkyRenderConfig.paintsAnythingOn(SkyLayer.OVERLAY)) return;

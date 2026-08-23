@@ -34,6 +34,7 @@ class MemoryBloomFeature(codec: Codec<DefaultFeatureConfig>) : Feature<DefaultFe
             else -> 0.06f
         } * AgeFeatureTuning.chanceMultiplier(profile, AmbientAgeThemes.MEMORY_BLOOMS)
         if (chance <= 0f) return false
+        CustomStructureOverrides.generateIfPresent(context, "memory_blooms", profile, chance)?.let { return it }
 
         val chunkPos = ChunkPos(context.origin)
         val regionSize = if (explicit) 7 else 10

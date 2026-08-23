@@ -47,6 +47,7 @@ class AncientRemainsFeature(codec: Codec<DefaultFeatureConfig>) : Feature<Defaul
             else -> 0.0f
         } * AgeFeatureTuning.chanceMultiplier(profile, HistoricAgeThemes.ANCIENT_BONES)
         if (spawnChance <= 0f) return false
+        CustomStructureOverrides.generateIfPresent(context, "ancient_remains", profile, spawnChance)?.let { return it }
 
         val chunkPos = ChunkPos(origin)
         val regionSize = if (explicit) 9 else 12

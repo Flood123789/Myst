@@ -86,7 +86,11 @@ public class WorldRendererMixin {
         if (this.world == null) return;
         if (!SkyRenderConfig.paintsAnythingOn(SkyLayer.SKY_PASS)) return;
 
-        CustomSkyPainter.paintSky(this.world, matrices, projectionMatrix, tickDelta, SkyLayer.SKY_PASS);
+        if (ClientRenderCompatibility.isShaderPackActive()) {
+            CustomSkyPainter.paintSkyWithDistantHorizonsOcclusion(this.world, matrices, projectionMatrix, tickDelta);
+        } else {
+            CustomSkyPainter.paintSky(this.world, matrices, projectionMatrix, tickDelta, SkyLayer.SKY_PASS);
+        }
         RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
     }
 

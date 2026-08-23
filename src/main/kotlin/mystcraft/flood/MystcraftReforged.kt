@@ -11,6 +11,7 @@ import mystcraft.flood.generation.profile.AgeProfileManager
 import mystcraft.flood.generation.profile.TerrainType
 import mystcraft.flood.generation.BiosphereFeature
 import mystcraft.flood.compat.DistantHorizonsCompat
+import mystcraft.flood.compat.SereneSeasonsCompat
 import mystcraft.flood.item.ModItemGroups
 import mystcraft.flood.item.ModItems
 import mystcraft.flood.network.ModMessages
@@ -46,6 +47,7 @@ import mystcraft.flood.generation.AgeLifecycleManager
 import mystcraft.flood.generation.AgeSubdimensionManager
 import mystcraft.flood.generation.AgeWeatherController
 import mystcraft.flood.generation.LostCityAssetLibrary
+import mystcraft.flood.generation.CustomStructureOverrides
 import mystcraft.flood.player.PlayerSpawnMemory
 import mystcraft.flood.config.MystcraftConfig
 
@@ -65,6 +67,7 @@ object MystcraftReforged : ModInitializer {
         LOGGER.info("Initializing Mystcraft Reforged...")
 
         MystcraftConfig.load()
+        CustomStructureOverrides.initializeFolders()
 
         // Static game objects and packet ids must exist before a world can load.
         ModSymbols.register()
@@ -245,11 +248,13 @@ object MystcraftReforged : ModInitializer {
 
         ServerLifecycleEvents.SERVER_STOPPED.register {
             DistantHorizonsCompat.clear()
+            SereneSeasonsCompat.clear()
         }
 
         ServerTickEvents.END_WORLD_TICK.register { world ->
             val id = world.registryKey.value
             if (id.namespace == MOD_ID) {
+                SereneSeasonsCompat.tick(world)
                 val profile = AgeProfileManager.getOrGenerateProfile(world.server, id)
                 val isDerivedRealm = AgeSubdimensionManager.isDerivedSubdimension(id)
 
