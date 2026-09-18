@@ -3,6 +3,7 @@
   "package": "mystcraft.flood.mixin.client",
   "compatibilityLevel": "JAVA_17",
   "client": [
+    "DrawContextMixin",
     "ClientPlayNetworkHandlerAccessor",
     "BlockLeakParticleAccessor",
     "ClientAgeTimeMixin",
@@ -24,7 +25,12 @@
     "BlockModelRendererMixin",
     "SpriteLoaderMixin",
     "SoundManagerMixin",
-    "MapRendererMixin"
+    "MapRendererMixin",
+    "ReaperMountCameraMixin",
+    "ReaperViewRollMixin",
+    "ReaperMountLookMixin",
+    "ReaperRiderOrientationMixin",
+    "ReaperRiderPoseMixin"
   ],
   "injectors": {
     "defaultRequire": 1

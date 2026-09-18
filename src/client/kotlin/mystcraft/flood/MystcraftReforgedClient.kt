@@ -8,6 +8,8 @@ import mystcraft.flood.client.AgeTravelSoundSuppressor
 import mystcraft.flood.client.cache.ClientAgeCache
 import mystcraft.flood.client.cache.ClientAgeTimeCache
 import mystcraft.flood.client.config.SkyRenderConfig
+import mystcraft.flood.client.config.ReaperMountClientConfig
+import mystcraft.flood.entity.ReaperMountSeating
 import mystcraft.flood.client.gui.BookBinderScreen
 import mystcraft.flood.client.gui.EditingTableScreen
 import mystcraft.flood.client.gui.NotebookScreen
@@ -24,6 +26,8 @@ import mystcraft.flood.client.render.DistantHorizonsDepthMask
 import mystcraft.flood.client.render.ModEntityModelLayers
 import mystcraft.flood.client.render.MystcraftDimensionEffects
 import mystcraft.flood.client.render.PageIconItemRenderer
+import mystcraft.flood.client.render.ParadoxReaperRenderer
+import mystcraft.flood.client.render.LittleAnomalyRenderer
 import mystcraft.flood.client.render.PaintedCrystalBlockEntityRenderer
 import mystcraft.flood.item.CrystalPaint
 import mystcraft.flood.compat.DistantHorizonsCompat
@@ -58,6 +62,10 @@ class MystcraftReforgedClient : ClientModInitializer {
     
     override fun onInitializeClient() {
         SkyRenderConfig.load()
+        ReaperMountClientConfig.load()
+        // The entity places riders on the pose the renderer solved, but it lives in the common
+        // source set and cannot read a client-only setting directly.
+        ReaperMountSeating.install(ReaperMountClientConfig::seatFollowsBody)
         ClientMessages.registerS2CPackets()
 
         CoreShaderRegistrationCallback.EVENT.register { context ->
@@ -87,6 +95,8 @@ class MystcraftReforgedClient : ClientModInitializer {
         HandledScreens.register(ModScreens.NOTEBOOK_HANDLER, ::NotebookScreen)
         ModEntityModelLayers.register()
         EntityRendererRegistry.register(ModEntities.DESCRIPTIVE_BOOK_ANCHOR, ::DescriptiveBookEntityRenderer)
+        EntityRendererRegistry.register(ModEntities.PARADOX_REAPER, ::ParadoxReaperRenderer)
+        EntityRendererRegistry.register(ModEntities.LITTLE_ANOMALY, ::LittleAnomalyRenderer)
 
         DimensionRenderingRegistry.registerDimensionEffects(
             Identifier("mystcraft-reforged", "age_effects"),

@@ -28,6 +28,9 @@ object ModItems {
     val LINKING_BOOK = register("linkingbook", LinkingBookItem(Item.Settings().maxCount(1)))
     val NOTEBOOK = register("notebook", NotebookItem(Item.Settings()))
 
+    /** Debug tool; not craftable and not in any creative tab. See ReaperCommand. */
+    val REAPER_LURE = register("reaper_lure", ReaperLureItem(Item.Settings().maxCount(1)))
+
     private fun <T : Item> register(name: String, item: T): T {
         return Registry.register(Registries.ITEM, Identifier(MystcraftReforged.MOD_ID, name), item)
     }

@@ -16,6 +16,7 @@
     "SpawnHelperMixin",
     "SlotAccessor",
     "ItemEntityMixin",
+    "KoboldEntityMixin",
     "NetherPortalBlockMixin",
     "EndPortalBlockMixin",
     "ChunkGeneratorMixin",

@@ -15,14 +15,155 @@ data class MystcraftBalanceConfig(
     var instability: InstabilityBalance = InstabilityBalance(),
     var worldGeneration: WorldGenerationBalance = WorldGenerationBalance(),
     var loot: LootBalance = LootBalance(),
-    var pagePools: PagePoolBalance = PagePoolBalance()
+    var pagePools: PagePoolBalance = PagePoolBalance(),
+    var paradoxReaper: ParadoxReaperBalance = ParadoxReaperBalance()
 ) {
     fun normalized(): MystcraftBalanceConfig = copy(
         instability = instability.normalized(),
         worldGeneration = worldGeneration.normalized(),
         loot = loot.normalized(),
-        pagePools = pagePools.normalized()
+        pagePools = pagePools.normalized(),
+        paradoxReaper = paradoxReaper.normalized()
     )
+}
+
+/**
+ * Population controls for the Paradox Reaper, the hunter unstable Ages send after players.
+ *
+ * Reapers are gated on instability rather than on light level or biome: they are a symptom of a
+ * badly written Age, so a clean Age should never produce one no matter how dark it gets.
+ */
+data class ParadoxReaperBalance(
+    var enabled: Boolean = true,
+    /** Whether Reapers may see, hear, pursue, and naturally spawn around creative players. */
+    var targetCreativePlayers: Boolean = false,
+    /** No Reapers below this instability score. Defaults to the existing mild-decay threshold. */
+    var minimumInstabilityScore: Int = 45,
+    /** Scales the sprint-matching base speed. 1.0 keeps pace with a sprinting player exactly. */
+    var speedMultiplier: Float = 1.0f,
+    var maxAlivePerPlayer: Int = 1,
+    var spawnChancePerSecond: Float = 0.01f,
+    var spawnChancePerInstabilityPoint: Float = 0.0003f,
+    /** Minimum time after a successful natural spawn before that player can roll another. */
+    var spawnCooldownSeconds: Int = 90,
+    /** Time after entering or respawning in an Age before Reapers may notice the player. */
+    var arrivalGraceSeconds: Int = 45,
+    var minSpawnDistance: Int = 24,
+    var maxSpawnDistance: Int = 42,
+    /** Reapers further than this from every player are culled to keep the hunt local. */
+    var despawnDistance: Int = 72,
+    /**
+     * Whether Reapers shatter thin glass to get at a target. Membership is the block tag
+     * `mystcraft-reforged:reaper_breakable`, which ships with the vanilla glass panes only:
+     * full glass blocks are deliberately excluded as too thick to worry a Reaper.
+     */
+    var canBreakGlassPanes: Boolean = true,
+    var paneBreakTicks: Int = 24,
+    /**
+     * Greater Reapers screech for lesser backup on two occasions: when a hunt begins, and when
+     * they drop below 40% health. Each occasion is one roll at [summonChance]. Lesser forms
+     * never summon, and a greater form cannot screech again while its backup is still alive.
+     */
+    var canSummonBackup: Boolean = true,
+    var summonChance: Float = 0.2f,
+    var summonMinimum: Int = 1,
+    var summonMaximum: Int = 2,
+    /**
+     * Multiplies the spawn rate at spots walled by white or black decay, and makes those spots
+     * the preferred pick. Decay is where Reapers belong, so a rotting Age produces them out of
+     * the rot rather than at random.
+     */
+    var decayChanceMultiplier: Float = 2.0f,
+
+    // --- senses -------------------------------------------------------------------------
+    /** How far a Reaper hears. Listens on the Warden's own game-event tag. */
+    var hearingRange: Int = 24,
+    /** Ticks between sight checks while dormant. Long, so a careful player can slip past. */
+    var dormantScanIntervalTicks: Int = 30,
+    /** Sight range while dormant, in blocks. Deliberately short. */
+    var dormantSightRange: Double = 10.0,
+    /** Sight range once alerted. */
+    var alertSightRange: Double = 26.0,
+    /** Multiplies sight range against a crouching player. */
+    var sneakSightMultiplier: Double = 0.4,
+    /** How far an alert propagates to other Reapers. */
+    var alertShareRadius: Int = 28,
+    /**
+     * Radius, in blocks, inside which any living thing making noise is worth getting up for.
+     *
+     * Separate from [hearingRange] on purpose. A Reaper hears a long way, but its business is the
+     * player; one that abandoned its roost for every distant animal would never be where it
+     * settled. Close in, nothing gets a pass for not being the player.
+     */
+    var neighbourHearingRadius: Double = 10.0,
+
+    // --- pursuit speed ------------------------------------------------------------------
+    /**
+     * Track the hunted player's own sprint speed instead of a fixed vanilla figure. Matters in
+     * packs where origins, levels, or gear move the movement-speed attribute: without it a fast
+     * build simply outruns the one mob that is not supposed to be outrunnable.
+     */
+    var matchTargetSpeed: Boolean = true,
+    /**
+     * Fraction of the target's sprint to chase at. Just under 1 on purpose, so investing in speed
+     * still buys a real escape on open ground without the chase feeling like rubber-banding.
+     */
+    var targetSpeedFraction: Double = 0.93,
+    /** Ceiling on the above, as a multiple of base speed, so an outlier build cannot make a blur. */
+    var maxTargetSpeedMultiplier: Double = 1.6,
+    /**
+     * Read the target's speed once, when the hunt begins, instead of every tick.
+     *
+     * This is what keeps speed potions useful in a pack full of permanent movement buffs. Track
+     * the live value and a player who already runs at Speed II is simply chased at Speed II, so
+     * drinking Speed II gains them nothing and the whole category of consumable is dead weight
+     * for exactly the builds carrying a permanent buff. Against a snapshot, permanent speed is
+     * priced in once and anything applied after the hunt starts opens a real gap.
+     */
+    var lockSpeedAtAcquisition: Boolean = true,
+
+    // --- traversal ----------------------------------------------------------------------
+    /** Whether Reapers may jump gaps they cannot crawl around. */
+    var canJumpGaps: Boolean = true,
+    /** Furthest gap a Reaper will attempt, in blocks. */
+    var maxJumpBlocks: Int = 5,
+    /** Launch angle off the surface plane, in degrees. Measured against the clinging normal. */
+    var jumpAngleDegrees: Double = 38.0,
+    var jumpCooldownTicks: Int = 50
+) {
+    fun normalized(): ParadoxReaperBalance {
+        val minimum = minSpawnDistance.coerceIn(2, 128)
+        val summonFloor = summonMinimum.coerceIn(0, 16)
+        return copy(
+            paneBreakTicks = paneBreakTicks.coerceIn(1, 600),
+            summonChance = summonChance.coerceIn(0f, 1f),
+            summonMinimum = summonFloor,
+            summonMaximum = summonMaximum.coerceIn(summonFloor, 16),
+            decayChanceMultiplier = decayChanceMultiplier.coerceIn(1f, 50f),
+            hearingRange = hearingRange.coerceIn(1, 128),
+            dormantScanIntervalTicks = dormantScanIntervalTicks.coerceIn(1, 200),
+            dormantSightRange = dormantSightRange.coerceIn(0.0, 128.0),
+            alertSightRange = alertSightRange.coerceIn(0.0, 128.0),
+            sneakSightMultiplier = sneakSightMultiplier.coerceIn(0.0, 1.0),
+            alertShareRadius = alertShareRadius.coerceIn(0, 128),
+            neighbourHearingRadius = neighbourHearingRadius.coerceIn(0.0, 64.0),
+            targetSpeedFraction = targetSpeedFraction.coerceIn(0.1, 2.0),
+            maxJumpBlocks = maxJumpBlocks.coerceIn(2, 24),
+            jumpAngleDegrees = jumpAngleDegrees.coerceIn(5.0, 85.0),
+            jumpCooldownTicks = jumpCooldownTicks.coerceIn(0, 600),
+            maxTargetSpeedMultiplier = maxTargetSpeedMultiplier.coerceAtLeast(1.0),
+            minimumInstabilityScore = minimumInstabilityScore.coerceIn(0, 1000),
+            speedMultiplier = speedMultiplier.coerceIn(0.1f, 4f),
+            maxAlivePerPlayer = maxAlivePerPlayer.coerceIn(0, 32),
+            spawnChancePerSecond = spawnChancePerSecond.coerceIn(0f, 1f),
+            spawnChancePerInstabilityPoint = spawnChancePerInstabilityPoint.coerceIn(0f, 1f),
+            spawnCooldownSeconds = spawnCooldownSeconds.coerceIn(0, 3600),
+            arrivalGraceSeconds = arrivalGraceSeconds.coerceIn(0, 600),
+            minSpawnDistance = minimum,
+            maxSpawnDistance = maxSpawnDistance.coerceIn(minimum + 1, 256),
+            despawnDistance = despawnDistance.coerceIn(16, 512)
+        )
+    }
 }
 
 data class InstabilityBalance(

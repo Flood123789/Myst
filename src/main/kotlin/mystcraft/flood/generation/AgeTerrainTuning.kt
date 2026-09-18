@@ -67,7 +67,6 @@ object AgeTerrainTuning {
 
     private fun tunedShape(base: GenerationShapeConfig, tuning: TerrainTuningProfile): GenerationShapeConfig {
         val verticalLevel = tuning.verticalRange
-        val turbulenceLevel = tuning.terrainTurbulence
 
         var minimumY = base.minimumY()
         var height = base.height()
@@ -76,21 +75,26 @@ object AgeTerrainTuning {
             height = aligned16(lerp(verticalLevel, RANGE_HEIGHT_MIN.toDouble(), RANGE_HEIGHT_MAX.toDouble()).roundToInt()).coerceAtLeast(16)
         }
 
-        val horizontalSize = when {
-            turbulenceLevel == null -> base.horizontalSize()
-            turbulenceLevel <= 4 -> (base.horizontalSize() + 1).coerceAtMost(4)
-            turbulenceLevel >= 13 -> (base.horizontalSize() - 1).coerceAtLeast(1)
-            else -> base.horizontalSize()
-        }
-
-        val verticalSize = when {
-            turbulenceLevel == null -> base.verticalSize()
-            turbulenceLevel <= 4 -> (base.verticalSize() + 1).coerceAtMost(4)
-            turbulenceLevel >= 13 -> (base.verticalSize() - 1).coerceAtLeast(1)
-            else -> base.verticalSize()
-        }
-
+        // horizontalSize and verticalSize are the generator's noise-cell geometry, not
+        // artistic turbulence controls. Changing them on a live inherited generator leaves
+        // 1.20.1 worldgen optimizers (notably C2ME's aquifer path) with cache dimensions that
+        // no longer match the generator and can produce an ArrayIndexOutOfBoundsException as
+        // soon as the first portal/DH chunk ticket reaches the new Age. Turbulence is already
+        // expressed safely by the density bias in tunedRouter, so retain the base cell shape.
+        val (horizontalSize, verticalSize) = preservedNoiseCellSizes(
+            base.horizontalSize(),
+            base.verticalSize(),
+            tuning.terrainTurbulence
+        )
         return GenerationShapeConfig.create(minimumY, height, horizontalSize, verticalSize)
+    }
+
+    internal fun preservedNoiseCellSizes(horizontalSize: Int, verticalSize: Int, turbulence: Int?): Pair<Int, Int> {
+        // Keep turbulence in this signature so a future reimplementation cannot silently
+        // reintroduce noise-cell resizing without breaking the regression test.
+        @Suppress("UNUSED_VARIABLE")
+        val ignoredTurbulence = turbulence
+        return horizontalSize to verticalSize
     }
 
     private fun tunedRouter(base: NoiseRouter, tuning: TerrainTuningProfile): NoiseRouter {

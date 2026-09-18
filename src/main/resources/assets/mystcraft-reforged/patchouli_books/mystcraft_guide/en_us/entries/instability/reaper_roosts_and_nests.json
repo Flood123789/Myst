@@ -1,0 +1,38 @@
+{
+  "name": "Roosts and Nests",
+  "icon": "mystcraft-reforged:white_decay",
+  "category": "mystcraft-reforged:instability",
+  "sortnum": 6,
+  "pages": [
+    {
+      "type": "text",
+      "title": "Where They Sit",
+      "text": "A Reaper that has lost you does not simply stop. It goes looking for somewhere to sit, and it is particular.$(br2)Darkness first, and darkness above all else. Height is only how it chooses between two dark places — it will take a black corner behind a desk over a rafter beside a glowstone, every time, and it is not close."
+    },
+    {
+      "type": "text",
+      "title": "Anywhere It Fits",
+      "text": "Do not look only upward. Those legs solve themselves around whatever is there, so it can fold into any space its body will enter: an alcove, a crawlspace, the gap behind a stair, the angle where two walls meet.$(br2)It prefers the tucked-away ones. Stone close on several sides is worth more to it than open ceiling."
+    },
+    {
+      "type": "text",
+      "title": "It Remembers",
+      "text": "Once settled, that place is its own. Rouse it, survive it, and it will make its way back to the same spot and go dim again.$(br2)Light the corner, or fill it, and it gives the place up and finds another. This is the only reliable way to move one that has not seen you — take the dark away and it will leave of its own accord."
+    },
+    {
+      "type": "text",
+      "title": "Nothing Is Safe Near It",
+      "text": "A roosting Reaper is not asleep. Anything living that makes noise close by is enough to bring it off its perch — not merely you, and not merely your animals.$(br2)A villager who wanders too deep into a cave is stable matter like any other. It will deal with him, and then it will go back to its corner and dim again as if nothing happened."
+    },
+    {
+      "type": "text",
+      "title": "The Rot Breeds Them",
+      "text": "This is the worst of it. Decay is no longer slow scenery in the background.$(br2)The white rot spreading through your walls is a spawner in its own right, far likelier to produce one than clean ground. And the craters black decay eats out of the world are walled in the stuff on every side, which makes them nests.$(br2)You will see them climbing out."
+    },
+    {
+      "type": "text",
+      "title": "A Wayfarer's Advice",
+      "text": "Cut the fever and you cut the breeding. See $(l:mystcraft-reforged:instability/instability_and_decay)Instability and Decay$() for what raises the score and what lowers it.$(br2)Short of that: light everything, and check the ceiling of every room you mean to sleep in.$(br2)It is not hunting you because it is hungry. You are an error in the text, and it is the correction."
+    }
+  ]
+}

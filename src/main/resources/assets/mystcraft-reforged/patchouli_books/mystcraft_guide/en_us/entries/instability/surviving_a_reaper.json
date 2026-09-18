@@ -1,0 +1,40 @@
+{
+  "name": "Surviving a Reaper",
+  "icon": "minecraft:glass_pane",
+  "category": "mystcraft-reforged:instability",
+  "sortnum": 7,
+  "pages": [
+    {
+      "type": "text",
+      "title": "Glass Buys You Time",
+      "text": "Windows will not save you, but they will cost it something.$(br2)A greater Reaper needs a true $(thing)two-by-two$() opening to force that body through. A single pane is too small for it, and it must either break its way to a bigger hole or go the long way around.$(br2)Both take time. Time is the whole of what you are buying."
+    },
+    {
+      "type": "text",
+      "title": "So It Screams",
+      "text": "Denied a way in, it calls for help. There is a chance one screeches when it first fixes on you, and another when you have hurt it badly — below some two-fifths of its strength.$(br2)Rifts tear open in the air nearby and smaller ones drop out of them and hit the ground running."
+    },
+    {
+      "type": "entity",
+      "entity": "mystcraft-reforged:little_anomaly",
+      "scale": 1.0,
+      "name": "The Backup",
+      "text": "Half size. And a half-size one fits through a single pane perfectly well."
+    },
+    {
+      "type": "text",
+      "title": "Breaking Sight",
+      "text": "Since you cannot outrun it, you must stop being visible. Put solid stone between you and it, then be still and be quiet.$(br2)Crouching shortens what it can see by a good deal. It hears as the Warden hears, so mind your footfalls, your doors, and anything you throw.$(br2)Note that it looks straight through glass. A pane is a wall to its body and a window to its eyes."
+    },
+    {
+      "type": "text",
+      "title": "After It Loses You",
+      "text": "It does not stand down at once. It searches the last place it knew of, then spends a long while wound up and looking for somewhere to settle before it finally dims.$(br2)That settling period is the dangerous quiet. It is still alert, still sees further than a dormant one, and any noise you make brings the whole chase back."
+    },
+    {
+      "type": "text",
+      "title": "Riding One",
+      "text": "A Reaper bound to you may be ridden, and it takes its walls and ceilings with you aboard. The view turns with its body, which is remarkable to see and hard on some stomachs.$(br2)Should it trouble you, the mod list holds the remedy: under $(thing)Reaper Mount$() you may soften how far the view rolls, or shut it off entirely and ride with a level horizon like any ordinary beast."
+    }
+  ]
+}

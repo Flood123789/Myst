@@ -4,6 +4,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.BuiltinItemRendererRegistry
 import mystcraft.flood.MystcraftReforged
 import mystcraft.flood.item.ModItems
 import net.minecraft.client.MinecraftClient
+import net.minecraft.client.gui.DrawContext
 import net.minecraft.client.render.LightmapTextureManager
 import net.minecraft.client.render.RenderLayer
 import net.minecraft.client.render.VertexConsumer
@@ -36,6 +37,7 @@ object PageIconItemRenderer : BuiltinItemRendererRegistry.DynamicItemRenderer {
     private const val RED = 0xFFE98787.toInt()
     private const val GRAY = 0xFFB0BAC7.toInt()
     private const val PAPER_GLOW = 0x88FFF9EE.toInt()
+    private val drawingGuiOverlay = ThreadLocal.withInitial { false }
 
     override fun render(
         stack: ItemStack,
@@ -64,9 +66,53 @@ object PageIconItemRenderer : BuiltinItemRendererRegistry.DynamicItemRenderer {
         if (stack.item == ModItems.LOST_PAGE) {
             drawLostPage(matrices, vertexConsumers, renderLight, overlay)
         } else {
-            drawSymbol(stack.nbt?.getString("Symbol"), matrices, vertexConsumers, renderLight, overlay)
+            drawStackSymbol(stack, matrices, vertexConsumers, renderLight, overlay)
         }
         matrices.pop()
+    }
+
+    /** Draws a page glyph in GUI pixel space, independently of the builtin item model path. */
+    @JvmStatic
+    fun renderGuiOverlay(context: DrawContext, stack: ItemStack, x: Int, y: Int) {
+        if (stack.item != ModItems.SYMBOL_PAGE && stack.item != ModItems.LOST_PAGE) return
+
+        val matrices = context.matrices
+        matrices.push()
+        matrices.translate(x.toDouble(), y.toDouble(), 250.0)
+        drawingGuiOverlay.set(true)
+        try {
+            drawBorder(matrices, context.vertexConsumers, 0, 0)
+            if (stack.item == ModItems.LOST_PAGE) {
+                drawLostPage(matrices, context.vertexConsumers, 0, 0)
+            } else {
+                drawStackSymbol(stack, matrices, context.vertexConsumers, 0, 0)
+            }
+            context.draw()
+        } finally {
+            drawingGuiOverlay.set(false)
+            matrices.pop()
+        }
+    }
+
+    private fun drawStackSymbol(
+        stack: ItemStack,
+        matrices: MatrixStack,
+        providers: VertexConsumerProvider,
+        light: Int,
+        overlay: Int
+    ) {
+        val symbolId = stack.nbt?.getString("Symbol")
+        val id = symbolId?.let(Identifier::tryParse)
+        if (id?.path == "color_custom") {
+            val displayName = stack.nbt?.getCompound("display")?.getString("Name").orEmpty()
+            val hex = Regex("#[0-9A-Fa-f]{6}").find(displayName)?.value
+            val color = hex?.substring(1)?.toIntOrNull(16)?.let { 0xFF000000.toInt() or it }
+            if (color != null) {
+                drawSwatch(matrices, providers, color, light, overlay)
+                return
+            }
+        }
+        drawSymbol(symbolId, matrices, providers, light, overlay)
     }
 
     private fun drawSymbol(symbolId: String?, matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
@@ -116,8 +162,39 @@ object PageIconItemRenderer : BuiltinItemRendererRegistry.DynamicItemRenderer {
             clean.startsWith("exotic_") -> drawExotic(clean, matrices, providers, light, overlay)
             clean.startsWith("color_") -> drawColorSymbol(clean, matrices, providers, light, overlay)
             isStatusEffect(symbolId) -> drawPotion(matrices, providers, light, overlay)
-            else -> drawTree(matrices, providers, light, overlay)
+            else -> drawProceduralRune(symbolId, matrices, providers, light, overlay)
         }
+    }
+
+    /** Gives addon and newly-authored symbols a stable, distinct icon without an asset reload. */
+    private fun drawProceduralRune(
+        symbolId: String?,
+        matrices: MatrixStack,
+        providers: VertexConsumerProvider,
+        light: Int,
+        overlay: Int
+    ) {
+        var state = (symbolId?.takeIf(String::isNotBlank) ?: "unknown").hashCode()
+        val palette = intArrayOf(BLUE, GREEN, TEAL, GOLD, PURPLE, RED, SILVER)
+        val color = palette[(state and Int.MAX_VALUE) % palette.size]
+
+        fun nextCoordinate(): Float {
+            state = state * 1_664_525 + 1_013_904_223
+            return 4f + ((state ushr 16) and 7)
+        }
+
+        var previousX = nextCoordinate()
+        var previousY = nextCoordinate()
+        star(matrices, providers, previousX, previousY, 0.55f, color, light, overlay)
+        repeat(4) {
+            val nextX = nextCoordinate()
+            val nextY = nextCoordinate()
+            line(matrices, providers, previousX, previousY, nextX, nextY, 0.72f, color, light, overlay)
+            star(matrices, providers, nextX, nextY, 0.42f, if (it == 3) GOLD else color, light, overlay)
+            previousX = nextX
+            previousY = nextY
+        }
+        line(matrices, providers, 4f, 12.5f, 12f, 12.5f, 0.45f, INK, light, overlay)
     }
 
     private fun drawColorSymbol(clean: String, matrices: MatrixStack, providers: VertexConsumerProvider, light: Int, overlay: Int) {
@@ -730,6 +807,21 @@ object PageIconItemRenderer : BuiltinItemRendererRegistry.DynamicItemRenderer {
         zFront: Float = 0.0330f
     ) {
         val entry = matrices.peek()
+        if (drawingGuiOverlay.get()) {
+            val consumer = providers.getBuffer(RenderLayer.getGuiOverlay())
+            val r = color shr 16 and 255
+            val g = color shr 8 and 255
+            val b = color and 255
+            val a = color ushr 24 and 255
+
+            // Match DrawContext.fill's winding in screen (Y-down) coordinates.
+            guiVertex(consumer, entry.positionMatrix, x4, y4, r, g, b, a)
+            guiVertex(consumer, entry.positionMatrix, x3, y3, r, g, b, a)
+            guiVertex(consumer, entry.positionMatrix, x2, y2, r, g, b, a)
+            guiVertex(consumer, entry.positionMatrix, x1, y1, r, g, b, a)
+            return
+        }
+
         val consumer = providers.getBuffer(RenderLayer.getEntityTranslucent(WHITE_TEXTURE))
         val r = color shr 16 and 255
         val g = color shr 8 and 255
@@ -737,17 +829,29 @@ object PageIconItemRenderer : BuiltinItemRendererRegistry.DynamicItemRenderer {
         val a = color ushr 24 and 255
         val zBack = -zFront
 
-        // Front face (+Z)
-        vertex(consumer, entry.positionMatrix, entry.normalMatrix, x1, y1, zFront, r, g, b, a, 0f, 0f, light, overlay, 0f, 0f, 1f)
-        vertex(consumer, entry.positionMatrix, entry.normalMatrix, x2, y2, zFront, r, g, b, a, 1f, 0f, light, overlay, 0f, 0f, 1f)
-        vertex(consumer, entry.positionMatrix, entry.normalMatrix, x3, y3, zFront, r, g, b, a, 1f, 1f, light, overlay, 0f, 0f, 1f)
+        // mapY flips the source Y axis, so reverse each face to preserve its visible winding.
         vertex(consumer, entry.positionMatrix, entry.normalMatrix, x4, y4, zFront, r, g, b, a, 0f, 1f, light, overlay, 0f, 0f, 1f)
+        vertex(consumer, entry.positionMatrix, entry.normalMatrix, x3, y3, zFront, r, g, b, a, 1f, 1f, light, overlay, 0f, 0f, 1f)
+        vertex(consumer, entry.positionMatrix, entry.normalMatrix, x2, y2, zFront, r, g, b, a, 1f, 0f, light, overlay, 0f, 0f, 1f)
+        vertex(consumer, entry.positionMatrix, entry.normalMatrix, x1, y1, zFront, r, g, b, a, 0f, 0f, light, overlay, 0f, 0f, 1f)
 
-        // Back face (-Z)
-        vertex(consumer, entry.positionMatrix, entry.normalMatrix, x4, y4, zBack, r, g, b, a, 0f, 1f, light, overlay, 0f, 0f, -1f)
-        vertex(consumer, entry.positionMatrix, entry.normalMatrix, x3, y3, zBack, r, g, b, a, 1f, 1f, light, overlay, 0f, 0f, -1f)
-        vertex(consumer, entry.positionMatrix, entry.normalMatrix, x2, y2, zBack, r, g, b, a, 1f, 0f, light, overlay, 0f, 0f, -1f)
         vertex(consumer, entry.positionMatrix, entry.normalMatrix, x1, y1, zBack, r, g, b, a, 0f, 0f, light, overlay, 0f, 0f, -1f)
+        vertex(consumer, entry.positionMatrix, entry.normalMatrix, x2, y2, zBack, r, g, b, a, 1f, 0f, light, overlay, 0f, 0f, -1f)
+        vertex(consumer, entry.positionMatrix, entry.normalMatrix, x3, y3, zBack, r, g, b, a, 1f, 1f, light, overlay, 0f, 0f, -1f)
+        vertex(consumer, entry.positionMatrix, entry.normalMatrix, x4, y4, zBack, r, g, b, a, 0f, 1f, light, overlay, 0f, 0f, -1f)
+    }
+
+    private fun guiVertex(
+        consumer: VertexConsumer,
+        matrix: Matrix4f,
+        x: Float,
+        y: Float,
+        r: Int,
+        g: Int,
+        b: Int,
+        a: Int
+    ) {
+        consumer.vertex(matrix, x, y, 0f).color(r, g, b, a).next()
     }
 
     private fun vertex(

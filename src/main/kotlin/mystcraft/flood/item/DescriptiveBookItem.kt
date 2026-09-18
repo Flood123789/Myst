@@ -111,10 +111,14 @@ class DescriptiveBookItem(settings: Settings) : Item(settings) {
         val dimKey = RegistryKey.of(RegistryKeys.WORLD, ageId)
         var targetWorld = server.getWorld(dimKey)
 
-        if (targetWorld == null && AgeLifecycleManager.isDeadAge(server, ageId)) {
-            if (!AgeLifecycleManager.mayEnterAge(player, ageId)) {
+        if (targetWorld == null) {
+            if (AgeLifecycleManager.isDeadAge(server, ageId) && !AgeLifecycleManager.mayEnterAge(player, ageId)) {
                 return
             }
+            // Runtime dimensions do not necessarily survive a client/server restart (and a
+            // crash during their first chunk can leave only the linked book and saved profile).
+            // Rebuild any missing linked Age from that profile instead of permanently reporting
+            // "dimension is not loaded". Empty symbols deliberately reuse the persisted profile.
             (server as DimensionInjector).`mystcraft$injectDimension`(ageId, emptyList())
             targetWorld = server.getWorld(dimKey)
         }

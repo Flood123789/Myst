@@ -17,6 +17,7 @@ import mystcraft.flood.item.ModItems
 import mystcraft.flood.network.ModMessages
 import mystcraft.flood.registry.ModSymbols
 import mystcraft.flood.server.command.AgeCommand
+import mystcraft.flood.server.command.ReaperCommand
 import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
@@ -35,8 +36,10 @@ import mystcraft.flood.block.entity.ModBlockEntities
 import mystcraft.flood.block.WhiteDecayShapeRegistry
 import mystcraft.flood.gui.ModScreens
 import mystcraft.flood.generation.instability.InstabilityManager
+import mystcraft.flood.generation.instability.ReaperSpawnCadence
 import mystcraft.flood.block.DecayManager
 import mystcraft.flood.entity.ModEntities
+import mystcraft.flood.entity.ReaperArrivalGrace
 import mystcraft.flood.registry.ModLoot
 import mystcraft.flood.registry.ModSounds
 import mystcraft.flood.registry.ModWorldgenCodecs
@@ -83,6 +86,7 @@ object MystcraftReforged : ModInitializer {
         ModSounds.register()
         ModMessages.registerC2SPackets()
         AgeCommand.register()
+        ReaperCommand.register()
         InstabilityManager.register()
         DecayManager.register()
         
@@ -249,6 +253,8 @@ object MystcraftReforged : ModInitializer {
         ServerLifecycleEvents.SERVER_STOPPED.register {
             DistantHorizonsCompat.clear()
             SereneSeasonsCompat.clear()
+            ReaperArrivalGrace.clear()
+            ReaperSpawnCadence.clear()
         }
 
         ServerTickEvents.END_WORLD_TICK.register { world ->
@@ -309,6 +315,11 @@ object MystcraftReforged : ModInitializer {
             }
             AgeLifecycleManager.exileIfDeadAge(handler.player)
             PlayerSpawnMemory.restoreForCurrentWorld(handler.player)
+            if (handler.player.serverWorld.registryKey.value.namespace == MOD_ID) {
+                ReaperArrivalGrace.grant(
+                    handler.player, MystcraftConfig.current.paradoxReaper.arrivalGraceSeconds
+                )
+            }
         }
 
         ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register(ServerEntityWorldChangeEvents.AfterPlayerChange { player, _, destination ->
@@ -317,6 +328,9 @@ object MystcraftReforged : ModInitializer {
             if (id.namespace == MOD_ID) {
                 val profile = AgeProfileManager.getOrGenerateProfile(destination.server, id)
                 ModMessages.sendDimensionSync(player, id, profile)
+                ReaperArrivalGrace.grant(
+                    player, MystcraftConfig.current.paradoxReaper.arrivalGraceSeconds
+                )
             }
         })
 
@@ -336,10 +350,18 @@ object MystcraftReforged : ModInitializer {
 
                 net.fabricmc.fabric.api.dimension.v1.FabricDimensions.teleport(newPlayer, targetWorld, teleportTarget)
                 PlayerSpawnMemory.restoreForCurrentWorld(newPlayer, respawnPos)
+                ReaperArrivalGrace.grant(
+                    newPlayer, MystcraftConfig.current.paradoxReaper.arrivalGraceSeconds
+                )
                 return@AfterRespawn
             }
 
             PlayerSpawnMemory.restoreForCurrentWorld(newPlayer)
+            if (newPlayer.serverWorld.registryKey.value.namespace == MOD_ID) {
+                ReaperArrivalGrace.grant(
+                    newPlayer, MystcraftConfig.current.paradoxReaper.arrivalGraceSeconds
+                )
+            }
         })
 
         ServerWorldEvents.UNLOAD.register { server, world ->

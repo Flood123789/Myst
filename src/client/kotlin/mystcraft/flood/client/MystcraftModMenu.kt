@@ -10,6 +10,8 @@ import mystcraft.flood.client.config.SkyLayerMode
 import mystcraft.flood.client.config.SkyRenderConfig
 import mystcraft.flood.client.config.SkyRenderMode
 import mystcraft.flood.client.config.SkyRenderSettings
+import mystcraft.flood.client.config.ReaperMountClientConfig
+import mystcraft.flood.client.config.ReaperMountClientSettings
 import mystcraft.flood.config.MystcraftConfig
 import net.minecraft.client.gui.screen.Screen
 import net.minecraft.text.Text
@@ -78,12 +80,67 @@ class MystcraftModMenu : ModMenuApi {
         pools.addEntry(entries.startStrList(Text.literal("Any symbol page IDs"), working.pagePools.blacklistedSymbolPages).setSaveConsumer { working.pagePools.blacklistedSymbolPages = it.toMutableList() }.build())
 
         val sky = addSkyCategory(builder, entries)
+        val mount = addReaperMountCategory(builder, entries)
 
         builder.setSavingRunnable {
             MystcraftConfig.replace(working)
             SkyRenderConfig.replace(sky)
+            ReaperMountClientConfig.apply(mount)
         }
         return builder.build()
+    }
+
+    /**
+     * Accessibility controls for riding a bound Reaper.
+     *
+     * A mount that walks up walls and across ceilings takes the horizon with it, and for anyone
+     * prone to motion sickness that is the difference between a usable feature and one they have
+     * to leave alone. These are client-only, take effect immediately, and are placed in the mod
+     * list rather than left in a config file because someone who needs them needs them now.
+     */
+    private fun addReaperMountCategory(
+        builder: ConfigBuilder,
+        entries: ConfigEntryBuilder
+    ): ReaperMountClientSettings {
+        val mount = ReaperMountClientConfig.snapshot()
+        val category = builder.getOrCreateCategory(Text.literal("Reaper Mount"))
+
+        category.addEntry(
+            entries.startBooleanToggle(Text.literal("Surface-aligned riding camera"), mount.bodyTrackingCamera)
+                .setDefaultValue(true)
+                .setTooltip(
+                    Text.literal("On: the view sits on the creature's body and turns with it, so a ceiling ride looks the way the Reaper sees it."),
+                    Text.literal("Off: a plain vanilla mount camera that stays level with the world. Turn this off for motion sickness.")
+                )
+                .setSaveConsumer { mount.bodyTrackingCamera = it }
+                .build()
+        )
+
+        category.addEntry(
+            entries.startDoubleField(Text.literal("Camera roll strength"), mount.cameraRollStrength)
+                .setMin(0.0).setMax(1.0)
+                .setDefaultValue(1.0)
+                .setTooltip(
+                    Text.literal("How much of the creature's roll the view takes. 1 follows it exactly; 0 keeps the horizon level."),
+                    Text.literal("A middle value is the gentle option: the seat still tracks the body, but the world only leans."),
+                    Text.literal("Ignored while the surface-aligned camera above is off.")
+                )
+                .setSaveConsumer { mount.cameraRollStrength = it }
+                .build()
+        )
+
+        category.addEntry(
+            entries.startBooleanToggle(Text.literal("Seat rider on the drawn body"), mount.seatFollowsBody)
+                .setDefaultValue(true)
+                .setTooltip(
+                    Text.literal("On: the rider sits in the glass shell wherever the legs have actually put it."),
+                    Text.literal("Off: the older fixed seat height, which floats above the body over uneven ground.")
+                )
+                .setSaveConsumer { mount.seatFollowsBody = it }
+                .build()
+        )
+
+        return mount
     }
 
     /**

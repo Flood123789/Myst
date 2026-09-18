@@ -1,0 +1,45 @@
+{
+  "name": "Paradox Reapers",
+  "icon": "mystcraft-reforged:black_decay",
+  "category": "mystcraft-reforged:instability",
+  "sortnum": 5,
+  "pages": [
+    {
+      "type": "text",
+      "title": "The Correction",
+      "text": "Write a bad Age and it notices. Not at once. Instability builds, decay creeps in, the world begins to rot, and somewhere in that rot the Age works out what the problem is.$(br2)You. Stable matter, in a place that cannot hold stable matter.$(br2)So it makes something to come and correct that."
+    },
+    {
+      "type": "entity",
+      "entity": "mystcraft-reforged:paradox_reaper",
+      "scale": 0.55,
+      "name": "Paradox Reaper",
+      "text": "Mostly glass. Draw one and see if your hand keeps steady."
+    },
+    {
+      "type": "text",
+      "title": "What It Is",
+      "text": "A cage of translucent lattice about a block across, with a knot of nebula suspended inside it — violet and magenta, and real stars in there, turning slowly. Two hard white points on the front where a face should be.$(br2)Six legs thinner than your arm and longer than its whole body, folded up above its back the way a spider's do before they come down to a needle point. A loose shell of little cubes drifts around it, never quite touching."
+    },
+    {
+      "type": "text",
+      "title": "How It Moves",
+      "text": "Nothing about it is animated in the ordinary sense. Its feet take hold of actual points in the world and stay there while the body slides past, then flick forward to a fresh grip.$(br2)It does not walk on the floor so much as on whatever is nearest — floor, wall, ceiling, all one thing to it. Watch one meet a wall at speed: it does not stop and it does not climb. It rolls onto the wall, body turning through the corner, and comes on without breaking stride."
+    },
+    {
+      "type": "text",
+      "title": "Down, Too",
+      "text": "The same trick works over an edge. Where the floor runs out it wraps around the lip and carries on down the outside face, head-first, as steadily as it crossed the ground above.$(br2)It $(o)can$() drop, and it will when a gap demands it. But a cliff is not a gap to a Reaper. A cliff is more floor at another angle.$(br2)Ceilings are its favourite. You will hear it before you think to look up."
+    },
+    {
+      "type": "text",
+      "title": "Dormant",
+      "text": "Dormant, you would walk straight past one. Dim, cubes pulled in tight, legs gathered under it, the body settled right down onto its perch — a smear of wet glass in the dark.$(br2)It lights up when it sees you. That is the moment: the nebula flares, the cubes swing out wide, and of a sudden there is a lantern coming at you across the roof of the cave."
+    },
+    {
+      "type": "text",
+      "title": "You Do Not Outrun It",
+      "text": "It moves at exactly a sprinting man's speed. Not nearly. $(o)Exactly$(). If your legs are hastened, so are its own — it takes the measure of you when the hunt begins.$(br2)You break line of sight, or you kill it. There is no third way, and running in a straight line is not a plan."
+    }
+  ]
+}

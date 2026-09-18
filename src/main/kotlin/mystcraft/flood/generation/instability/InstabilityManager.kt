@@ -44,6 +44,9 @@ object InstabilityManager {
         if (world.time % 20L != 0L) return
 
         processAgeEffect(world, profile)
+        // Reapers gate themselves on the same profile state checked below, but they run first so
+        // a hunt already in progress keeps being maintained even at scores with no other symptom.
+        ParadoxReaperSpawner.tick(world, profile)
         if (profile.stability.isStable || !profile.stability.effectsEnabled || profile.stability.instabilityScore <= 0) return
 
         val score = profile.stability.instabilityScore

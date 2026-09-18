@@ -47,3 +47,8 @@ replay_*.log
 
 # scratch downloads
 .tmp/
+backups/
+
+# Local tool caches and scratch (added 2026-09-18; never commit)
+.gradle-codex/
+.claude/

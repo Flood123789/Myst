@@ -21,6 +21,10 @@
   "item.mystcraft-reforged.folder_filled": "Filled Collation Folder",
   "item.mystcraft-reforged.glasses": "XComp's Glasses",
   "entity.mystcraft-reforged.descriptive_book_anchor": "Anchored Descriptive Book",
+  "entity.mystcraft-reforged.paradox_reaper": "Paradox Reaper",
+  "entity.mystcraft-reforged.little_anomaly": "Little Anomaly",
+  "entity.mystcraft-reforged.bound_reaper": "Bound Paradox Reaper",
+  "item.mystcraft-reforged.reaper_lure": "Reaper Lure (Debug)",
   "block.mystcraft-reforged.writingdesk": "Writing Desk",
   "block.mystcraft-reforged.editing_table": "Editing Table",
   "block.mystcraft-reforged.printing_table": "Printing Table",
@@ -38,5 +42,12 @@
   "block.mystcraft-reforged.crystal_portal": "Crystal Portal",
   "patchouli.mystcraft-reforged.guide_missing": "Patchouli is not installed. Install it to read the Mystcraft Primer.",
   "subtitles.mystcraft-reforged.age_enter": "Age opens",
-  "subtitles.mystcraft-reforged.age_leave": "Age closes"
+  "subtitles.mystcraft-reforged.age_leave": "Age closes",
+  "message.mystcraft-reforged.reaper_grace": "The Age has not noticed you yet (%s seconds)",
+  "message.mystcraft-reforged.reaper_bound": "The Reaper accepts the binding",
+  "message.mystcraft-reforged.reaper_binding_cost": "This Reaper requires %s Echo Shards",
+  "message.mystcraft-reforged.reaper_healed": "The Reaper absorbs %s health",
+  "message.mystcraft-reforged.reaper_command.follow": "Reaper command: Follow",
+  "message.mystcraft-reforged.reaper_command.stay": "Reaper command: Stay",
+  "message.mystcraft-reforged.reaper_command.wander": "Reaper command: Wander nearby"
 }
